@@ -370,6 +370,13 @@ pub struct PolicyConfig {
     pub duplicate_similarity: f64,
     /// Cosine at/above which two unlinked nodes become a suspected conflict.
     pub conflict_suspect_similarity: f64,
+    /// Second path into the suspect queue: below the similarity floor, a
+    /// pair whose bare TITLES the logic layer reads as contradicting at or
+    /// above this confidence — and which name the same subject and share
+    /// content words beyond it — is nominated anyway. `null` turns the path
+    /// off. See [`crate::policy::CONFLICT_NLI_GATE`].
+    #[serde(default = "default_conflict_nli_gate")]
+    pub conflict_nli_gate: Option<f64>,
     /// Similarity at/above which a write warns about conflicted/superseded
     /// neighbors.
     pub warn_similarity: f64,
@@ -483,6 +490,10 @@ fn default_weak_evidence_top() -> f64 {
     crate::policy::WEAK_EVIDENCE_TOP
 }
 
+fn default_conflict_nli_gate() -> Option<f64> {
+    Some(crate::policy::CONFLICT_NLI_GATE)
+}
+
 fn default_knee_cliff() -> Option<f64> {
     Some(crate::policy::KNEE_MIN_CLIFF)
 }
@@ -540,6 +551,7 @@ impl Default for PolicyConfig {
             decay_ttl_days: DECAY_TTL_DAYS,
             duplicate_similarity: DUPLICATE_SIMILARITY,
             conflict_suspect_similarity: CONFLICT_SUSPECT_SIMILARITY,
+            conflict_nli_gate: Some(CONFLICT_NLI_GATE),
             warn_similarity: WARN_SIMILARITY,
             nli_sweep_min_confidence: NLI_SWEEP_MIN_CONFIDENCE as f64,
             keyword_weight: SEARCH_KEYWORD_WEIGHT,
@@ -1646,6 +1658,11 @@ impl GraphConfig {
             if !(0.0..=1.0).contains(&value) {
                 return fail(format!("policy.{name} {value} out of 0..=1"));
             }
+        }
+        if let Some(g) = p.conflict_nli_gate
+            && !(0.0..=1.0).contains(&g)
+        {
+            return fail(format!("policy.conflict_nli_gate {g} out of 0..=1"));
         }
         if let Some(c) = p.knee_cliff {
             if !(0.0..=1.0).contains(&c) {

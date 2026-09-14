@@ -5,7 +5,7 @@ body of its GitHub Release (draft-release.yml lifts it automatically).
 
 ## v0.9.4
 
-### Hits name their role, code refs are yours, and the bench grew three ways
+### Hits name their role, code refs are yours, and the bench grew four ways
 
 - **Search hits carry the tombstone role.** A hit that plays the graph's
   tombstone role now carries `tombstone: true`, on REST as well as MCP, so
@@ -25,6 +25,37 @@ body of its GitHub Release (draft-release.yml lifts it automatically).
   case add what the benchmark lacks: engram declines all 3,000 where the
   reference answers all, and its scores separate real from never-inscribed
   at 0.80–0.90. `eval/forgeteval/README.md` has the honest reading.
+- **KnowledgeDrift** (`eval/knowledgedrift/`): an offline, judge-free
+  benchmark for AI memory in software development — one seeded, invented
+  project poured through a ten-operation protocol, then questioned,
+  re-decided, contradicted, deleted and asked again across eight task
+  families (retrieval with 10% stale-sibling pollution, abstention,
+  currency and lineage, a three-tier contradiction ladder with negatives,
+  drift, deletion honesty and resurrection, rationale, temporal). Success
+  = passed over every task posed (a family a system cannot attempt counts
+  as failed), beside a macro composite and an attention-multiplied score.
+  Six in-process arms and two external adapters (Mem0, LangMem) on the
+  official 500/1500 ladder: engram 85% / 80% (score 511 / 459), LangMem
+  63% / 57% (51 / 52), Mem0 58% / 55% (45 / 47), grep 53% / 51%; three
+  seeds at 500 put every arm within about a point; `--pollution-shape
+  twin|late` shows no ranker separates a hint-less stale twin
+  (`stale_above` 0.64) while the drift queue notices 98% of them.
+  `eval/knowledgedrift/README.md` is the internals, `WRITEUP.md` the
+  reading.
+- **Contradictions queue on their titles.** The suspect scan had one way
+  in: two notes at or above the similarity floor. Similarity cannot tell a
+  contradiction from an agreeing restatement, so a note that flatly
+  contradicted another in different words never reached the judge. Below
+  the floor the logic layer now reads the two bare titles, and a confident
+  contradiction between titles that name the same subject and share the
+  claim's own words queues too (`policy.conflict_nli_gate`, default 0.80,
+  `null` = off; the pane's Graph settings carry it as "title contradiction",
+  0 = off). Measured on KnowledgeDrift at 500 notes: the contradiction
+  family 58% → 75% (tier-1 recall 0.06 → 0.94), drifted siblings noticed
+  53% → 91%, false alarms only on "this is history" traps — and, re-measured
+  against the 56 false alarms a first, looser version of the rule raised on
+  this repository's own graph in one sweep, 4 of 56. Auto-tune's similarity
+  dial ignores what this path raised.
 - **The ladder learns history and collisions.** `--history` puts every note
   in a session with a turn index and scores an answer reachable through a
   delivered session-mate (`reach@5`): worth +0.07 at depth five for rag and

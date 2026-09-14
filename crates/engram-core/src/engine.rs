@@ -1273,6 +1273,11 @@ impl Engine {
             .store
             .all_suspects()?
             .into_iter()
+            // Only pairs the SIMILARITY path could have raised inform the
+            // similarity dial: the NLI path (0.9.4) nominates below the
+            // floor, and letting those verdicts into the fit would drag the
+            // floor toward the NLI band it never reads.
+            .filter(|s| s.similarity >= AUTO_TUNE_FLOOR_MIN)
             .filter_map(|s| match s.status {
                 SuspectStatus::Confirmed => Some((s.similarity, true)),
                 SuspectStatus::Dismissed => Some((s.similarity, false)),
@@ -4225,13 +4230,26 @@ impl Engine {
         if is_anchor(&cfg, node) || is_tombstone(&cfg, node) || node.valid_until.is_some() {
             return Ok(0);
         }
+        // Two ways in (0.9.4). Above the similarity floor a pair is a
+        // look-alike and queues on similarity alone, hinted by the claim
+        // text. Below it — down to the NLI floor — the logic layer reads the
+        // two bare TITLES, and a confident contradiction between titles that
+        // plausibly name the same subject queues too. Similarity alone
+        // cannot tell a contradiction from an agreeing restatement (MemStrata
+        // AUROC 0.59; the KnowledgeDrift gate probe reproduced it), and a
+        // note's first body sentence only dilutes what the titles say.
+        let nli_gate = cfg.policy.conflict_nli_gate.filter(|_| self.nli.is_some());
+        let floor = match nli_gate {
+            Some(_) => crate::policy::CONFLICT_NLI_FLOOR,
+            None => cfg.policy.conflict_suspect_similarity,
+        };
         let mut added = 0;
         for (id, distance) in self.store.search_vec(vec, WRITE_CHECK_K)? {
             if id == node.id {
                 continue;
             }
             let similarity = 1.0 - distance;
-            if similarity < cfg.policy.conflict_suspect_similarity {
+            if similarity < floor {
                 break; // distance-ordered: nothing closer follows
             }
             let Some(other) = self.store.get_node(&id)? else {
@@ -4245,12 +4263,26 @@ impl Engine {
             {
                 continue;
             }
+            let hint = if similarity >= cfg.policy.conflict_suspect_similarity {
+                self.nli_hint(node, &other)
+            } else {
+                let Some(gate) = nli_gate else { continue };
+                if !same_subject(&node.title, &other.title)
+                    || content_overlap(&node.title, &other.title)
+                        < crate::policy::CONFLICT_NLI_OVERLAP
+                {
+                    continue;
+                }
+                match self.nli_title_hint(node, &other) {
+                    Some(h) if h.0 == "contradiction" && h.1 >= gate => Some(h),
+                    _ => continue,
+                }
+            };
             let (newer, older) = if node.created_at >= other.created_at {
                 (&node.id, &other.id)
             } else {
                 (&other.id, &node.id)
             };
-            let hint = self.nli_hint(node, &other);
             self.store.add_suspect(newer, older, similarity, hint)?;
             added += 1;
         }
@@ -4276,34 +4308,24 @@ impl Engine {
         a: &Node,
         b: &Node,
     ) -> Option<(&'static str, f64, Option<&'static str>)> {
-        const DIRECTION_MARGIN: f32 = 0.15;
         let nli = self.nli.as_ref()?;
         let sym = nli.judge_pair(&claim(a), &claim(b)).ok()?;
-        let (label, score) = sym.hint();
-        let direction = if label == "contradiction" {
-            // forward = (a premise → b hypothesis): high forward
-            // contradiction reads b as the negated claim.
-            let carrier = if sym.forward.contradiction
-                >= sym.backward.contradiction + DIRECTION_MARGIN
-            {
-                Some(b)
-            } else if sym.backward.contradiction >= sym.forward.contradiction + DIRECTION_MARGIN {
-                Some(a)
-            } else {
-                None
-            };
-            let a_is_newer = a.created_at >= b.created_at;
-            carrier.map(|c| {
-                if std::ptr::eq(c, a) == a_is_newer {
-                    "newer"
-                } else {
-                    "older"
-                }
-            })
-        } else {
-            None
-        };
-        Some((label, score as f64, direction))
+        Some(hint_with_direction(&sym, a, b))
+    }
+
+    /// The same hint read off the two bare TITLES (0.9.4) — the text of the
+    /// claim itself, without the first body sentence [`claim`] appends. On
+    /// the KnowledgeDrift gate probe the titles separated contradiction from
+    /// restatement far more sharply than the claim text (negation 0.99 vs
+    /// 0.61); this is what the below-floor nomination path reads.
+    pub fn nli_title_hint(
+        &self,
+        a: &Node,
+        b: &Node,
+    ) -> Option<(&'static str, f64, Option<&'static str>)> {
+        let nli = self.nli.as_ref()?;
+        let sym = nli.judge_pair(a.title.trim(), b.title.trim()).ok()?;
+        Some(hint_with_direction(&sym, a, b))
     }
 
     /// The pending queue, ready for judgment.
@@ -4654,6 +4676,187 @@ pub(crate) fn claim_texts(title: &str, body: Option<&str>) -> Vec<String> {
 /// skill-enforced title, plus the body's first sentence when it adds context.
 /// Claim-level on purpose — whole multi-claim bodies dilute a sentence-pair
 /// model past usefulness, however large its context window.
+/// Label, confidence and — for contradictions — which SIDE carries the
+/// negation, mapped to `"newer"`/`"older"` by the nodes' own timestamps: the
+/// side that, judged as the hypothesis, contradicts hardest. Absent under a
+/// 0.15 asymmetry margin — near-symmetric contradictions carry no direction
+/// worth showing.
+fn hint_with_direction(
+    sym: &crate::nli::SymmetricJudgment,
+    a: &Node,
+    b: &Node,
+) -> (&'static str, f64, Option<&'static str>) {
+    const DIRECTION_MARGIN: f32 = 0.15;
+    let (label, score) = sym.hint();
+    let direction = if label == "contradiction" {
+        // forward = (a premise → b hypothesis): high forward contradiction
+        // reads b as the negated claim.
+        let carrier = if sym.forward.contradiction >= sym.backward.contradiction + DIRECTION_MARGIN
+        {
+            Some(b)
+        } else if sym.backward.contradiction >= sym.forward.contradiction + DIRECTION_MARGIN {
+            Some(a)
+        } else {
+            None
+        };
+        let a_is_newer = a.created_at >= b.created_at;
+        carrier.map(|c| {
+            if std::ptr::eq(c, a) == a_is_newer {
+                "newer"
+            } else {
+                "older"
+            }
+        })
+    } else {
+        None
+    };
+    (label, score as f64, direction)
+}
+
+/// Sentence starters that are capitalised for being first, not for being a
+/// name — a title's first word is a subject candidate only when it is not
+/// one of these.
+const SUBJECT_STARTERS: [&str; 40] = [
+    "it", "in", "the", "until", "every", "before", "after", "when", "if", "a", "an", "on", "at",
+    "for", "to", "not", "no", "never", "always", "there", "this", "that", "these", "those", "we",
+    "our", "one", "all", "any", "some", "use", "do", "under", "since", "while", "with", "without",
+    "as", "by", "from",
+];
+
+/// Capitalised tokens that could name what a title is about.
+fn subject_tokens(title: &str) -> std::collections::HashSet<String> {
+    title
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .enumerate()
+        .filter(|(i, w)| {
+            w.chars().next().is_some_and(char::is_uppercase)
+                && !(*i == 0 && SUBJECT_STARTERS.contains(&w.to_lowercase().as_str()))
+        })
+        .map(|(_, w)| w.to_lowercase())
+        .collect()
+}
+
+/// Do two titles speak about the same named thing? The co-reference guard
+/// for NLI: MNLI-trained models presuppose the premise and hypothesis
+/// co-refer, so "Kelnor broker uses 7" against "Vanor broker uses 19" reads
+/// as a contradiction when it is two facts about two things (RefNLI). Both
+/// titles must name a subject and share one. The lenient form — "no name on
+/// either side, let the model decide" — shipped for one sweep of the
+/// dogfood graph and raised 56 false alarms, most of them pairs of release
+/// notes with no name at all; a title that names nothing gets no NLI
+/// nomination.
+pub(crate) fn same_subject(a: &str, b: &str) -> bool {
+    let (sa, sb) = (subject_tokens(a), subject_tokens(b));
+    !sa.is_empty() && !sb.is_empty() && !sa.is_disjoint(&sb)
+}
+
+/// Function words that carry no claim, for the overlap count.
+const CONTENT_STOP: [&str; 60] = [
+    "the",
+    "a",
+    "an",
+    "is",
+    "are",
+    "was",
+    "were",
+    "it",
+    "its",
+    "in",
+    "on",
+    "of",
+    "for",
+    "to",
+    "and",
+    "or",
+    "that",
+    "this",
+    "what",
+    "which",
+    "who",
+    "how",
+    "did",
+    "does",
+    "do",
+    "we",
+    "our",
+    "us",
+    "you",
+    "be",
+    "been",
+    "with",
+    "from",
+    "by",
+    "at",
+    "as",
+    "if",
+    "not",
+    "no",
+    "yes",
+    "about",
+    "into",
+    "than",
+    "then",
+    "so",
+    "up",
+    "case",
+    "every",
+    "without",
+    "exception",
+    "any",
+    "all",
+    "one",
+    "until",
+    "after",
+    "before",
+    "has",
+    "have",
+    "had",
+    "never",
+];
+
+/// Content words two titles share beyond their subject: the titles' common
+/// leading words — at most three, the subject phrase — are stripped first
+/// (a multi-word subject such as "Kelnor lease broker" is not a shared
+/// claim), then lowercase alphanumeric runs
+/// of three or more characters — function words and subject tokens out —
+/// are compared on their first five characters so `attempt` and `attempts`
+/// agree. A restated claim shares its parameter or predicate; two
+/// unrelated facts about one subject share the subject and nothing else.
+pub(crate) fn content_overlap(a: &str, b: &str) -> usize {
+    let toks = |t: &str| -> Vec<String> {
+        t.split(|c: char| !c.is_alphanumeric())
+            .filter(|w| !w.is_empty())
+            .map(|w| w.to_lowercase())
+            .collect()
+    };
+    let (ta, tb) = (toks(a), toks(b));
+    // The subject phrase is the common prefix, capped at three words: past
+    // that a shared prefix is the claim itself with a clause appended, and
+    // the claim's words must stay in the count.
+    let prefix = ta
+        .iter()
+        .zip(&tb)
+        .take_while(|(x, y)| x == y)
+        .count()
+        .min(3);
+    let subject: std::collections::HashSet<String> = subject_tokens(a)
+        .union(&subject_tokens(b))
+        .cloned()
+        .collect();
+    let words = |t: &[String]| -> std::collections::HashSet<String> {
+        t.iter()
+            .filter(|w| {
+                w.len() >= 3 && !CONTENT_STOP.contains(&w.as_str()) && !subject.contains(*w)
+            })
+            .map(|w| w.chars().take(5).collect())
+            .collect()
+    };
+    words(&ta[prefix..])
+        .intersection(&words(&tb[prefix..]))
+        .count()
+}
+
 fn claim(node: &Node) -> String {
     let mut text = node.title.trim().to_string();
     if let Some(body) = node.body.as_deref() {

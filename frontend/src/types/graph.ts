@@ -580,6 +580,7 @@ export interface PolicyConfig {
     decay_ttl_days: number
     duplicate_similarity: number
     conflict_suspect_similarity: number
+    conflict_nli_gate: number | null
     warn_similarity: number
     nli_sweep_min_confidence: number
     /** Post-rerank hits under this score are trimmed before delivery. */

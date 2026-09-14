@@ -1032,7 +1032,20 @@ Problem-open, with both alternatives now priced instead of promised.
 
 Everything above grades retrieval. This cycle added two benches that grade
 something else: whether the memory *forgets* what it was told to forget,
-and whether an agent *acts* on what it recalls.
+and whether an agent *acts* on what it recalls — and then, on 2026-09-13,
+folded everything this page measures in isolation into one scripted
+benchmark with a headline number: **[KnowledgeDrift](knowledgedrift/README.md)**
+(`cargo run -p knowledgedrift --features fastembed`), a separate crate under
+`eval/knowledgedrift/` with its own README and receipts
+(`results/*-knowledgedrift-*`). Its first run found the suspect queue
+raising none of its planted contradictions, and its gate probe produced the
+0.9.4 title-contradiction path (`CONTRADICTIONS.md`, top section). The
+official ladder is 500 and 1500 notes, and Mem0 and LangMem run as
+external arms through `knowledgedrift/adapters/`: engram 85% / 80% success
+(score 511 / 459), LangMem 63% / 57%, Mem0 58% / 55%, grep 53% / 51%; three
+seeds at 500 hold every arm within about a point, and two extra pollution
+shapes show no ranker separates a hint-less stale twin while the drift
+queue notices 98% of them (`knowledgedrift/WRITEUP.md`).
 
 ### ForgetEval — five families, two readers, never one score
 
@@ -1346,6 +1359,7 @@ Results will be added here once they are measured.
 | `CONTRADICTIONS.md` | the logic layer's own metric — the model swap, the gate, the real-graph check |
 | `online.rs` | the online half's contract |
 | `rng.rs` | seeded splitmix64 — every run reproduces from `--seed` |
+| `knowledgedrift/` | **KnowledgeDrift** — its own crate: one scripted world, ten-operation adapter protocol, eight task families (retrieval, abstention, currency, contradiction ladder, drift, deletion, rationale, temporal) graded pass/fail, six in-process arms, `--export`/`--grade` for external adapters; see its README |
 
 To isolate density from corpus size, hold `--sizes` fixed and vary
 `--distractors`: the tested facts and their questions stay byte-identical while

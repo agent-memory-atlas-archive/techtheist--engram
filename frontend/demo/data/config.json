@@ -267,6 +267,7 @@
         "decay_ttl_days": 14,
         "duplicate_similarity": 0.9,
         "conflict_suspect_similarity": 0.8897531032562256,
+        "conflict_nli_gate": 0.8,
         "warn_similarity": 0.7,
         "nli_sweep_min_confidence": 0.800000011920929,
         "keyword_weight": 0.15,

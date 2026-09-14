@@ -1874,6 +1874,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "knowledgedrift"
+version = "0.9.4"
+dependencies = [
+ "anyhow",
+ "engram-core",
+ "engram-eval",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "kqueue"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

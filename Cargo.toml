@@ -6,6 +6,7 @@ members = [
     "crates/engram-mcp",
     "crates/engram-cli",
     "eval",
+    "eval/knowledgedrift",
 ]
 
 [workspace.package]

@@ -76,6 +76,41 @@ pub const DUPLICATE_SIMILARITY: f64 = 0.90;
 /// every observed false positive, keeps the real one. Positive class is thin
 /// (n=1), so widen only after the judged-suspects corpus grows.
 pub const CONFLICT_SUSPECT_SIMILARITY: f64 = 0.88;
+/// The second way into the suspect queue (0.9.4): a pair BELOW the
+/// similarity floor is still nominated when the logic layer reads the two
+/// TITLES as contradicting each other at or above this confidence and the
+/// titles plausibly name the same subject. Measured on the KnowledgeDrift
+/// gate probe (2026-09-13, 100-note world, real models): no similarity
+/// channel separates a planted contradiction from an agreeing restatement
+/// (positives 0.69–0.80 cosine, negatives 0.71–0.73 — MemStrata's AUROC
+/// 0.59, reproduced), while NLI on the bare titles scores negations 0.99,
+/// quantifier flips 0.91, value flips 0.80 and paraphrases 0.13; the first
+/// body sentence the claim text appends only dilutes it (0.61 / 0.61 /
+/// 0.71). The first live sweep on the dogfood graph then raised 56 false
+/// alarms at a 0.70 gate with a lenient subject guard — release notes and
+/// "two facts about one subject" pairs, which an MNLI model reads as
+/// contradictions because every detail differs. Re-measured against those
+/// 56 beside the planted cases (gate probe, 2026-09-13): the strict subject
+/// guard + [`CONFLICT_NLI_OVERLAP`] shared content words + this gate keeps
+/// every raisable planted positive (8/15), 8/10 drifted siblings, and lets
+/// 1 of the 56 real false alarms through. `None` in config turns the path
+/// off.
+pub const CONFLICT_NLI_GATE: f64 = 0.80;
+/// Content words the two titles must share beyond their subject before the
+/// NLI path may nominate them: a contradiction restates a claim (the same
+/// parameter, the same predicate) with a different value or polarity; two
+/// unrelated facts about one subject share the subject and nothing else,
+/// and that is the shape that flooded the queue. Counted after the titles'
+/// common leading words (the subject phrase) are stripped, on the first
+/// five characters of each word so `attempt` and `attempts` agree; one
+/// shared word is enough because a value flip may keep only its unit.
+pub const CONFLICT_NLI_OVERLAP: usize = 1;
+/// Candidates for the NLI path must still be this similar: below it the two
+/// notes are not even about the same neighbourhood, and every NLI call
+/// costs ~16 ms (two cross-encoder passes). The planted positives sat at
+/// 0.64+ full-note cosine; the transitive tier-3 cases at 0.48 are the ones
+/// this floor gives up, by design.
+pub const CONFLICT_NLI_FLOOR: f64 = 0.50;
 /// Auto-tune — per-graph calibration of the conflict floor from judged
 /// history — engages only past this many current notes; smaller graphs keep
 /// the benchmark-calibrated defaults (user decision 2026-08-03). The 0.88

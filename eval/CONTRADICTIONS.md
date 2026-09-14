@@ -24,6 +24,35 @@ ENGRAM_NLI_DIR=~/.cache/engram/mobilebert-uncased-mnli \
 cargo run -p engram-eval --features fastembed -- --real-graph /tmp/graph-copy.tepin
 ```
 
+## 0.9.4 — the queue learns to read titles
+
+Everything below scores `check_claim` — the layer that judges a claim
+against what retrieval hands it. The *other* place the logic layer works is
+the suspect queue, and until 0.9.4 it never got a say in who entered it:
+a pair queued on cosine similarity alone (`conflict_suspect_similarity`,
+0.88), and the NLI only labelled what similarity had already chosen. The
+KnowledgeDrift gate probe (`eval/knowledgedrift/examples/gate_probe.rs`)
+showed why that missed every planted contradiction: cosine puts a flatly
+contradicting restatement and an agreeing one at the same distance
+(positives 0.69–0.80, negatives 0.71–0.73), while the NLI read on the two
+bare **titles** separates them (negation 0.99, quantifier flip 0.91, value
+flip 0.80 against paraphrase 0.13) — far better than on the claim text
+this file's own metric uses, because the first body sentence dilutes the
+pair. Its blind spots are co-reference (two subjects, 0.95 — the RefNLI
+failure the 0.8.1 swap was chosen against) and, on real prose, two
+unrelated facts about one subject: the first version of the path (gate
+0.70, a guard that let subject-less titles through) raised 56 false alarms
+on this repo's own graph in one sweep, mostly pairs of release notes an MNLI
+model reads as contradictions because every detail differs. The probe was
+re-run with those 56 rows beside the planted cases, and the path now
+carries two guards: both titles must name a subject and share one, and
+past the subject phrase they must share a content word of the claim itself.
+Shipped as `policy.conflict_nli_gate` (0.80, `null` off); on the four
+populations the rule keeps 8 of 15 planted positives, 8 of 10 drifted
+siblings, lets 4 of the 56 real false alarms through and flags only the
+"until the rollout …" history traps among the planted negatives. See
+`eval/knowledgedrift/README.md`.
+
 ## 0.8.1 — the tasksource swap (current)
 
 The complaint that triggered this round was live and specific: `check_claim`

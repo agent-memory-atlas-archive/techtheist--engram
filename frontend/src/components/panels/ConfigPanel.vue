@@ -457,7 +457,7 @@ const policyWords = computed(() => {
         `A fresh assistant note starts at ${pct(p.trust_created)} trust; a deliberate edit or "confirm still true" lifts it to ${pct(p.trust_confirmed)}; your approval sets it to ${pct(p.trust_approved)}.`,
         `Unapproved episodic notes fade toward ${pct(p.trust_floor)} over ${humanDays(p.episodic_window_days)}; volatile ones over ${humanDays(p.volatile_window_days)}. Approved notes settle at ${pct(p.trust_approved_floor)} over ${humanDays(p.approved_window_days)}. Stable knowledge never fades with time — only judged contradictions demote it.`,
         `Below ${pct(p.stale_trust)} a note reads as stale; once it has been stale ${humanDays(p.decay_ttl_days)}, the decay pass archives it (assistant-authored, unapproved, unpinned only).`,
-        `Writes ${pct(p.duplicate_similarity)} similar to an existing same-type note merge instead of duplicating; ${pct(p.conflict_suspect_similarity)}–${pct(p.duplicate_similarity)} pairs queue as suspected conflicts; anything above ${pct(p.warn_similarity)} near contradicted or superseded knowledge warns the writer. The NLI sweep only queues pairs it is ${pct(p.nli_sweep_min_confidence)} sure about.`,
+        `Writes ${pct(p.duplicate_similarity)} similar to an existing same-type note merge instead of duplicating; ${pct(p.conflict_suspect_similarity)}–${pct(p.duplicate_similarity)} pairs queue as suspected conflicts; anything above ${pct(p.warn_similarity)} near contradicted or superseded knowledge warns the writer. The NLI sweep only queues pairs it is ${pct(p.nli_sweep_min_confidence)} sure about.${p.conflict_nli_gate != null ? ` Below the similarity floor, a pair whose titles the logic layer reads as contradicting at ${pct(p.conflict_nli_gate)} or more — and that name the same subject — still queues.` : ' The title-contradiction path is off (gate 0).'}`,
     ]
 })
 
@@ -488,6 +488,15 @@ const kneeCliff = computed({
     get: () => draft.value?.policy.knee_cliff ?? 0.25,
     set: (v: number) => {
         if (draft.value) draft.value.policy.knee_cliff = v
+    },
+})
+// The title-contradiction gate: a null gate is the path switched off, and
+// the stepper shows that as 0 — a gate of zero would queue every judged pair,
+// so zero has no other meaning to lose.
+const nliGate = computed({
+    get: () => draft.value?.policy.conflict_nli_gate ?? 0,
+    set: (v: number) => {
+        if (draft.value) draft.value.policy.conflict_nli_gate = v > 0 ? v : null
     },
 })
 
@@ -894,6 +903,7 @@ const kneeCliff = computed({
                 <label>suspect ≥ <StepperInput v-model="draft.policy.conflict_suspect_similarity" :step="0.01" :max="1" aria-label="suspect similarity" /></label>
                 <label>warn ≥ <StepperInput v-model="draft.policy.warn_similarity" :step="0.01" :max="1" aria-label="warn similarity" /></label>
                 <label>NLI gate ≥ <StepperInput v-model="draft.policy.nli_sweep_min_confidence" :step="0.05" :max="1" aria-label="NLI gate" /></label>
+                <label>title contradiction ≥ <StepperInput v-model="nliGate" :step="0.05" :max="1" aria-label="title contradiction gate (0 = off)" /></label>
             </div>
             <p v-for="(line, i) in policyWords" :key="i" class="hint words">{{ line }}</p>
         </section>
