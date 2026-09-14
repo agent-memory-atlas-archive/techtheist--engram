@@ -3,28 +3,10 @@
 Release notes for Engram Alpha. Each release's section below becomes the
 body of its GitHub Release (draft-release.yml lifts it automatically).
 
-## v0.9.4
+## v0.9.5
 
-### Hits name their role, code refs are yours, and the bench grew four ways
+### The bench fixed the product, then became a product
 
-- **Search hits carry the tombstone role.** A hit that plays the graph's
-  tombstone role now carries `tombstone: true`, on REST as well as MCP, so
-  "Removed: X" is never mistaken for a memory of X — whatever the type is
-  called in a custom ontology. Absent when false.
-- **A zero knee cliff is refused.** `policy.knee_cliff: 0` was accepted and
-  meant the harshest trim, not off. The config refuses it and names `null`
-  as the off switch.
-- **Code refs are editable in the pane.** One ref per line in the node
-  drawer and the create panel; an empty field clears them. Checkup lists
-  notes with drifted refs and opens them.
-- **ForgetEval, per family and with a "no".** The judge-free forgetting
-  benchmark (arXiv:2606.15903) runs against engram over HTTP and is
-  reported per family with two readers — the tombstone marker is meant to
-  stay findable, so decay and amnesia read 0% role-blind and 100% / 92%
-  role-aware, the rest at 99–100%. Three never-inscribed control probes per
-  case add what the benchmark lacks: engram declines all 3,000 where the
-  reference answers all, and its scores separate real from never-inscribed
-  at 0.80–0.90. `eval/forgeteval/README.md` has the honest reading.
 - **KnowledgeDrift** (`eval/knowledgedrift/`): an offline, judge-free
   benchmark for AI memory in software development — one seeded, invented
   project poured through a ten-operation protocol, then questioned,
@@ -59,6 +41,29 @@ body of its GitHub Release (draft-release.yml lifts it automatically).
   against the 56 false alarms a first, looser version of the rule raised on
   this repository's own graph in one sweep, 4 of 56. Auto-tune's similarity
   dial ignores what this path raised.
+
+## v0.9.4
+
+### Hits name their role, code refs are yours, and the bench grew three ways
+
+- **Search hits carry the tombstone role.** A hit that plays the graph's
+  tombstone role now carries `tombstone: true`, on REST as well as MCP, so
+  "Removed: X" is never mistaken for a memory of X — whatever the type is
+  called in a custom ontology. Absent when false.
+- **A zero knee cliff is refused.** `policy.knee_cliff: 0` was accepted and
+  meant the harshest trim, not off. The config refuses it and names `null`
+  as the off switch.
+- **Code refs are editable in the pane.** One ref per line in the node
+  drawer and the create panel; an empty field clears them. Checkup lists
+  notes with drifted refs and opens them.
+- **ForgetEval, per family and with a "no".** The judge-free forgetting
+  benchmark (arXiv:2606.15903) runs against engram over HTTP and is
+  reported per family with two readers — the tombstone marker is meant to
+  stay findable, so decay and amnesia read 0% role-blind and 100% / 92%
+  role-aware, the rest at 99–100%. Three never-inscribed control probes per
+  case add what the benchmark lacks: engram declines all 3,000 where the
+  reference answers all, and its scores separate real from never-inscribed
+  at 0.80–0.90. `eval/forgeteval/README.md` has the honest reading.
 - **The ladder learns history and collisions.** `--history` puts every note
   in a session with a turn index and scores an answer reachable through a
   delivered session-mate (`reach@5`): worth +0.07 at depth five for rag and
