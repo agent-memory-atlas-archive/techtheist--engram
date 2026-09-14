@@ -41,7 +41,10 @@ body of its GitHub Release (draft-release.yml lifts it automatically).
   twin|late` shows no ranker separates a hint-less stale twin
   (`stale_above` 0.64) while the drift queue notices 98% of them.
   `eval/knowledgedrift/README.md` is the internals, `WRITEUP.md` the
-  reading.
+  reading, and the benchmark now lives as its own repository —
+  [KnowledgeDrift v1](https://github.com/techtheist/knowledgedrift) — with
+  the worlds frozen, the grader dependency-free, and adapters and results
+  accepted by pull request.
 - **Contradictions queue on their titles.** The suspect scan had one way
   in: two notes at or above the similarity floor. Similarity cannot tell a
   contradiction from an agreeing restatement, so a note that flatly
