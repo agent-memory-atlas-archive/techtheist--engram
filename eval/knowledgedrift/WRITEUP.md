@@ -176,11 +176,11 @@ claim text and on the bare titles; subject and content-word guards;
 reranker score; length — over the planted positives, the planted negatives,
 and later the 56 false alarms the first fix raised on the product's own
 graph. What survived all four populations is the title-contradiction path
-that shipped in 0.9.4 (`policy.conflict_nli_gate`, default 0.80):
+that shipped in 0.9.5 (`policy.conflict_nli_gate`, default 0.80):
 
 | | contradiction | drift | success | score |
 |---|---|---|---|---|
-| @500, similarity-gated queue (pre-0.9.4) | 58% (t1 0.06) | 53% | 83% | 472 |
+| @500, similarity-gated queue (pre-0.9.5) | 58% (t1 0.06) | 53% | 83% | 472 |
 | @500, + title path | **75%** (t1 0.94) | **91%** | **85%** | **511** |
 | @1500, similarity-gated queue | 59% (t1 0.04) | 47% | 78% | 420 |
 | @1500, + title path | **75%** (t1 0.78) | **91%** | **80%** | **459** |

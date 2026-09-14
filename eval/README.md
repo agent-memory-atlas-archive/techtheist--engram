@@ -24,6 +24,44 @@ sections — open the one you want.
 
 ---
 
+## KnowledgeDrift v1 — everything below, in one script
+
+Since 0.9.5 the harness has a headline: **[KnowledgeDrift](https://github.com/techtheist/knowledgedrift)**,
+an offline, judge-free benchmark that folds this page's families — retrieval
+under stale-sibling pollution, abstention, supersession currency and
+lineage, a three-tier contradiction ladder with negatives, drift nobody
+announced, deletion honesty and resurrection, rationale through edges,
+temporal scoping — into one scripted world and grades every probe by a rule.
+It lives in its own repository (frozen v1 worlds, dependency-free grader,
+Python adapter protocol, submissions by pull request); the crate under
+`eval/knowledgedrift/` is the same code and the receipts are
+`results/2026-09-14-knowledgedrift-*`. Full story in
+[0.9.5](#095--knowledgedrift-v1-and-the-bench-that-fixed-the-product).
+
+**Success** = passed / every task posed (a family a system cannot attempt
+counts as failed); **score** = 100 × macro composite × clamp(10·S, 0.1, 10),
+where S is the share of delivered tokens that were the answer. Three seeds
+at 500 tested facts, mean (min–max); same bge-small embedder for every arm,
+no LLM anywhere in the loop:
+
+| arm | success | score | tok/query |
+|---|---|---|---|
+| **engram 0.9.5** | **85% (84–85)** | **525 (511–543)** | ~260 |
+| LangMem 0.0.30 (store + semantic index) | 63% (61–66) | 52 (51–54) | ~2,300 |
+| rag (pure vectors) | 63% (61–66) | 52 (51–54) | ~2,300 |
+| Mem0 2.0.20 (`infer=False`) | 59% (57–61) | 46 (45–48) | ~2,600 |
+| grep | 53% (51–55) | 43 (42–44) | ~2,600 |
+| whole file in context | 71% (69–74) | 5 (5–5) | ~134,000 |
+| curated-file 3k | 9% (9–9) | 4 (4–4) | ~2,900 |
+
+At 1500 facts (seed 1): engram 80% / 459, LangMem and rag 57% / 52, Mem0
+55% / 47, grep 51% / 43. Three flat stores given the same vectors are one
+system; engram's lead is not recall (the flat stores match its R@5) but
+abstention, rationale, the suspect queue, the resurrection warning, and an
+eighth of the tokens per answer.
+
+---
+
 ## Against every baseline
 
 The same corpus, every arm, at 1,500 notes with every fact questioned.
@@ -186,7 +224,10 @@ story is a section below.
 | 0.9.4 — ForgetEval, saying no | three never-inscribed control probes per case, a `grep` baseline, and an `engram-mcp` reader that takes the verdict over MCP; fp, hedge, and a threshold-free separation AUC beside the unchanged family scores | engram answers 0 of 3000 controls where the reference answers all — but hedges on 99.5% of real queries: on a six-note graph the phantom-fitted weak line never clears, so the honest claim is separation 0.80 / 0.90 (reference 0.75 / 0.94, which has no decline rule at all); the delivery-floor problem priced in a fourth register |
 | 0.9.4 — distance through history | every ladder note born in a 5–10-note session with a turn index; `reach@5` / `reach` / `hist-only` / `hist-dist` credit an answer reachable through a delivered session-mate, for every arm | the walk is worth +0.07 at depth five for rag and engram alike (0.79 → 0.86 at 1500), a tie at a ninth of the tokens; session shaping with diversity demotion live reproduced direct recall to the digit; reach is a property of the delivered set, not of the graph — no engram-specific edge here yet |
 | 0.9.4 — the rake test | persist–clear–act on an invented Python fixture: planted decisions, a caution, a tombstone and a superseded pair; three arms (no memory / curated CLAUDE.md / engram) run headless with Sonnet under a fixed budget; executable oracles grade the diff for adherence, not recall | phase 1 (9 runs, seed 1): the no-memory arm passed every oracle — the fixture's own code guided the agent, so the baits were too weak; the one failure was the curated file's rule, present verbatim and violated anyway; phase 2 sharpens the baits and runs three seeds (see below) |
-| next | a LongMemEval floor sweep (chat-register raw score curves), then the dial-three auto-tune dial if the fit validates there; the LongMemEval online half; rake phase 3 with stronger separation between the arms | benched before shipped, as always |
+| 0.9.5 — KnowledgeDrift v1 | one scripted world → ten-operation protocol → any adapter → transcript → rule-graded tasks in eight families; success counts what a system cannot attempt, the score multiplies a macro composite by the answer's share of delivered tokens; six in-process arms, Mem0 and LangMem adapters; three seeds; **its own repository** | 500/1500: engram 85% / 80% success (score 511 / 459), LangMem = rag 63% / 57%, Mem0 58% / 55%, grep 53% / 51%, the whole file 71% at a score of 5, the curated file 9% by 500 notes; every arm within ~1 point over three seeds |
+| 0.9.5 — the bench fixed the product | KnowledgeDrift's first run: the suspect queue raised 0 of 16 planted contradictions; a gate probe measured every channel a nomination rule could read, and the rule was replayed against the dogfood graph's own 56 false alarms before it shipped | the title-contradiction path (`policy.conflict_nli_gate` 0.80, strict subject guard, one shared content word): contradiction 58% → **75%** (tier-1 0.06 → 0.94), drift noticed 53% → **91%** at 500 and 1500; 4 of the 56 real false alarms survive; every other family and baseline byte-identical |
+| 0.9.5 — pollution shapes | the stale sibling with the body hint removed (`twin`) and with a lying clock (`late`) | no ranker separates twins — engram `stale_above` 0.21 → **0.64**, rag 0.38 → 0.55, grep 0.58 → 0.78 — while the drift queue notices **98%** of the pairs: ranking cannot resolve drift, a judged queue can; under `late` the flat stores are byte-identical and engram moves 0.21 → 0.35: recency is a weak prior in its ranking, not a truth |
+| next | a `collider`-style negative for every KnowledgeDrift family, a sibling-less drift shape, the `historical` trap as the documented NLI ceiling; a LongMemEval floor sweep, then the dial-three auto-tune dial if the fit validates there; rake phase 3 | benched before shipped, as always |
 
 ### The graveyard
 
@@ -1032,20 +1073,9 @@ Problem-open, with both alternatives now priced instead of promised.
 
 Everything above grades retrieval. This cycle added two benches that grade
 something else: whether the memory *forgets* what it was told to forget,
-and whether an agent *acts* on what it recalls — and then, on 2026-09-13,
-folded everything this page measures in isolation into one scripted
-benchmark with a headline number: **[KnowledgeDrift](knowledgedrift/README.md)**
-(`cargo run -p knowledgedrift --features fastembed`), a separate crate under
-`eval/knowledgedrift/` with its own README and receipts
-(`results/*-knowledgedrift-*`). Its first run found the suspect queue
-raising none of its planted contradictions, and its gate probe produced the
-0.9.4 title-contradiction path (`CONTRADICTIONS.md`, top section). The
-official ladder is 500 and 1500 notes, and Mem0 and LangMem run as
-external arms through `knowledgedrift/adapters/`: engram 85% / 80% success
-(score 511 / 459), LangMem 63% / 57%, Mem0 58% / 55%, grep 53% / 51%; three
-seeds at 500 hold every arm within about a point, and two extra pollution
-shapes show no ranker separates a hint-less stale twin while the drift
-queue notices 98% of them (`knowledgedrift/WRITEUP.md`).
+and whether an agent *acts* on what it recalls. The cycle after it folded
+everything this page measures in isolation into one scripted benchmark —
+[0.9.5](#095--knowledgedrift-v1-and-the-bench-that-fixed-the-product).
 
 ### ForgetEval — five families, two readers, never one score
 
@@ -1261,6 +1291,137 @@ current config file.
 
 ---
 
+## 0.9.5 — KnowledgeDrift v1, and the bench that fixed the product
+
+**[KnowledgeDrift](https://github.com/techtheist/knowledgedrift)** is the
+harness's families made into one benchmark with one number, and then made
+into its own repository so that any memory system can enter. One seeded
+world of invented project knowledge (the generator above, plus re-decided
+subjects, a 10% polluted share of stale siblings, planted contradictions in
+three tiers with negatives, deliberate deletions and capture times) is
+poured into a system through ten operations — inscribe, link, supersede,
+release, purge, settle, recall with an optional window, suspects, lineage,
+standing cost — by an adapter that keeps the key→id map itself; the
+transcript is graded by rules, every probe a task, tasks in eight families.
+A system declares its capabilities; a family that needs a missing one is
+N/A with the reason, and **the headline still counts those tasks as
+failed** — a memory that cannot notice drift has not noticed it — with the
+capability-aware rate printed beside it. The **score** multiplies the macro
+composite by clamp(10·S, 0.1, 10), S the share of delivered tokens that
+were the answer, so a dump of the whole memory pays for its noise and a
+memory that shows only the answer earns ten times. The crate is
+`eval/knowledgedrift/` (`cargo run -p knowledgedrift --features fastembed`);
+its README is the internals, `knowledgedrift/WRITEUP.md` the reading, and
+the standalone repository carries the frozen v1 worlds, a dependency-free
+grader, the Mem0 and LangMem adapters, `CONTRIBUTING.md`, and every
+receipt.
+
+<details>
+<summary>The official ladder: 500 and 1500, seed 1 (receipts <code>results/2026-09-14-knowledgedrift-500-1500.*</code>, <code>…-{500,1500}-{langmem,mem0}.json</code>)</summary>
+
+| arm | success @500 | score @500 | success @1500 | score @1500 | tok/query |
+|---|---|---|---|---|---|
+| **engram** | **85%** | **511** | **80%** | **459** | 263–289 |
+| langmem | 63% | 51 | 57% | 52 | ~2,200 |
+| rag | 63% | 51 | 57% | 52 | ~2,200 |
+| mem0 | 58% | 45 | 55% | 47 | ~2,500 |
+| grep | 53% | 44 | 51% | 43 | ~2,600 |
+| whole file | 71% | 5 | 71% | 5 | 134k–402k |
+| curated 3k | 9% | 4 | 5% | 4 | ~2,900 |
+| chance | 4% | 15 | 4% | 13 | ~2,300 |
+
+Engram's families at 1500: retrieval 75% (R@5 0.78, oblique 0.34,
+`stale_above` 0.23), abstention 98% (fp 0.02), currency 80% (head R@5 0.74,
+retired-generation pollution 0.00, lineage 1.00), contradiction 75% (tier
+recall 0.78 / 0.91 / 0.01, tier-3 false alarm 0.15 — the `historical`
+trap), drift 91%, deletion 83% (gone 1.00 both ways, resurrection warned
+0.50 — 0.69 at 500, 1.00 at 100: the marker is crowded out of the nearest
+neighbours as the graph grows), rationale 99% (direct 0.00, assisted 0.99 —
+*why* is answered by the graph, never by ranking), temporal 99% (leak 0.00).
+What moves with scale is every ranking-depth column (oblique 0.54 → 0.34,
+head R@5 0.84 → 0.74, tier-1 0.94 → 0.78); the structural columns do not.
+
+`langmem` is LangMem's memory layer — the LangGraph store with its semantic
+index, through the three calls its tools make; `mem0` is Mem0 OSS with
+`infer=False` (no LLM anywhere, socket-guarded), embedded Qdrant, hybrid
+BM25 on. Both embed with the product's bge-small and declare only
+capture-time scoping. LangMem equals the in-process rag arm to the digit on
+every family and every seed; Mem0 sits lowest because its BM25 rescoring
+costs oblique recall (0.19 vs 0.35 at 1500). Three flat stores are one
+system in three packages.
+
+</details>
+
+<details>
+<summary>Three seeds at 500, and the two pollution shapes</summary>
+
+Seeds 2 and 3 (`…-500-seed{2,3}.*`, `…-500-seed{2,3}-{langmem,mem0}.json`)
+hold every arm within about a point of success and the ordering never
+changes: engram 85% (84–85) / score 525 (511–543), langmem = rag 63%
+(61–66), mem0 59% (57–61), grep 53% (51–55), whole 71% (69–74), curated 9%,
+chance 4%. Engram's families over the three seeds: retrieval 81% (80–82),
+abstention 100% (99–100), currency 89% (87–91), contradiction 74% (72–75),
+drift 93% (91–97), deletion 90%, rationale 100% (99–100), temporal 100%
+(99–100); the widest column is the tier-3 false alarm (0.21–0.37), which
+sits on six to ten `historical` cases per world.
+
+`--pollution-shape twin|late` (`…-500-twin.*`, `…-500-late.*`) removes one
+signal from the stale sibling: `twin` wears the truth's own body, so only
+the value and the clock differ; `late` keeps the hint but is stamped
+20–40 days *after* the truth, as a migration would. `stale_above` = share of
+polluted questions whose stale sibling outranked the answer:
+
+| shape | engram success | engram stale_above | engram drift noticed | rag stale_above | grep stale_above |
+|---|---|---|---|---|---|
+| `stale` (default) | 85% | 0.21 | 0.91 | 0.38 | 0.58 |
+| `twin` | 82% | **0.64** | **0.98** | 0.55 | 0.78 |
+| `late` | 85% | **0.35** | 0.91 | 0.38 | 0.58 |
+
+The body hint was carrying the ranking-side separation for everybody: take
+it away and no ranker tells the twins apart — the reranker reads the hint,
+not the calendar — while the drift queue notices 98% of the pairs and
+engram loses three points, all in retrieval. Ranking cannot resolve drift;
+a queue a person judges can. Under a lying clock the flat stores do not
+move (they never read capture time) and engram's `stale_above` rises
+0.21 → 0.35: recency is a weak prior in its ranking, and the receipt says
+by how much.
+
+</details>
+
+<details>
+<summary>The bench fixed the product, and the product's own graph fixed the fix</summary>
+
+The first run (`results/2026-09-13-knowledgedrift-100-500-nogate.*`)
+showed the suspect scan as it shipped raising 0 of 16 planted
+contradictions at 100 and half of the drifted siblings: it had one way in
+— two notes at or above the similarity floor — and similarity cannot tell
+a contradiction from an agreeing restatement (full-note cosine 0.69–0.81
+for positives against 0.64–0.77 for negatives; the finding of
+arXiv:2606.26511 reproduced inside the product's own gate). The gate probe
+(`knowledgedrift/examples/gate_probe.rs`) measured every channel a
+nomination rule could read — three cosines, NLI on the claim text and on
+the bare titles, subject and content-word guards, the reranker, length —
+and NLI on bare titles separates: negations 0.99, quantifier flips 0.93,
+value flips 0.80, paraphrases 0.13, where NLI on title-plus-first-sentence
+scores negations 0.54 because the agreeing body dilutes the contradicting
+title. Its first version (gate 0.70, a subject guard that let subject-less
+titles through) looked clean on the bench and then raised **56 false alarms
+on this repository's own graph in one sweep** — release notes and
+two-facts-about-one-subject pairs an MNLI model calls contradictions
+because every detail differs. Those 56 rows went back into the probe beside
+the planted cases, the world gained the missing negative shape
+(`collider`), and the rule that survives all four populations shipped as
+`policy.conflict_nli_gate` (0.80; both titles name a subject and share one;
+one shared content word past the subject phrase; `CONTRADICTIONS.md`, top
+section): contradiction 58% → 75% and drift 53% → 91% at 500 and 1500,
+success 83% → 85% and 78% → 80%, 4 of the 56 real alarms kept, every other
+family and every baseline reproduced to the digit
+(`…-500-1500-nogate.*` vs `…-500-1500.*`). Two rules came out of it: a
+nomination rule is replayed against the dogfood queue before it ships, and
+a generated bench needs real-prose negatives.
+
+</details>
+
 ## What this does not show
 
 <details>
@@ -1274,11 +1435,11 @@ current config file.
   delivery: a measured tail-trim plus a strong/weak/none verdict on the search
   reply, so the assistant is told when the graph is silent or unsure — the
   honest form of declining that costs no recall.
-- **The logic layer is not scored here.** Whether the memory notices that two
-  things it holds disagree is a separate question from whether it can find them
-  and needs its own metric — see `CONTRADICTIONS.md`, which has since replaced
-  the NLI model and added a confidence gate on the strength of it. Nothing on
-  this page depends on it.
+- **The logic layer is not scored on the ladder.** Whether the memory notices
+  that two things it holds disagree is a separate question from whether it can
+  find them; since 0.9.5 KnowledgeDrift's contradiction and drift families score
+  it (75% and 91% at 500), and `CONTRADICTIONS.md` has the mechanism's own
+  history. Nothing on the ladder tables depends on it.
 - **The corpus is hostile to keyword search** in a way real notes are not. Real
   notes here carry 9.1% identifier-like tokens (`crates/engram-core/src/store.rs`,
   `keyword_weight`); generated ones carry 0.9%, and generated bodies are filler
@@ -1359,7 +1520,7 @@ Results will be added here once they are measured.
 | `CONTRADICTIONS.md` | the logic layer's own metric — the model swap, the gate, the real-graph check |
 | `online.rs` | the online half's contract |
 | `rng.rs` | seeded splitmix64 — every run reproduces from `--seed` |
-| `knowledgedrift/` | **KnowledgeDrift** — its own crate: one scripted world, ten-operation adapter protocol, eight task families (retrieval, abstention, currency, contradiction ladder, drift, deletion, rationale, temporal) graded pass/fail, six in-process arms, `--export`/`--grade` for external adapters; see its README |
+| `knowledgedrift/` | **KnowledgeDrift** — its own crate: one scripted world, ten-operation adapter protocol, eight task families (retrieval, abstention, currency, contradiction ladder, drift, deletion, rationale, temporal) graded pass/fail, six in-process arms, `--export`/`--grade` for external adapters, `--pollution-shape`; see its README, and its own repository [techtheist/knowledgedrift](https://github.com/techtheist/knowledgedrift) (v1: frozen worlds, Mem0 + LangMem adapters, submissions by PR) |
 
 To isolate density from corpus size, hold `--sizes` fixed and vary
 `--distractors`: the tested facts and their questions stay byte-identical while

@@ -24,11 +24,11 @@ ENGRAM_NLI_DIR=~/.cache/engram/mobilebert-uncased-mnli \
 cargo run -p engram-eval --features fastembed -- --real-graph /tmp/graph-copy.tepin
 ```
 
-## 0.9.4 — the queue learns to read titles
+## 0.9.5 — the queue learns to read titles
 
 Everything below scores `check_claim` — the layer that judges a claim
 against what retrieval hands it. The *other* place the logic layer works is
-the suspect queue, and until 0.9.4 it never got a say in who entered it:
+the suspect queue, and until 0.9.5 it never got a say in who entered it:
 a pair queued on cosine similarity alone (`conflict_suspect_similarity`,
 0.88), and the NLI only labelled what similarity had already chosen. The
 KnowledgeDrift gate probe (`eval/knowledgedrift/examples/gate_probe.rs`)

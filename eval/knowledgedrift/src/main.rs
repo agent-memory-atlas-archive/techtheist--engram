@@ -34,7 +34,7 @@ OPTIONS:
                           diagnostic, not a product option)
     --no-nli-gate         switch off the engram arm's title-contradiction
                           nomination path (policy.conflict_nli_gate = null)
-                          — the pre-0.9.4 suspect scan, for the ablation
+                          — the pre-0.9.5 suspect scan, for the ablation
     --json PATH           write the receipt
     --export DIR          write each world's script as JSON (for external
                           adapters) and exit

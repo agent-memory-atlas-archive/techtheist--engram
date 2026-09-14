@@ -100,7 +100,7 @@ mechanism instead of assumed.
 
 The default world's digest does not change because the knob exists (the
 shape is omitted from the file when it is the default), so scripts exported
-before 0.9.4 still grade.
+before 0.9.5 still grade.
 
 ## The protocol
 
@@ -494,7 +494,7 @@ much. `WRITEUP.md` reads both in full.
 
 ### The bench fixed the product, and the product's own graph fixed the fix
 
-The suspect scan as it shipped until 0.9.4 (`--no-nli-gate` below) raised
+The suspect scan as it shipped until 0.9.5 (`--no-nli-gate` below) raised
 almost none of the planted contradictions, and half of the drifted
 siblings. The gate probe (`examples/gate_probe.rs`) measured every channel
 a nomination rule could read and produced the title-contradiction path
@@ -575,7 +575,7 @@ eval/knowledgedrift/
   src/arms/         engram (the product) and the flat baselines
   src/main.rs       --sizes --seed --pollution --pollution-shape --arms
                     --export --grade --json
-                    --no-nli-gate (ablation: the pre-0.9.4 suspect scan)
+                    --no-nli-gate (ablation: the pre-0.9.5 suspect scan)
   examples/         gate_probe.rs — what separates a planted contradiction
                     from a trap: every channel a nomination rule could read
 ```
