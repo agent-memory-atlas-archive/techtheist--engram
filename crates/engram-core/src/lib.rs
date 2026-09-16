@@ -28,7 +28,10 @@ mod types;
 pub use config::GraphConfig;
 #[cfg(test)]
 pub(crate) use engine::claim_texts as engine_claims_for_tests;
-pub use engine::{AuditOrigin, ChangeEvent, EMBED_COMPOSITION, Engine, Listener, SearchFilter};
+pub use engine::{
+    AuditOrigin, ChangeEvent, EMBED_COMPOSITION, Engine, Listener, SearchFilter, title_clause,
+    title_pair_admissible, title_pair_admission,
+};
 pub use error::{Error, Result};
 pub use hub::{
     ConflictAlert, ConflictFeed, EngineFactory, Hub, ListenerFactory, ProjectHandle, SessionBinding,

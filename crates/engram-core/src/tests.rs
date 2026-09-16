@@ -6252,6 +6252,56 @@ fn writes_near_a_tombstone_warn_tombstoned_across_types() {
 }
 
 #[test]
+fn re_adding_a_buried_title_word_for_word_warns_whatever_the_vectors_say() {
+    // The purge-shaped marker ("Removed: X" + a why line) embeds far from a
+    // full-bodied resurrection of X; the title channel does not care.
+    let e = engine();
+    let victim = e
+        .add_node(new_node(
+            NodeType::Caution,
+            "cobalt grove sweep worker expires its own grants when the shard rebalances",
+            "Found the hard way. The window is narrow enough that a healthy run never shows it, \
+             which is exactly why it survived review. Two engineers examined it separately.",
+        ))
+        .unwrap();
+    let (_, tomb) = e
+        .delete_node_with_tombstone(
+            &victim.id,
+            Some("no longer applies after the sweep worker rework"),
+            false,
+        )
+        .unwrap();
+    let tomb = tomb.expect("the default ontology mints a tombstone");
+    let outcome = e
+        .add_node_checked(new_node(
+            NodeType::Caution,
+            "Cobalt grove sweep worker expires its own grants, when the shard rebalances!",
+            "Recorded again from the runbook, at length, with a body that shares nothing with \
+             the marker's why line and everything with the component's other notes.",
+        ))
+        .unwrap();
+    let WriteOutcome::Created { warnings, .. } = outcome else {
+        panic!("a tombstone never blocks a write — it warns")
+    };
+    let w = warnings
+        .iter()
+        .find(|w| w.id == tomb.id)
+        .unwrap_or_else(|| panic!("re-adding the buried title must warn: {warnings:?}"));
+    assert_eq!(w.reason, "tombstoned");
+    assert!(
+        w.note
+            .as_deref()
+            .is_some_and(|n| n.contains("no longer applies")),
+        "{w:?}"
+    );
+    assert_eq!(
+        warnings.iter().filter(|w| w.reason == "tombstoned").count(),
+        1,
+        "one channel per marker: {warnings:?}"
+    );
+}
+
+#[test]
 fn tombstones_queue_no_write_time_suspects_on_either_side() {
     let e = engine();
     let victim = e
@@ -10004,51 +10054,130 @@ fn the_title_path_refuses_pairs_about_different_subjects() {
 
 #[test]
 fn the_subject_guard_reads_names_not_sentence_starters() {
-    use crate::engine::same_subject;
-    assert!(same_subject(
+    let same = |a: &str, b: &str| crate::engine::shared_subject(a, b).is_some();
+    assert!(same(
         "It is not the case that the Kelnor broker loses its cursor",
         "Kelnor broker loses its cursor when the lease expires"
     ));
-    assert!(!same_subject(
+    assert!(!same(
         "Vanor lease broker uses a retry budget of 7",
         "Kelnor lease broker uses a retry budget of 19"
     ));
-    // No name on either side, or on one side only: no NLI nomination — the
-    // lenient form raised fifty-six release-note pairs on the dogfood graph.
-    assert!(!same_subject("never store secrets", "always rotate keys"));
-    assert!(!same_subject(
+    // Nothing shared at all: no NLI nomination.
+    assert!(!same("never store secrets", "always rotate keys"));
+    assert!(!same(
         "Engram Alpha is written in Rust",
         "the daemon never loads a language model"
     ));
-    assert!(
-        !same_subject(
-            "v0.9.1 released 2026-09-02 — SelectMenu and screenshots",
-            "v0.9.0 released 2026-08-30 — tombstones and custom fields"
-        ) || crate::engine::content_overlap(
-            "v0.9.1 released 2026-09-02 — SelectMenu and screenshots",
-            "v0.9.0 released 2026-08-30 — tombstones and custom fields"
-        ) < crate::policy::CONFLICT_NLI_OVERLAP
-    );
+    // Release notes: the lenient form raised fifty-six of these on the
+    // dogfood graph. Either the guard or the overlap count must refuse them.
+    assert!(!crate::engine::title_pair_admissible(
+        "v0.9.1 released 2026-09-02 — SelectMenu and screenshots",
+        "v0.9.0 released 2026-08-30 — tombstones and custom fields"
+    ));
     // Names on both sides, none shared: the RefNLI false contradiction.
-    assert!(!same_subject(
+    assert!(!same(
         "Engram Alpha is written in Rust",
         "TepinDB is published on crates.io"
     ));
 }
 
 #[test]
+fn the_unnamed_subject_guard_reads_lowercase_subjects() {
+    use crate::engine::title_pair_admissible as ok;
+    // KnowledgeDrift v2's register: shared-vocabulary lowercase subjects.
+    assert!(ok(
+        "hazel estuary sweep worker uses a drain deadline of 3 seconds — surfaced on the third occurrence",
+        "hazel estuary sweep worker is configured with 21 seconds"
+    ));
+    assert!(ok(
+        "It is not the case that the onyx cliff replay buffer mislabels its vials.",
+        "onyx cliff replay buffer mislabels its vials when a poison message recirculates"
+    ));
+    assert!(ok(
+        "Operators pinned the chalk glade telemetry mast to 143 attempts for its retry budget",
+        "chalk glade telemetry mast uses a retry budget of 120 attempts — corroborated independently"
+    ));
+    assert!(ok(
+        "carmine ravine sweep worker is permitted to outrun the replication horizon",
+        "carmine ravine sweep worker must never outrun the replication horizon, and no surrounding layer makes up for it"
+    ));
+    // Co-reference: the component is shared, the modifiers in front of it
+    // name two different things.
+    assert!(!ok(
+        "wheat dale assay station never overruns its dwell, whatever happens",
+        "hazel bayou assay station overruns its dwell when the daylight saving shift lands"
+    ));
+    assert!(!ok(
+        "walnut geyser provenance ledger no longer shadows its primary",
+        "hazel lagoon provenance ledger shadows its primary during certificate rotation"
+    ));
+    // Collider: same subject, an unrelated claim — refused by the overlap.
+    assert!(!ok(
+        "violet pond lease broker expires its own grants",
+        "violet pond lease broker uses a batch size of 81 records — reproduced in staging"
+    ));
+    // A history note whose subject sits behind a qualifying content word.
+    assert!(!ok(
+        "Until the 3.1 rollout, navy forest lease broker never corrupts its checkpoint, whatever happens",
+        "navy forest lease broker corrupts its checkpoint when the mains power browns out"
+    ));
+    // Two release notes sharing a tail phrase: the run must sit in the
+    // first clause of both (dogfood replay, 2026-09-16).
+    assert!(!ok(
+        "v0.9.3 shipped 2026-09-09 (93bd8a7): the pane fits any width, README rewrite — Release green with nine assets after one draft-release rerun",
+        "v0.8.13 released 2026-08-29 at 55f3387 — identity-checked engine cache + honest stop (issue #8); all nine assets"
+    ));
+    // A run of function words is not a subject.
+    assert!(!ok(
+        "in the end the pane is the transparency layer",
+        "in the end the daemon never loads a language model"
+    ));
+}
+
+#[test]
+fn the_duplicate_match_refuses_titles_that_name_different_things() {
+    use crate::engine::subjects_differ;
+    assert!(subjects_differ(
+        "hazel quarry edge cache forgets its offsets when the almanac rolls over",
+        "wheat geyser edge cache corrupts its checkpoint when the coolant loop cavitates"
+    ));
+    assert!(subjects_differ(
+        "Vanor lease broker uses a retry budget of 7",
+        "Kelnor lease broker uses a retry budget of 19"
+    ));
+    // The same subject, restated: still the duplicate it looks like.
+    assert!(!subjects_differ(
+        "hazel quarry edge cache forgets its offsets when the almanac rolls over",
+        "The hazel quarry edge cache loses its offsets at the almanac rollover"
+    ));
+    // Undecidable — no names, no shared run: the vectors decide.
+    assert!(!subjects_differ(
+        "cache results in redis",
+        "results are cached in redis for speed"
+    ));
+    assert!(!subjects_differ(
+        "never store secrets",
+        "always rotate keys"
+    ));
+}
+
+#[test]
 fn the_overlap_guard_separates_a_restated_claim_from_an_unrelated_fact() {
-    use crate::engine::content_overlap;
+    let overlap = |a: &str, b: &str| {
+        let subject = crate::engine::shared_subject(a, b).unwrap_or_default();
+        crate::engine::content_overlap(a, b, &subject)
+    };
     // A restated claim shares its parameter words.
     assert!(
-        content_overlap(
+        overlap(
             "Kelnor lease broker uses a retry budget of 7 attempts",
             "Kelnor lease broker is configured with a retry budget of 19 attempts"
         ) >= crate::policy::CONFLICT_NLI_OVERLAP
     );
     // Two facts about one subject share the subject and nothing else.
     assert!(
-        content_overlap(
+        overlap(
             "JetBrains plugin registers no file types; discovery via description text",
             "JetBrains plugin ships dual artifacts per release, selected by platform line"
         ) < crate::policy::CONFLICT_NLI_OVERLAP

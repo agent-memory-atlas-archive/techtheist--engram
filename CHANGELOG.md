@@ -3,6 +3,63 @@
 Release notes for Engram Alpha. Each release's section below becomes the
 body of its GitHub Release (draft-release.yml lifts it automatically).
 
+## v0.9.6
+
+### The bench spoke lowercase, and the queue learned to listen
+
+- **The title-contradiction path reads lowercase subjects.** 0.9.5's
+  guard took capitalised tokens as the only evidence of a subject, so on a
+  graph whose subjects are plain words ("amber harbor lease broker") it
+  never nominated anything — KnowledgeDrift v2's shared-vocabulary worlds
+  dropped tier-1 contradiction recall from 0.94 to 0.04 and drift from 91%
+  to 47%. Names are now read from a title's first clause, and when neither
+  title carries one the subject is the longest run of content words both
+  first clauses share, refused when a differing word qualifies it on
+  either side ("hazel bayou assay station" is not "wheat dale assay
+  station"). On that unnamed path the logic layer reads the titles twice,
+  whole and cut to their first clause, and the stronger contradiction
+  counts. Replayed on two real graphs before shipping (`engram-eval
+  --sweep-replay`, below): zero new nominations on either, and of the
+  dogfood graph's 87 human-dismissed sub-floor pairs the rule would queue
+  3 where 0.9.5 queued 4. Measured on the KnowledgeDrift v2 ladder (its
+  repository's `results/v2/`), against the 0.9.5 rows on the same worlds:
+  contradiction 46% → **70%** (tier-1 recall 0.04 → 0.79 over three
+  seeds; the `historical` trap now costs a 0.05 false alarm), drift 44% →
+  **91%** on every seed at 500 and 48% → 93% at 1500; score 739 → **816
+  (813–818)** at 500 and 718 → **801** at 1500, success 70% → 73% and 66%
+  → 69%. Retrieval, currency, rationale, temporal and the token columns
+  are unchanged to the digit; the v1 world holds (85% → 86%, 511 → 518,
+  its deletion family 90% → 100%, everything else within a point).
+- **Re-adding a buried note word for word always warns.** The write path
+  now matches a new title against every live tombstone's victim title
+  beside the vector neighbourhood, so a `tombstoned` warning no longer
+  depends on where the marker's vector landed: KnowledgeDrift's
+  `resurrection_warned` 0.81 → 1.00 at 100 notes. A deeper vector scan
+  was tried first and rejected — it warned rewrites of purged notes about
+  other subjects' markers. The rung at 500 then showed the other way a
+  resurrection slips through: the write was absorbed as a near-duplicate
+  of an *unrelated* same-type note at 0.90 cosine (shared boilerplate
+  bodies), so no warning ever ran. **The duplicate match now refuses a
+  candidate whose title demonstrably names a different thing** — names on
+  both sides with none shared, or a shared component qualified by a
+  differing word ("hazel quarry edge cache" is not "wheat geyser edge
+  cache"); undecidable titles keep matching on the vectors.
+- **`engram-eval --sweep-replay PATH`** replays the conflict sweep on a
+  copy of a real graph and prints every pair the shipped nomination rule
+  would newly queue, plus how the current title guard reads the graph's
+  own dismissed history — the check the 0.9.4 caution demanded before any
+  change to what enters the suspect queue, as one command.
+- **Two things measured and left alone.** The calibrated "likely not in
+  memory" line hedges 40% of answerable questions on KnowledgeDrift v2,
+  but a transcript of the whole world shows oblique answers and natural
+  nulls scoring the same on the top hit (q50 0.54 vs 0.64): no line
+  separates them, and every lower line costs more false answers than it
+  buys signal. The line stays; `ENGRAM_WEAK_LINE_DEBUG=1` now prints both
+  probe families of the fit. And the crossed phrasing (no content word
+  shared with the note) is a cross-encoder ceiling, not a fusion setting:
+  keyword weight 0.15 → 0 moves it 0.08 → 0.10 at 100 notes, the vote and
+  the semantic floor move nothing.
+
 ## v0.9.5
 
 ### The bench fixed the product, then became a product

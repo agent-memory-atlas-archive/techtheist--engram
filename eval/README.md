@@ -32,11 +32,18 @@ under stale-sibling pollution, abstention, supersession currency and
 lineage, a three-tier contradiction ladder with negatives, drift nobody
 announced, deletion honesty and resurrection, rationale through edges,
 temporal scoping — into one scripted world and grades every probe by a rule.
-It lives in its own repository (frozen v1 worlds, dependency-free grader,
-Python adapter protocol, submissions by pull request); the crate under
-`eval/knowledgedrift/` is the same code and the receipts are
+It lives in its own repository (frozen worlds, dependency-free grader,
+Python adapter protocol, submissions by pull request); `eval/knowledgedrift/`
+here is a pointer since 0.9.6, and the v1 receipts are
 `results/2026-09-14-knowledgedrift-*`. Full story in
 [0.9.5](#095--knowledgedrift-v1-and-the-bench-that-fixed-the-product).
+The bench's **v2 edition** (its repository's main since 2026-09-16:
+shared-vocabulary lowercase subjects, a crossed phrasing, natural-null
+controls, an additive score out of 1,000) measured 0.9.5 at 739 / 718
+(500 / 1500) and **0.9.6 at 816 (813–818) / 801** — contradiction 46% →
+70%, drift 44% → 91%, deletion 93% → 100%, retrieval and tokens unchanged;
+the levers and what they cost on this repository's own graph are in
+[0.9.6](#096--the-bench-spoke-lowercase).
 
 **Success** = passed / every task posed (a family a system cannot attempt
 counts as failed); **score** = 100 × macro composite × clamp(10·S, 0.1, 10),
@@ -227,7 +234,8 @@ story is a section below.
 | 0.9.5 — KnowledgeDrift v1 | one scripted world → ten-operation protocol → any adapter → transcript → rule-graded tasks in eight families; success counts what a system cannot attempt, the score multiplies a macro composite by the answer's share of delivered tokens; six in-process arms, Mem0 and LangMem adapters; three seeds; **its own repository** | 500/1500: engram 85% / 80% success (score 511 / 459), LangMem = rag 63% / 57%, Mem0 58% / 55%, grep 53% / 51%, the whole file 71% at a score of 5, the curated file 9% by 500 notes; every arm within ~1 point over three seeds |
 | 0.9.5 — the bench fixed the product | KnowledgeDrift's first run: the suspect queue raised 0 of 16 planted contradictions; a gate probe measured every channel a nomination rule could read, and the rule was replayed against the dogfood graph's own 56 false alarms before it shipped | the title-contradiction path (`policy.conflict_nli_gate` 0.80, strict subject guard, one shared content word): contradiction 58% → **75%** (tier-1 0.06 → 0.94), drift noticed 53% → **91%** at 500 and 1500; 4 of the 56 real false alarms survive; every other family and baseline byte-identical |
 | 0.9.5 — pollution shapes | the stale sibling with the body hint removed (`twin`) and with a lying clock (`late`) | no ranker separates twins — engram `stale_above` 0.21 → **0.64**, rag 0.38 → 0.55, grep 0.58 → 0.78 — while the drift queue notices **98%** of the pairs: ranking cannot resolve drift, a judged queue can; under `late` the flat stores are byte-identical and engram moves 0.21 → 0.35: recency is a weak prior in its ranking, not a truth |
-| next | a `collider`-style negative for every KnowledgeDrift family, a sibling-less drift shape, the `historical` trap as the documented NLI ceiling; a LongMemEval floor sweep, then the dial-three auto-tune dial if the fit validates there; rake phase 3 | benched before shipped, as always |
+| 0.9.6 — the bench spoke lowercase | KnowledgeDrift v2 (lowercase shared-vocabulary subjects, natural nulls, crossed phrasing, an additive score) found the title-contradiction path blind to unnamed subjects, the decline line hedging 40%, and a resurrection absorbed as a duplicate; every lever measured on the gate probe, a full-transcript hedge analysis, a knob probe at 100, and `engram-eval --sweep-replay` on two real graphs before it shipped | subject guard v3 (names from the first clause, else a shared content-word run no differing word qualifies) + a clause read on the unnamed path + a tombstone title channel + a different-subject guard on the duplicate match: **816 (813–818) / 801** from 739 / 718, contradiction 46 → **70%**, drift 44 → **91%**, deletion 93 → **100%**; 0 new nominations on the dogfood and eval graphs, 3 of 87 judged-false pairs would re-queue (0.9.5: 4); the weak line measured structural (oblique answers and natural nulls score alike) and the crossed phrasing a cross-encoder ceiling — both left alone |
+| next | a `collider`-style negative for every KnowledgeDrift family, a sibling-less drift shape; a LongMemEval floor sweep, then the dial-three auto-tune dial if the fit validates there; rake phase 3 | benched before shipped, as always |
 
 ### The graveyard
 
@@ -1290,6 +1298,52 @@ current config file.
 </details>
 
 ---
+
+## 0.9.6 — the bench spoke lowercase
+
+KnowledgeDrift's v2 edition changed the register: subjects became three or
+four ordinary lowercase words (*hazel estuary sweep worker*), every fact
+gained a *crossed* phrasing sharing no content word with its note, natural
+nulls joined the phantoms, and the score became additive. On it, 0.9.5
+scored 739 at 500 and 718 at 1500 with three columns telling the story:
+tier-1 contradiction recall 0.04, drift 47%, `hedge` 0.40. One cycle, four
+levers, each measured before it shipped:
+
+- **The subject guard was blind to unnamed subjects.** The 0.9.4
+  title-contradiction path took capitalised tokens as the only evidence of
+  a subject, so on lowercase titles it never nominated anything. Names are
+  now read from a title's first clause; when neither title has one, the
+  subject is the longest run of content words both first clauses share,
+  refused when a differing content word qualifies it on either side. On
+  the gate probe at 500 the guard alone admits 59 of 91 planted positives
+  and 15 of 58 negatives (the old guard: none of either); with the 0.80
+  gate, 41 positives, 0 false alarms, 42 of 55 drifted siblings.
+- **The clause read, on the unnamed path only.** Titles are judged whole
+  and cut at an em dash or semicolon, the stronger contradiction winning:
+  +7 of 22 `clause` cases, +4 drift, −3 `historical` at 500. On named
+  pairs the same read pushed seven same-subject-different-fact pairs over
+  the gate across the two real graphs, so it is gated on the path.
+- **Resurrections.** A rewrite whose folded title equals a marker's victim
+  title warns `tombstoned` whatever the vectors say (0.81 → 1.00 at 100);
+  the 500 rung then showed six rewrites absorbed as duplicates of
+  *unrelated* same-type notes at 0.90 (boilerplate bodies), so the
+  duplicate match now refuses titles that demonstrably name different
+  things.
+- **Two things measured and left alone.** A full transcript of the 500
+  world shows oblique answers (top score q50 0.54) and natural nulls (0.64)
+  indistinguishable on the top hit: the 40% hedge is structural, and every
+  lower line costs ten false answers per hedge it buys. The crossed
+  phrasing is a cross-encoder ceiling: keyword weight 0.15 → 0 moves it
+  0.08 → 0.10 at 100, the vote and the semantic floor nothing.
+
+Real-graph gate: `engram-eval --sweep-replay PATH` replays the sweep on a
+copy of a real graph and re-reads its dismissed history through the
+current guard — dogfood graph 0 new / 3 of 87 would re-queue (0.9.5: 4),
+eval graph 0 new. Ladder: **816 (813–818) at 500, 801 at 1500**, from 739
+and 718; contradiction 46 → 70%, drift 44 → 91% (93% at 1500), deletion 93
+→ 100%, abstention 100 → 99% (the per-run line refit), everything else to
+the digit, baselines byte-identical. Receipts in the bench repository under
+`results/v2/reference-arms/`, 0.9.5's under `…/0.9.5/`.
 
 ## 0.9.5 — KnowledgeDrift v1, and the bench that fixed the product
 

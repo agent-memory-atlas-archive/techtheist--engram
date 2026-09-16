@@ -615,6 +615,134 @@ pub struct RealGate {
 /// measured is the product's judgment and not a reimplementation of it. Point
 /// it at a COPY: it opens the store read-write, and a live daemon owns the
 /// original.
+/// A judged-false pair the title guard admits again, scored.
+#[derive(Debug, Clone, Serialize)]
+pub struct Readmitted {
+    pub a_title: String,
+    pub b_title: String,
+    pub path: String,
+    pub label: String,
+    pub score: f64,
+    pub queued: bool,
+}
+
+/// One nominated pair from a sweep replay.
+#[derive(Debug, Clone, Serialize)]
+pub struct ReplayPair {
+    pub a_title: String,
+    pub b_title: String,
+    pub similarity: f64,
+    pub hint: Option<String>,
+}
+
+/// What the shipped nomination rule does to a REAL graph: the conflict sweep
+/// replayed on a copy, every pair it would newly queue printed, and the
+/// graph's own dismissed sub-floor history (the NLI path's judged false
+/// alarms) re-read through the current title guard. The replay the 0.9.4
+/// caution asks for before any change to what enters the suspect queue.
+#[derive(Debug, Clone, Serialize)]
+pub struct SweepReplay {
+    pub graph: String,
+    pub model: String,
+    pub nodes: i64,
+    pub pending_before: usize,
+    pub added: usize,
+    pub pairs: Vec<ReplayPair>,
+    /// Dismissed suspects that sat below the similarity floor — the pairs a
+    /// human already ruled were not contradictions.
+    pub dismissed_below_floor: usize,
+    /// Those the current title guard would let the NLI read again, with the
+    /// guard's path ("named" | "unnamed"), the title-NLI contradiction score
+    /// and whether the shipped gate would queue them — every one is a
+    /// human-judged false alarm, so `queued` here is the rule's cost.
+    pub readmitted: Vec<Readmitted>,
+    pub would_queue: usize,
+    pub would_queue_named: usize,
+    pub ms: f64,
+}
+
+pub fn sweep_replay(path: &str) -> anyhow::Result<SweepReplay> {
+    use engram_core::{SuspectStatus, open_store, title_pair_admission};
+
+    let tmp =
+        std::env::temp_dir().join(format!("engram-sweep-replay-{}.tepin", std::process::id()));
+    std::fs::copy(path, &tmp)?;
+    let result = (|| -> anyhow::Result<SweepReplay> {
+        let store = open_store(&tmp)?;
+        let nodes = store.stats().map(|s| s.nodes).unwrap_or(0);
+        let (nli_model, model) = nli();
+        // Stored vectors drive the sweep; the embedder is never consulted.
+        let mut engine = Engine::with_store(store, Box::new(FakeEmbedder::default()));
+        engine.set_nli(nli_model);
+        let store = engine.store();
+        let floor = store.config().policy.conflict_suspect_similarity;
+        let gate = store.config().policy.conflict_nli_gate.unwrap_or(1.0);
+        let before: std::collections::HashSet<String> = store
+            .suspects_pending()?
+            .into_iter()
+            .map(|s| s.id)
+            .collect();
+        let mut dismissed_below_floor = 0;
+        let mut readmitted: Vec<Readmitted> = Vec::new();
+        for s in store.all_suspects()? {
+            if s.status != SuspectStatus::Dismissed || s.similarity >= floor {
+                continue;
+            }
+            dismissed_below_floor += 1;
+            if let (Some(a), Some(b)) = (store.get_node(&s.a_id)?, store.get_node(&s.b_id)?)
+                && let Some(path) = title_pair_admission(&a.title, &b.title)
+            {
+                let (label, score, _) =
+                    engine
+                        .nli_title_hint_for(path, &a, &b)
+                        .unwrap_or(("unavailable", 0.0, None));
+                readmitted.push(Readmitted {
+                    a_title: a.title,
+                    b_title: b.title,
+                    path: path.to_string(),
+                    label: label.to_string(),
+                    score,
+                    queued: label == "contradiction" && score >= gate,
+                });
+            }
+        }
+        let would_queue = readmitted.iter().filter(|r| r.queued).count();
+        let would_queue_named = readmitted
+            .iter()
+            .filter(|r| r.queued && r.path == "named")
+            .count();
+        let started = std::time::Instant::now();
+        let added = engine.scan_conflicts()?;
+        let ms = started.elapsed().as_secs_f64() * 1000.0;
+        let pairs = store
+            .suspects_pending()?
+            .into_iter()
+            .filter(|s| !before.contains(&s.id))
+            .map(|s| ReplayPair {
+                a_title: s.a.title,
+                b_title: s.b.title,
+                similarity: s.similarity,
+                hint: s.nli_label,
+            })
+            .collect();
+        Ok(SweepReplay {
+            graph: path.to_string(),
+            model,
+            nodes,
+            pending_before: before.len(),
+            added,
+            pairs,
+            dismissed_below_floor,
+            readmitted,
+            would_queue,
+            would_queue_named,
+            ms,
+        })
+    })();
+    let _ = std::fs::remove_file(&tmp);
+    result
+}
+
 pub fn real_graph(path: &str) -> anyhow::Result<RealGraphReport> {
     use engram_core::{SuspectStatus, open_store};
 

@@ -149,6 +149,10 @@ OPTIONS:
                           judged history: every pair a human ruled on, plus
                           every conflicts-with edge. Point it at a COPY — a
                           running daemon owns the original
+    --sweep-replay PATH   replay the conflict sweep on a COPY of a real graph
+                          and print every pair the shipped nomination rule
+                          would newly queue, plus how the current title guard
+                          reads the graph's dismissed sub-floor history
     --no-rerank           drop the cross-encoder — a diagnostic, not an option
     --flat-priors         zero every type's rank_prior — also a diagnostic
     --sample              print sample generated facts and exit
@@ -202,6 +206,7 @@ fn cli() -> anyhow::Result<()> {
     let mut ladder_mode = false;
     let mut series_mode = false;
     let mut real_graph: Option<String> = None;
+    let mut sweep_replay: Option<String> = None;
 
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
@@ -264,6 +269,7 @@ fn cli() -> anyhow::Result<()> {
             "--bench" => bench_mode = true,
             "--contradictions" => contradiction_mode = true,
             "--real-graph" => real_graph = Some(value()?),
+            "--sweep-replay" => sweep_replay = Some(value()?),
             "--no-rerank" => cfg.no_rerank = true,
             "--flat-priors" => cfg.flat_priors = true,
             "--sample" => sample = true,
@@ -395,6 +401,53 @@ fn cli() -> anyhow::Result<()> {
     }
     if sweep_mode {
         print_sweep(&engram_eval::run::sweep(&cfg)?, &cfg);
+        return Ok(());
+    }
+    if let Some(path) = sweep_replay {
+        let r = engram_eval::run::sweep_replay(&path)?;
+        println!("engram-eval — the conflict sweep, replayed on a real graph");
+        println!(
+            "graph: {}  ({} nodes)   model: {}",
+            r.graph, r.nodes, r.model
+        );
+        println!(
+            "  pending before {}   newly queued {}   sweep {:.0} ms",
+            r.pending_before, r.added, r.ms
+        );
+        for p in &r.pairs {
+            println!(
+                "  + [{:.2} {}]\n      {}\n      {}",
+                p.similarity,
+                p.hint.as_deref().unwrap_or("-"),
+                p.a_title,
+                p.b_title
+            );
+        }
+        println!(
+            "  dismissed sub-floor history {}   readmitted by the title guard {} (named {}, unnamed {})   would queue at the gate {} (named-path {}, unnamed-path {})",
+            r.dismissed_below_floor,
+            r.readmitted.len(),
+            r.readmitted.iter().filter(|x| x.path == "named").count(),
+            r.readmitted.iter().filter(|x| x.path == "unnamed").count(),
+            r.would_queue,
+            r.would_queue_named,
+            r.would_queue - r.would_queue_named
+        );
+        for x in &r.readmitted {
+            println!(
+                "  ~ [{} {} {:.2}{}]\n    {}\n    {}",
+                x.path,
+                x.label,
+                x.score,
+                if x.queued { " QUEUED" } else { "" },
+                x.a_title,
+                x.b_title
+            );
+        }
+        if let Some(path) = json_out {
+            std::fs::write(&path, serde_json::to_string_pretty(&r)?)?;
+            println!("\nwrote {path}");
+        }
         return Ok(());
     }
     if let Some(path) = real_graph {

@@ -1402,6 +1402,23 @@ impl Engine {
         transplant_tops.sort_by(f64::total_cmp);
         let q = cfg.policy.weak_line_quantile;
         let fitted = quantile(&template_tops, q).max(quantile(&transplant_tops, q));
+        if std::env::var_os("ENGRAM_WEAK_LINE_DEBUG").is_some() {
+            eprintln!(
+                "weak line fit: template q{:.0} {:.3} {:?}\n               transplant q{:.0} {:.3} {:?}",
+                q * 100.0,
+                quantile(&template_tops, q),
+                template_tops
+                    .iter()
+                    .map(|x| (x * 100.0).round() / 100.0)
+                    .collect::<Vec<_>>(),
+                q * 100.0,
+                quantile(&transplant_tops, q),
+                transplant_tops
+                    .iter()
+                    .map(|x| (x * 100.0).round() / 100.0)
+                    .collect::<Vec<_>>(),
+            );
+        }
         let old = cfg.policy.weak_evidence_top;
         // Damped, then hard-clamped. The lower clamp is floor-relative,
         // never absolute: a line at or under the delivery floor could never
@@ -2919,6 +2936,15 @@ impl Engine {
             if let Some(node) = self.store.get_node(&id)?
                 && node.node_type == n.node_type
                 && node.valid_until.is_none()
+                // Two titles that demonstrably name different things are
+                // not a duplicate whatever the vectors say (0.9.6): on a
+                // corpus whose bodies are mostly shared boilerplate, a
+                // Caution about one component matched a Caution about
+                // another at 0.90 and swallowed a resurrection the
+                // tombstone channel was there to catch (KnowledgeDrift v2,
+                // 6 of 42 released victims re-added as "duplicates" of
+                // unrelated notes). Undecidable titles keep matching.
+                && !subjects_differ(&scrubbed_title, &node.title)
             {
                 // At duplicate similarity co-reference holds, so an NLI
                 // contradiction is trustworthy — it flags the negated
@@ -2951,7 +2977,7 @@ impl Engine {
 
         let missing_refs = self.missing_refs(&n.code_refs);
         let node = self.add_node(n)?;
-        let warnings = self.write_warnings(&vec, &node.id)?;
+        let warnings = self.write_warnings(&vec, &node.id, &node.title)?;
         let suspects = if self.record_suspects(&vec, &node.id)? > 0 {
             self.suspects_involving(&node.id)?
         } else {
@@ -3067,7 +3093,11 @@ impl Engine {
             };
             let canon = self.canon_verdicts(&vec, &claim(&node), &node.id)?;
 
-            (self.write_warnings(&vec, &node.id)?, suspects, canon)
+            (
+                self.write_warnings(&vec, &node.id, &node.title)?,
+                suspects,
+                canon,
+            )
         } else {
             (Vec::new(), Vec::new(), Vec::new())
         };
@@ -3319,7 +3349,21 @@ impl Engine {
     /// resurrection doesn't matter, the content does. Superseded says "a
     /// successor exists — follow it"; tombstoned says "killed without one —
     /// re-adding is the error".
-    fn write_warnings(&self, vec: &[f32], exclude_id: &str) -> Result<Vec<WriteWarning>> {
+    ///
+    /// Two channels for the tombstone role (0.9.6): the vector neighbourhood
+    /// and an exact match between the new title and a marker's victim title
+    /// — re-adding a note word for word is the resurrection the role exists
+    /// to catch, and it must not depend on where the marker's vector landed
+    /// (KnowledgeDrift v2 at 500: `resurrection_warned` 0.81 on the vector
+    /// channel alone, 1.00 with the title channel). The vector scan stays
+    /// eight deep on purpose: read 24 deep it warned 38% of rewrites of
+    /// PURGED notes about other subjects' markers (knob probe, 2026-09-16).
+    fn write_warnings(
+        &self,
+        vec: &[f32],
+        exclude_id: &str,
+        title: &str,
+    ) -> Result<Vec<WriteWarning>> {
         let mut warnings = Vec::new();
         let cfg = self.store.config();
         let warn_similarity = cfg.policy.warn_similarity;
@@ -3350,6 +3394,28 @@ impl Engine {
                 similarity,
                 note,
             });
+        }
+        if cfg.tombstone_type().is_some() && !warnings.iter().any(|w| w.reason == "tombstoned") {
+            let wanted = normalized_title(title);
+            if !wanted.is_empty() {
+                for node in self.store.all_nodes()? {
+                    if node.id == exclude_id
+                        || node.valid_until.is_some()
+                        || !is_tombstone(&cfg, &node)
+                        || normalized_title(tombstone_victim_title(&node.title)) != wanted
+                    {
+                        continue;
+                    }
+                    warnings.push(WriteWarning {
+                        note: tombstone_note(&node),
+                        id: node.id,
+                        title: node.title,
+                        reason: "tombstoned".to_string(),
+                        similarity: 1.0,
+                    });
+                    break;
+                }
+            }
         }
         Ok(warnings)
     }
@@ -4267,13 +4333,10 @@ impl Engine {
                 self.nli_hint(node, &other)
             } else {
                 let Some(gate) = nli_gate else { continue };
-                if !same_subject(&node.title, &other.title)
-                    || content_overlap(&node.title, &other.title)
-                        < crate::policy::CONFLICT_NLI_OVERLAP
-                {
+                let Some(path) = title_pair_admission(&node.title, &other.title) else {
                     continue;
-                }
-                match self.nli_title_hint(node, &other) {
+                };
+                match self.nli_title_hint_for(path, node, &other) {
                     Some(h) if h.0 == "contradiction" && h.1 >= gate => Some(h),
                     _ => continue,
                 }
@@ -4326,6 +4389,54 @@ impl Engine {
         let nli = self.nli.as_ref()?;
         let sym = nli.judge_pair(a.title.trim(), b.title.trim()).ok()?;
         Some(hint_with_direction(&sym, a, b))
+    }
+
+    /// [`nli_title_hint`] read twice when the titles carry a trailing clause
+    /// (0.9.6): once whole, once cut to their first clauses
+    /// ([`title_clause`]), the stronger contradiction winning. A title's
+    /// tail ("— surfaced on the third occurrence", "; the earlier note was
+    /// mistaken") is commentary the model weighs against the claim: on the
+    /// KnowledgeDrift v2 gate probe the clause read lifted the `clause`
+    /// shape from 0.04–0.24 to 0.58–0.98 and dropped two negatives (synonym
+    /// 0.68→0.18, paraphrase 0.56→0.02).
+    ///
+    /// Only the UNNAMED admission path reads this way. On named pairs the
+    /// same cut pushed seven same-subject-different-fact pairs over the gate
+    /// across the two dogfood graphs (release notes, adapter write-ups —
+    /// 2026-09-16 replays) where the whole-title read had let none through:
+    /// a long real title's first clause is still a long sentence, and the
+    /// tail it loses was what told the model the two facts differ.
+    pub fn nli_title_hint_clause(
+        &self,
+        a: &Node,
+        b: &Node,
+    ) -> Option<(&'static str, f64, Option<&'static str>)> {
+        let nli = self.nli.as_ref()?;
+        let (ta, tb) = (a.title.trim(), b.title.trim());
+        let mut sym = nli.judge_pair(ta, tb).ok()?;
+        let (ca, cb) = (title_clause(ta), title_clause(tb));
+        if (ca, cb) != (ta, tb)
+            && let Ok(clause) = nli.judge_pair(ca, cb)
+            && clause.contradiction() > sym.contradiction()
+        {
+            sym = clause;
+        }
+        Some(hint_with_direction(&sym, a, b))
+    }
+
+    /// The title read the sweep uses for a pair the guard admitted on
+    /// `path` ("named" | "unnamed").
+    pub fn nli_title_hint_for(
+        &self,
+        path: &str,
+        a: &Node,
+        b: &Node,
+    ) -> Option<(&'static str, f64, Option<&'static str>)> {
+        if path == "unnamed" {
+            self.nli_title_hint_clause(a, b)
+        } else {
+            self.nli_title_hint(a, b)
+        }
     }
 
     /// The pending queue, ready for judgment.
@@ -4737,18 +4848,170 @@ fn subject_tokens(title: &str) -> std::collections::HashSet<String> {
         .collect()
 }
 
-/// Do two titles speak about the same named thing? The co-reference guard
-/// for NLI: MNLI-trained models presuppose the premise and hypothesis
-/// co-refer, so "Kelnor broker uses 7" against "Vanor broker uses 19" reads
-/// as a contradiction when it is two facts about two things (RefNLI). Both
-/// titles must name a subject and share one. The lenient form — "no name on
-/// either side, let the model decide" — shipped for one sweep of the
-/// dogfood graph and raised 56 false alarms, most of them pairs of release
-/// notes with no name at all; a title that names nothing gets no NLI
+/// Do two titles speak about the same thing? The co-reference guard for
+/// NLI: MNLI-trained models presuppose the premise and hypothesis co-refer,
+/// so "Kelnor broker uses 7" against "Vanor broker uses 19" reads as a
+/// contradiction when it is two facts about two things (RefNLI).
+///
+/// Two ways to pass, and the tokens of the subject phrase come back so the
+/// overlap count can leave them out:
+///
+/// - **named**: both titles carry capitalised name tokens and share one
+///   (the 0.9.4 strict guard — the lenient "no name on either side, let the
+///   model decide" form raised 56 false alarms on the dogfood graph);
+/// - **unnamed** (0.9.6): neither side has a usable name, or only one does,
+///   and the titles share a contiguous run of at least two content words
+///   that no differing content word qualifies on either side — "hazel bayou
+///   assay station …" against "wheat dale assay station …" share the
+///   component, but `bayou` and `dale` in front of it name two things, and
+///   the pair is refused. Lowercase subjects ("amber harbor lease broker")
+///   are the register the 0.9.4 guard was blind to: KnowledgeDrift v2
+///   dropped tier-1 contradiction recall from 0.94 to 0.04 on them.
+///
+/// `None` = not the same subject as far as the titles can tell: no NLI
 /// nomination.
-pub(crate) fn same_subject(a: &str, b: &str) -> bool {
-    let (sa, sb) = (subject_tokens(a), subject_tokens(b));
-    !sa.is_empty() && !sb.is_empty() && !sa.is_disjoint(&sb)
+pub(crate) fn shared_subject(a: &str, b: &str) -> Option<std::collections::HashSet<String>> {
+    // Names are read from the first clause only: the subject leads the
+    // claim, and a name in a title's tail ("… — both signed JetBrains zips
+    // published") is a detail, not what the title is about. Two release
+    // notes that both mention the plugin in passing are not two claims
+    // about the plugin (dogfood replay, 2026-09-16).
+    let (sa, sb) = (
+        subject_tokens(title_clause(a)),
+        subject_tokens(title_clause(b)),
+    );
+    if !sa.is_empty() && !sb.is_empty() {
+        return (!sa.is_disjoint(&sb)).then(|| sa.union(&sb).cloned().collect());
+    }
+    // The run is looked for in the first clauses too: a phrase two titles
+    // share in their tails ("… — Release green with nine assets" / "…; all
+    // nine assets") is a detail they have in common, not a subject.
+    let (ta, tb) = (title_tokens(title_clause(a)), title_tokens(title_clause(b)));
+    let is_content =
+        |w: &str| w.len() >= 3 && w.chars().any(char::is_alphabetic) && !is_function_word(w);
+    // Every maximal common run, earliest in `a` first: the subject phrase
+    // leads a claim more often than it trails one.
+    for i in 0..ta.len() {
+        for j in 0..tb.len() {
+            if ta[i] != tb[j] || (i > 0 && j > 0 && ta[i - 1] == tb[j - 1]) {
+                continue; // not a run start, or not maximal
+            }
+            let len = ta[i..]
+                .iter()
+                .zip(&tb[j..])
+                .take_while(|(x, y)| x == y)
+                .count();
+            if len < 2 || ta[i..i + len].iter().filter(|w| is_content(w)).count() < 2 {
+                continue;
+            }
+            // A differing content word right before the run on either side
+            // is a modifier that makes the subject a different one.
+            let qualified = |t: &[String], k: usize| k > 0 && is_content(&t[k - 1]);
+            if qualified(&ta, i) || qualified(&tb, j) {
+                continue;
+            }
+            return Some(
+                ta[i..i + len.min(SUBJECT_PHRASE_MAX)]
+                    .iter()
+                    .cloned()
+                    .collect(),
+            );
+        }
+    }
+    None
+}
+
+/// Do two titles demonstrably name DIFFERENT things? The refusing half of
+/// [`shared_subject`], for the duplicate match: named on both sides with no
+/// name in common, or a shared component run that a differing content word
+/// qualifies on either side ("hazel quarry edge cache …" against "wheat
+/// geyser edge cache …"). `false` when the titles are undecidable — no
+/// names, no shared run — because a rewritten title with the same body is
+/// still the duplicate it looks like.
+pub(crate) fn subjects_differ(a: &str, b: &str) -> bool {
+    let (sa, sb) = (
+        subject_tokens(title_clause(a)),
+        subject_tokens(title_clause(b)),
+    );
+    if !sa.is_empty() && !sb.is_empty() {
+        return sa.is_disjoint(&sb);
+    }
+    let (ta, tb) = (title_tokens(title_clause(a)), title_tokens(title_clause(b)));
+    let is_content =
+        |w: &str| w.len() >= 3 && w.chars().any(char::is_alphabetic) && !is_function_word(w);
+    let mut qualified_run = false;
+    for i in 0..ta.len() {
+        for j in 0..tb.len() {
+            if ta[i] != tb[j] || (i > 0 && j > 0 && ta[i - 1] == tb[j - 1]) {
+                continue;
+            }
+            let len = ta[i..]
+                .iter()
+                .zip(&tb[j..])
+                .take_while(|(x, y)| x == y)
+                .count();
+            if len < 2 || ta[i..i + len].iter().filter(|w| is_content(w)).count() < 2 {
+                continue;
+            }
+            let qualified = |t: &[String], k: usize| k > 0 && is_content(&t[k - 1]);
+            if qualified(&ta, i) || qualified(&tb, j) {
+                qualified_run = true;
+            } else {
+                return false; // an unqualified shared run: the same subject
+            }
+        }
+    }
+    qualified_run
+}
+
+/// Longest subject phrase the unnamed guard keeps out of the overlap count:
+/// four words covers "amber harbor lease broker"; past that a shared run is
+/// the claim itself and its words must stay in the count.
+const SUBJECT_PHRASE_MAX: usize = 4;
+
+/// A title's first clause: what precedes an em dash or a semicolon. The
+/// claim leads; what follows is commentary on it.
+pub fn title_clause(t: &str) -> &str {
+    let t = t.split(" — ").next().unwrap_or(t);
+    t.split("; ").next().unwrap_or(t).trim()
+}
+
+/// Lowercase alphanumeric tokens of a title.
+fn title_tokens(t: &str) -> Vec<String> {
+    t.split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .map(|w| w.to_lowercase())
+        .collect()
+}
+
+fn is_function_word(w: &str) -> bool {
+    CONTENT_STOP.contains(&w) || SUBJECT_STARTERS.contains(&w)
+}
+
+/// May the NLI path read this pair of titles? Same subject
+/// ([`shared_subject`]) and at least [`crate::policy::CONFLICT_NLI_OVERLAP`]
+/// content words shared beyond it ([`content_overlap`]). Public so the
+/// bench's gate probe measures the shipped rule rather than a copy of it.
+pub fn title_pair_admissible(a: &str, b: &str) -> bool {
+    title_pair_admission(a, b).is_some()
+}
+
+/// [`title_pair_admissible`] with the reason: `"named"` when both titles
+/// carry a shared capitalised name, `"unnamed"` when the lowercase run
+/// guard admitted them, `None` when refused. For probes and replays that
+/// compare the two paths.
+pub fn title_pair_admission(a: &str, b: &str) -> Option<&'static str> {
+    let (sa, sb) = (
+        subject_tokens(title_clause(a)),
+        subject_tokens(title_clause(b)),
+    );
+    let named = !sa.is_empty() && !sb.is_empty();
+    let subject = shared_subject(a, b)?;
+    (content_overlap(a, b, &subject) >= crate::policy::CONFLICT_NLI_OVERLAP).then_some(if named {
+        "named"
+    } else {
+        "unnamed"
+    })
 }
 
 /// Function words that carry no claim, for the overlap count.
@@ -4823,14 +5086,12 @@ const CONTENT_STOP: [&str; 60] = [
 /// are compared on their first five characters so `attempt` and `attempts`
 /// agree. A restated claim shares its parameter or predicate; two
 /// unrelated facts about one subject share the subject and nothing else.
-pub(crate) fn content_overlap(a: &str, b: &str) -> usize {
-    let toks = |t: &str| -> Vec<String> {
-        t.split(|c: char| !c.is_alphanumeric())
-            .filter(|w| !w.is_empty())
-            .map(|w| w.to_lowercase())
-            .collect()
-    };
-    let (ta, tb) = (toks(a), toks(b));
+pub(crate) fn content_overlap(
+    a: &str,
+    b: &str,
+    subject: &std::collections::HashSet<String>,
+) -> usize {
+    let (ta, tb) = (title_tokens(a), title_tokens(b));
     // The subject phrase is the common prefix, capped at three words: past
     // that a shared prefix is the claim itself with a clause appended, and
     // the claim's words must stay in the count.
@@ -4840,10 +5101,6 @@ pub(crate) fn content_overlap(a: &str, b: &str) -> usize {
         .take_while(|(x, y)| x == y)
         .count()
         .min(3);
-    let subject: std::collections::HashSet<String> = subject_tokens(a)
-        .union(&subject_tokens(b))
-        .cloned()
-        .collect();
     let words = |t: &[String]| -> std::collections::HashSet<String> {
         t.iter()
             .filter(|w| {
@@ -5066,6 +5323,24 @@ fn is_anchor(cfg: &crate::config::GraphConfig, n: &Node) -> bool {
 fn is_tombstone(cfg: &crate::config::GraphConfig, n: &Node) -> bool {
     cfg.type_def(n.node_type.as_str())
         .is_some_and(|t| t.roles.tombstone)
+}
+
+/// The victim's title as a delete mint wrote it into the marker's title
+/// ("Removed: <title>"); a marker written by hand comes back whole.
+fn tombstone_victim_title(title: &str) -> &str {
+    title
+        .trim()
+        .strip_prefix("Removed:")
+        .map_or(title.trim(), str::trim)
+}
+
+/// Titles compared as the same claim: case-folded alphanumeric words.
+fn normalized_title(t: &str) -> String {
+    t.split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .map(str::to_lowercase)
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 /// The tombstone's account of the removal, for riding on a warning: the
