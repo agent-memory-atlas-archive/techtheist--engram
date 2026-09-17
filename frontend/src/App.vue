@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { onClickOutside } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import FeedView from '@/components/FeedView.vue'
@@ -31,7 +31,12 @@ import { useProjectsStore } from '@/stores/projects'
 import { useThemeStore } from '@/stores/theme'
 import { useGraphSync } from '@/composables/useGraphSync'
 
-useThemeStore() // applies the persisted theme on mount via its watcher
+const theme = useThemeStore() // applies the persisted theme on mount via its watcher
+// The top-bar icon (0.9.7): the brand theme shows the boxed purple icon as
+// drawn (64px source for 32px at 2x); IDE skins draw the mark in their own
+// accent + text colors so it never looks pasted on from another product.
+const brandIcon = `${import.meta.env.BASE_URL}engram-light-64.png`
+const brandTheme = computed(() => theme.current === 'engram-purple')
 const store = useGraphStore()
 const config = useConfigStore()
 const layout = useLayoutStore()
@@ -95,8 +100,9 @@ onBeforeUnmount(() => store.disconnect())
 
     <header class="topbar">
         <div class="brand">
-            <span class="brand-chip">
-                <EngramMark class="brand-mark" />
+            <span class="brand-chip" :class="{ boxed: !brandTheme }">
+                <img v-if="brandTheme" class="brand-icon" :src="brandIcon" alt="" width="32" height="32" />
+                <EngramMark v-else class="brand-mark" />
             </span>
             <ProjectSwitcher />
             <span class="conn" :class="{ live: connected }" :title="connected ? (isDemo ? 'Demo' : 'Live') : 'Disconnected'">
@@ -411,14 +417,29 @@ onBeforeUnmount(() => store.disconnect())
     width: 3.2rem;
     height: 3.2rem;
     border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+}
+
+/* IDE skins: the chip is the box, in the theme accent like the buttons on
+   this row; the "E" (the bars) is black at 0.8 so a little accent shows
+   through, the "A" (the face) is white. */
+.brand-chip.boxed {
     background: var(--interactive-primary);
-    color: var(--text-inverse);
-    box-shadow: 0 0 1.2rem color-mix(in srgb, var(--interactive-primary) 45%, transparent);
+    color: #0a0a14;
+    --mark-face: #fff;
+    --mark-bars-opacity: 0.8;
+}
+
+.brand-icon {
+    display: block;
+    width: 3.2rem;
+    height: 3.2rem;
+    border-radius: var(--radius-md);
 }
 
 .brand-mark {
-    width: 2.2rem;
-    height: 2.2rem;
+    width: 2.4rem;
+    height: 2.4rem;
 }
 
 .conn {

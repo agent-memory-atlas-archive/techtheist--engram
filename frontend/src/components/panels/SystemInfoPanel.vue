@@ -7,6 +7,7 @@ import ToggleSwitch from '@/components/common/ToggleSwitch.vue'
 import { api } from '@/services/api'
 import { useSystemInfo } from '@/composables/useSystemInfo'
 import { useProjectsStore } from '@/stores/projects'
+import { useThemeStore } from '@/stores/theme'
 import type {
     AgentSettings,
     EncryptionStatus,
@@ -29,6 +30,14 @@ const error = ref<string | null>(null)
 
 // The machine registry (PLAN §7C) — ~/.engram/registry.json, via the hub.
 const projectsStore = useProjectsStore()
+
+// The app icon at the top (0.9.7): the black box with purple bars on light
+// IDE skins, the purple box with black bars on the brand theme and dark
+// skins. Sources are 512/256px; the panel caps it at 256 and lets it shrink.
+const theme = useThemeStore()
+const heroIcon = computed(() =>
+    `${import.meta.env.BASE_URL}${theme.current.endsWith('light') ? 'engram-dark-512.png' : 'engram-light-512.png'}`,
+)
 const { projects } = storeToRefs(projectsStore)
 
 watch(open, (isOpen) => {
@@ -321,6 +330,7 @@ function wiringStatus(w: { wired: boolean; prerename: boolean }): { status: Stat
     <p v-else-if="loading && !info" class="state">Loading…</p>
 
     <template v-if="info">
+        <img class="hero-icon" :src="heroIcon" alt="" width="256" height="256" />
         <header class="hero">
             <span class="product">Engram Alpha</span>
             <span class="version">v{{ info.version }}</span>
@@ -645,6 +655,14 @@ function wiringStatus(w: { wired: boolean; prerename: boolean }): { status: Stat
 
 .state.error {
     color: var(--node-problem);
+}
+
+.hero-icon {
+    display: block;
+    width: min(256px, 100%);
+    max-width: 256px;
+    height: auto;
+    margin: 0 auto 0.4rem;
 }
 
 .hero {

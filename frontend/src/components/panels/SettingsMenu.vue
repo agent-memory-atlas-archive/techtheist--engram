@@ -255,6 +255,10 @@ function message(e: unknown): string {
        below the gear and scroll inside; contain keeps macOS overscroll from
        rubber-banding the page. */
     max-height: calc(100vh - 8rem);
+    /* Mobile browsers: 100vh counts the space under the toolbar, so the
+       menu's tail lands off-screen and cannot be scrolled to (iOS Chrome);
+       dvh is the visible height. */
+    max-height: calc(100dvh - 8rem);
     overflow-y: auto;
     overscroll-behavior: contain;
     padding: 0.8rem;

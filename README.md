@@ -10,6 +10,10 @@
 [![Open VSX](https://img.shields.io/open-vsx/v/techtheist/engram-alpha?label=Open%20VSX)](https://open-vsx.org/extension/techtheist/engram-alpha)
 [![Downloads](https://img.shields.io/open-vsx/dt/techtheist/engram-alpha)](https://open-vsx.org/extension/techtheist/engram-alpha)
 
+<p align="center">
+  <img src="frontend/public/engram-1024.png" alt="Engram Alpha" width="300" height="300">
+</p>
+
 > The most powerful and feature-rich inspectable long-term graph memory for software development with AI agents — built on reproducible research.
 
 Engram is the **reasoning and decision layer** for AI coding assistants: why

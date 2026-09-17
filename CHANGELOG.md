@@ -3,6 +3,18 @@
 Release notes for Engram Alpha. Each release's section below becomes the
 body of its GitHub Release (draft-release.yml lifts it automatically).
 
+## v0.9.7
+
+### The icon arrives
+
+- **Engram has an icon.** A purple box, three bars cut on a diagonal by a
+  lighter face. The pane's top bar shows it as drawn on the brand theme and
+  redraws the boxless mark in the IDE skins' own accent and text colors;
+  System info opens on the 256px icon, the black-box variant on light IDE
+  themes; the browser favicon is the boxless mark, its face following the
+  tab bar's color scheme; the README carries the 1024px render under its
+  badges.
+
 ## v0.9.6
 
 ### The bench spoke lowercase, and the queue learned to listen

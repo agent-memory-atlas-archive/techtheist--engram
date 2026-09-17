@@ -174,7 +174,7 @@ export const api: EngramApi = {
     system: () => {
         const p = engine.state(LAUNCH)
         const info: SystemInfo = {
-            version: '0.9.2',
+            version: '0.9.7',
             daemon: { pid: 4821, uptime_secs: 7326, repo_root: '/Users/you/code/lantern' },
             store: {
                 db: '/Users/you/code/lantern/.engram/graph.tepin',
@@ -222,7 +222,7 @@ export const api: EngramApi = {
             processes: {
                 core: {
                     pid: 4821,
-                    version: '0.9.2',
+                    version: '0.9.7',
                     started_at: Math.floor(Date.now() / 1000) - 7326,
                     home: '/Users/you/.engram',
                 },
