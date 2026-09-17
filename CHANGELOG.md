@@ -59,6 +59,12 @@ body of its GitHub Release (draft-release.yml lifts it automatically).
   shared with the note) is a cross-encoder ceiling, not a fusion setting:
   keyword weight 0.15 → 0 moves it 0.08 → 0.10 at 100 notes, the vote and
   the semantic floor move nothing.
+- **KnowledgeDrift left the tree.** The in-tree `knowledgedrift` crate,
+  its adapters and write-up are gone; `eval/knowledgedrift/README.md` is
+  now a pointer carrying the v2 ladder table, and the benchmark, its
+  frozen worlds, adapters and every receipt live in
+  [their own repository](https://github.com/techtheist/knowledgedrift),
+  where engram-core is a rev-pinned dependency behind `--features arms`.
 
 ## v0.9.5
 
