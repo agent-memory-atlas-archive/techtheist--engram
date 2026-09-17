@@ -17,7 +17,7 @@ internal class EngramFileEditor(project: Project, private val file: VirtualFile)
 
     override fun getComponent(): JComponent = panel
     override fun getPreferredFocusedComponent(): JComponent = panel
-    override fun getName(): String = "Engram"
+    override fun getName(): String = "Engram Alpha"
     override fun getFile(): VirtualFile = file
     override fun getCurrentLocation(): FileEditorLocation? = null
     override fun setState(state: FileEditorState) {}

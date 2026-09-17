@@ -118,7 +118,7 @@ export async function offerSetupIfNeeded(context: vscode.ExtensionContext): Prom
 /** Status bar dot: daemon connectivity at a glance; click for actions. */
 export function createStatusBar(context: vscode.ExtensionContext): void {
     const item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100)
-    item.name = 'Engram'
+    item.name = 'Engram Alpha'
     item.command = 'engram.status'
     context.subscriptions.push(item)
 

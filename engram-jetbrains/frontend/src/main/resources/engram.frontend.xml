@@ -14,7 +14,7 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <toolWindow factoryClass="dev.techtheist.engram.toolWindow.EngramToolWindowFactory"
-                    id="Engram"
+                    id="Engram Alpha"
                     anchor="right"
                     icon="dev.techtheist.engram.EngramIcons.ToolWindow"/>
         <fileEditorProvider implementation="dev.techtheist.engram.editor.EngramFileEditorProvider"/>

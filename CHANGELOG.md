@@ -7,13 +7,30 @@ body of its GitHub Release (draft-release.yml lifts it automatically).
 
 ### The icon arrives
 
-- **Engram has an icon.** A purple box, three bars cut on a diagonal by a
-  lighter face. The pane's top bar shows it as drawn on the brand theme and
-  redraws the boxless mark in the IDE skins' own accent and text colors;
-  System info opens on the 256px icon, the black-box variant on light IDE
-  themes; the browser favicon is the boxless mark, its face following the
-  tab bar's color scheme; the README carries the 1024px render under its
-  badges.
+- **Engram Alpha has an icon.** A purple box, three bars (the "E") cut on
+  a diagonal by a lighter face (the "A"). The pane's top bar shows it as
+  drawn on the brand theme; the IDE skins draw the boxless mark inside a
+  chip in their own accent color, the bars black and slightly translucent,
+  the face white. System info opens on the 256px icon, the black-box
+  variant on light IDE themes. The browser favicon is the boxless mark,
+  its face following the tab bar's color scheme, and the page title reads
+  "Engram Alpha - AI Memory". The README carries the 1024px render under
+  its badges.
+- **The plugins wear it too.** The JetBrains tool-window icon (16 and
+  20px, light and dark) and the VS Code view icon are the monochrome mark
+  on a padded viewBox; both marketplace icons are rendered from the same
+  1024px source. Both plugins now call themselves **Engram Alpha**
+  everywhere they show a name — plugin listing, tool window, editor tab,
+  sidebar container, settings section, status bar. The JetBrains tool
+  window's id changed with it, so its saved position resets once after
+  the update.
+- **The gear menu reaches its end on phones.** Its height was capped
+  against `100vh`, which on mobile browsers includes the space under the
+  toolbar, so the menu's tail sat off-screen and could not be scrolled to
+  (iOS Chrome). The cap now uses the dynamic viewport height.
+- **Screenshots regenerated** from the demo build with the new pane; the
+  three full-pane shots (standalone, VS Code, JetBrains) retaken by hand
+  from a real graph.
 
 ## v0.9.6
 

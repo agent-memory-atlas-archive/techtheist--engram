@@ -171,7 +171,7 @@ internal class EngramPanel(
     }
 
     private fun daemonDownCard(): JComponent = centered {
-        heading("Engram backend isn't running")
+        heading("Engram Alpha backend isn't running")
         body("The graph pane is served by the local Engram daemon.")
         gap()
         button("Start engram-alpha serve") {

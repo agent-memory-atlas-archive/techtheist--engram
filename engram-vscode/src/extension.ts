@@ -54,7 +54,7 @@ function openInEditor(context: vscode.ExtensionContext): void {
     }
     editorPanel = vscode.window.createWebviewPanel(
         'engram.editor',
-        'Engram',
+        'Engram Alpha',
         vscode.ViewColumn.Active,
         paneOptions(context.extensionUri),
     )
