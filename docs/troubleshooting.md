@@ -34,6 +34,20 @@ it before updates and whenever a repair needs exclusive access to a store.
 your projects on one port — use the project switcher in the top bar. Running
 `serve` from a repo registers it with the core and prints the pane URL.
 
+**A write fails with "bound to the home graph by fallback".** The MCP client
+answered no roots and the bridge was launched from a directory that can't
+host a project (`/` or your home directory — the Windsurf JetBrains plugin
+does both), so the session sits in the home graph without anyone having
+chosen it, and engram refuses to write there silently. The agent fixes it
+in one call: `brief` with `project` set to the workspace's absolute path
+(or `"home"` to work in the user-level graph on purpose), then retries the
+write. It happens again after every resumed conversation, IDE restart, or
+MCP reload — each spawns a new session — which is exactly why it is an
+error and not a note. Setting a default agent project in the pane
+(Settings → System info) makes such sessions writable from the start, at
+the cost of every root-less session landing there. Details in
+[Runtime](./runtime.md#which-project-an-mcp-session-serves).
+
 **The assistant's MCP tools stopped responding after an update or restart.**
 The assistant's MCP session was connected to the old daemon process.
 Reconnect it (Claude Code: `/mcp`) — the new session bridges to the running

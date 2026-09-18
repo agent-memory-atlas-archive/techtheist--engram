@@ -3,6 +3,51 @@
 Release notes for Engram Alpha. Each release's section below becomes the
 body of its GitHub Release (draft-release.yml lifts it automatically).
 
+## v0.9.8
+
+### Unbound sessions refuse writes
+
+- **A session that fell back to the home graph no longer writes there
+  silently.** Some MCP clients advertise roots and never answer them, and
+  launch the server from a directory that can't host a project (the
+  Windsurf JetBrains plugin does both, from `/` or the home directory).
+  Such a session lands in the home graph by fallback — and, as issue #11
+  reports, a resumed conversation or an IDE restart spawns a new session
+  that lands there again, whatever the conversation remembers binding
+  earlier, so captures went to the wrong graph for hours with no signal.
+  Now the bridge tells the core which rung of the binding ladder bound the
+  session, and a session bound to the home graph *by fallback* refuses
+  every write addressed to "this project" with a teaching error: which
+  client, why, the one call that binds the session (`brief` with `project`
+  set to the workspace's absolute path, or `"home"` to work there on
+  purpose), and the registered projects to pick from. Reads keep working
+  so the agent can find its workspace; a write aimed at an explicit
+  `project` still passes; the default-agent-project rung, a user's own
+  setting, stays writable.
+- **Every write verdict names the graph it landed in.** `add_note`,
+  `update_node`, `link`, `merge_nodes`, `resolve_suspect` and the rest
+  carry `project` on their reply — a few tokens that make a misplaced
+  write visible on any client, not only the one shape the refusal
+  catches. A session on the default-agent-project rung says so once, on
+  its first write (`binding_note`), then stays quiet.
+- **The brief's first line names the graph.** `# Engram brief — project
+  'x' (/path)` or `# Engram brief — the home graph (user-level, no
+  project)`, so "am I still bound to the right project?" after a resume
+  is one line to read; the fallback hint above it now says writes are
+  refused and names the client.
+- **The home directory is never a project.** The Windsurf JetBrains
+  plugin launches the bridge from `~`, which is writable, so the
+  working-directory rung registered it as a project named after the user
+  with a second graph under `~/.engram/` beside the home graph — the
+  wrong-graph shape in a different coat. `/` and the home directory now
+  fall through to the next rung, and the registry refuses them outright.
+- **The generated Windsurf rule verifies the binding.** It now tells
+  Cascade to read the brief's first line after every `brief`, to expect a
+  new session after any resume, IDE restart, or MCP reload, and that a
+  refused write means "rebind, then retry" — the same line rides the MCP
+  instructions and every skill variant. The session census on `/system`
+  shows each session's client and binding rung.
+
 ## v0.9.7
 
 ### The icon arrives

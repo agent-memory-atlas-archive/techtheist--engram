@@ -398,6 +398,18 @@ function wiringStatus(w: { wired: boolean; prerename: boolean }): { status: Stat
                     <div class="proc-head">
                         <span class="proc-name">{{ s.name }}</span>
                         <span class="proc-tag">mcp session</span>
+                        <span v-if="s.client" class="proc-tag">{{ s.client }}</span>
+                        <!-- 0.9.8: the ladder rung — 'home' is read-only until
+                             the agent binds the session (issue #11). -->
+                        <span
+                            v-if="s.bound_by"
+                            class="proc-tag"
+                            :title="s.bound_by === 'home'
+                                ? 'bound to the home graph by fallback — writes refused until the agent binds it'
+                                : `bound by ${s.bound_by}`"
+                        >
+                            by {{ s.bound_by }}{{ s.bound_by === 'home' ? ' · read-only' : '' }}
+                        </span>
                         <span class="proc-tag mono" :title="s.session_id">
                             {{ s.session_id.slice(0, 12) }}…
                         </span>

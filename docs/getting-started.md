@@ -84,16 +84,19 @@ engram-alpha setup --cli kilo --skill aggressive
 
 Windsurf support is freshly added and still being field-tested — reports
 welcome. One Windsurf-specific note: its JetBrains plugin spawns the MCP
-server from `/` and its client never answers the roots request, so those
-sessions carry no folder signal at all. They land on the **default agent
-project** — set it in the pane under **Settings → System info → Default
-agent project** so Cascade's memory goes to the project you're actually
-working on; unset, such sessions bind the shared home graph. Running
-`engram-alpha setup --cli windsurf` inside a repo also writes an `always_on`
-rule (`.windsurf/rules/engram.md`) whose first instruction makes Cascade
-rebind the session itself — `brief` with `project` set to the workspace
-path — so multi-project work lands on the right graph without touching the
-default. Every wired assistant reads and writes the same graph through the
+server from `/` or your home directory and its client never answers the
+roots request, so those sessions carry no folder signal at all. They land on
+the **default agent project** — set it in the pane under **Settings → System
+info → Default agent project** so Cascade's memory goes to the project you're
+actually working on; unset, such sessions bind the shared home graph
+**read-only**: writes are refused with an error naming the rebind call until
+the agent binds the session (since 0.9.8 — nothing lands in the wrong graph
+silently). Running `engram-alpha setup --cli windsurf` inside a repo also
+writes an `always_on` rule (`.windsurf/rules/engram.md`) whose first
+instruction makes Cascade rebind the session itself — `brief` with `project`
+set to the workspace path — and verify the brief's first line after every
+resume or IDE restart (each spawns a new session, back on the fallback), so
+multi-project work lands on the right graph without touching the default. Every wired assistant reads and writes the same graph through the
 same MCP server — one shared, local memory across your AI agents: a decision captured
 by Claude is recalled by Codex. The `AGENTS.md`/`GEMINI.md` additions are a
 marked, idempotent section; re-running the installer never duplicates them.
@@ -126,8 +129,9 @@ that harness's transcripts.
 
 \* Kilo's adapter is verified against fixture transcripts, not yet against a
 live install — reports welcome.
-\** Windsurf sessions carry no folder signal (see the note above) — set the
-default agent project so they bind the right graph.
+\** Windsurf sessions carry no folder signal (see the note above) — the
+generated rule makes Cascade bind the session itself, an unbound session
+refuses writes, or set the default agent project.
 \*** Cascade stores its transcripts encrypted at rest with a key in the OS
 keychain; there is nothing a local harvester can responsibly read. Knowledge
 Cascade captures through the MCP tools is remembered like everyone else's —

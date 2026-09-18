@@ -108,7 +108,10 @@ so `mcp.log` always says which one bound the session):
    work.
 3. **The bridge's working directory**, when the client doesn't advertise
    roots (or advertises them and never answers), as long as it can host a
-   project.
+   project. The filesystem root and your home directory never can (0.9.8):
+   the Windsurf JetBrains plugin launches from both, and a writable `~`
+   used to register itself as a project with a second graph beside the home
+   graph.
 4. **The default agent project** — a machine-level setting for sessions with
    no folder signal at all (an IDE that spawns the bridge from `/` and never
    answers `roots/list`). Set it in the pane's **Settings → System info →
@@ -117,8 +120,16 @@ so `mcp.log` always says which one bound the session):
    reads it at bind time: changing it affects future sessions, never ones
    already connected. Unset, the ladder continues to
 5. **The home graph** — the session binds the core's `/mcp` endpoint rather
-   than dying. A later `roots/list_changed` naming a real workspace still
+   than dying, **reads only**: nothing chose this graph, so every write
+   addressed to "this project" is refused with an error that names the
+   client, the reason, and the rebind call, until the agent binds the
+   session itself (below) — a write aimed at an explicit `project` still
+   passes. A later `roots/list_changed` naming a real workspace still
    rebinds away normally.
+
+The bridge tells the core which rung bound the session (its upstream
+`clientInfo` carries `bound_by=<rung>` and the end client's name), so the
+session census on `/system` and the pane's Processes panel show both.
 
 **The agent can rebind itself: `brief` with `project`.** When a client
 advertises roots but never answers them (Windsurf and Devin CLI in the
@@ -128,11 +139,21 @@ name, id, or any absolute path inside a registered root — rebinds the
 running session to that project and returns its brief in the same call
 (0.8.9 shipped this as a separate `set_project` tool; 0.8.11 folded it into
 `brief`). Sessions stranded on rungs 4 or 5 see a one-line hint atop their
-brief pointing at it. One line in the client's rules file (e.g. `AGENTS.md`)
-makes it automatic:
+brief pointing at it, and the brief's first line always names the graph it
+describes (`# Engram brief — project 'x' (/path)` or `… — the home graph`),
+so "am I bound to the right project?" is one line to read. Every write
+verdict names the `project` it landed in; a session on rung 4 (the
+configured default) says so on its first write. One line in the client's
+rules file (e.g. `AGENTS.md`) makes it automatic:
 
 > At the start of a session, call engram's `brief` with `project` set to the
 > absolute path of the workspace, then follow the brief it returns.
+
+A resumed conversation, an IDE restart, or an MCP reload spawns a **new**
+bridge and therefore a new session, back on the fallback rung — whatever the
+conversation remembers binding earlier. That is why rung 5 refuses writes
+rather than warning: the agent's next write fails with the rebind
+instruction instead of landing silently in the wrong graph (issue #11).
 
 The rebind is session-scoped: it refuses unregistered paths (listing the
 known projects — register a repo by running `engram-alpha serve` in it once)

@@ -1686,6 +1686,7 @@ async fn run_mcp_fixed(raw_db: &Path, fake_embeddings: bool) -> anyhow::Result<(
         let target = |url: String| engram_mcp::ResolvedTarget {
             url,
             lease_root: lease_root.clone(),
+            bound_by: engram_mcp::BoundBy::Db,
         };
         // Version handshake before the first resolution — resolving against
         // an older core would silently pin this session to it.
@@ -1762,15 +1763,24 @@ async fn run_mcp_roots(fake_embeddings: bool) -> anyhow::Result<()> {
         // The root's .engram/ dir must exist for project registration to
         // resolve — the store itself is the core's to create on first open.
         let dot = root.join(".engram");
-        if std::fs::create_dir_all(&dot).is_err() && !dot.is_dir() {
+        let cannot_host = if let Some(why) = root_cannot_host(&root) {
+            Some(why)
+        } else if std::fs::create_dir_all(&dot).is_err() && !dot.is_dir() {
+            Some("mkdir .engram failed".to_string())
+        } else {
+            None
+        };
+        if let Some(why) = cannot_host {
             // The root can't host a project (unwritable IDE launch cwd like
-            // `/`, a deleted dir): the machine-level default agent project
-            // is the next rung, then the machine core's home graph — never
-            // death. A later roots/list_changed naming a real project
-            // rebinds away through the normal path.
+            // `/`, a deleted dir, or the user's home directory — the
+            // Windsurf JetBrains plugin launches from both, issue #11): the
+            // machine-level default agent project is the next rung, then
+            // the machine core's home graph — never death. A later
+            // roots/list_changed naming a real project rebinds away through
+            // the normal path.
             tracing::warn!(
-                "root {} can't host a project (mkdir .engram failed) — trying the default \
-                 agent project setting, then the home graph",
+                "root {} can't host a project ({why}) — trying the default agent project \
+                 setting, then the home graph",
                 root.display()
             );
             let home = registry::engram_home()
@@ -1781,10 +1791,14 @@ async fn run_mcp_roots(fake_embeddings: bool) -> anyhow::Result<()> {
                     if let Some(target) = default_agent_target(port) {
                         return Ok(target);
                     }
-                    tracing::info!("binding the home graph (no default agent project configured)");
+                    tracing::info!(
+                        "binding the home graph (no default agent project configured) — \
+                         reads only until the agent binds the session with a scoped `brief`"
+                    );
                     return Ok(engram_mcp::ResolvedTarget {
                         url: format!("http://127.0.0.1:{port}/mcp"),
                         lease_root: home,
+                        bound_by: engram_mcp::BoundBy::Home,
                     });
                 }
                 if std::time::Instant::now() >= deadline {
@@ -1799,6 +1813,7 @@ async fn run_mcp_roots(fake_embeddings: bool) -> anyhow::Result<()> {
                 return Ok(engram_mcp::ResolvedTarget {
                     url,
                     lease_root: root.display().to_string(),
+                    bound_by: engram_mcp::BoundBy::Cwd,
                 });
             }
             if std::time::Instant::now() >= deadline {
@@ -1844,7 +1859,27 @@ fn default_agent_target(port: u16) -> Option<engram_mcp::ResolvedTarget> {
     Some(engram_mcp::ResolvedTarget {
         url: format!("http://127.0.0.1:{port}/projects/{}/mcp", entry.id),
         lease_root: entry.root,
+        bound_by: engram_mcp::BoundBy::DefaultProject,
     })
+}
+
+/// Directories that are never a project root, whatever their permissions
+/// (issue #11): the filesystem root and the user's home directory. The
+/// Windsurf JetBrains plugin launches the bridge from either, and a writable
+/// `~` used to become a registered project named after the user with a
+/// second graph under `~/.engram/` — beside the home graph, invisibly
+/// wrong. Returns the reason, or None when the root may host a project.
+fn root_cannot_host(root: &Path) -> Option<String> {
+    let root = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
+    if root.parent().is_none() {
+        return Some("the filesystem root is never a project".into());
+    }
+    let home = std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .map(PathBuf::from)?;
+    let home = home.canonicalize().unwrap_or(home);
+    (root == home)
+        .then(|| "the home directory is never a project — the home graph lives there".into())
 }
 
 /// What a `serve` invocation should become — decided by looking at the

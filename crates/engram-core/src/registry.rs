@@ -126,6 +126,25 @@ pub fn register(root: &Path, db: &Path) -> Result<ProjectEntry> {
     let root = root
         .canonicalize()
         .map_err(|e| Error::Io(format!("resolving {}: {e}", root.display())))?;
+    // Never the filesystem root or the user's home directory (issue #11):
+    // the home graph already lives under `~/.engram`, and a project rooted
+    // at `~` would put a second, invisibly wrong graph beside it.
+    if root.parent().is_none() {
+        return Err(Error::Project(
+            "the filesystem root can't be a project root".into(),
+        ));
+    }
+    if let Some(home) = std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .map(PathBuf::from)
+        && root == home.canonicalize().unwrap_or(home)
+    {
+        return Err(Error::Project(format!(
+            "{} is the home directory — the home graph lives there; a project root is a \
+             repository or workspace folder",
+            root.display()
+        )));
+    }
     let db = db.canonicalize().unwrap_or_else(|_| db.to_path_buf());
     let mut reg = load();
     let now = crate::store::now();
@@ -251,5 +270,27 @@ mod tests {
         assert!(reg.resolve("abc123").is_some());
         assert!(reg.resolve("engram").is_some());
         assert!(reg.resolve("nope").is_none());
+    }
+
+    /// Issue #11: the user's home directory and the filesystem root are
+    /// never project roots — the Windsurf JetBrains plugin launches the
+    /// bridge from both, and a writable `~` used to register itself.
+    #[test]
+    fn home_and_filesystem_root_are_refused_as_project_roots() {
+        let home = std::env::var_os("HOME")
+            .or_else(|| std::env::var_os("USERPROFILE"))
+            .map(PathBuf::from)
+            .expect("a home directory");
+        let err = register(&home, &home.join(".engram/graph.db")).expect_err("home refused");
+        assert!(
+            err.to_string().contains("home directory"),
+            "the refusal says why: {err}"
+        );
+        let root = PathBuf::from(std::path::MAIN_SEPARATOR_STR);
+        let err = register(&root, &root.join(".engram/graph.db")).expect_err("/ refused");
+        assert!(
+            err.to_string().contains("filesystem root"),
+            "the refusal says why: {err}"
+        );
     }
 }

@@ -180,6 +180,13 @@ export interface SessionBinding {
     name: string
     since: number
     last_seen: number
+    /** The end client's name as its bridge relayed it ('Windsurf',
+     *  'claude-code'). Absent on cores before 0.9.8. */
+    client?: string
+    /** Which rung of the binding ladder bound the session: 'roots', 'cwd',
+     *  'default-project', 'home' (read-only until the agent binds it), 'db',
+     *  'brief' (the agent bound it itself). Absent on cores before 0.9.8. */
+    bound_by?: string
 }
 
 /** One registered light client (an MCP bridge holding a lease on the core). */

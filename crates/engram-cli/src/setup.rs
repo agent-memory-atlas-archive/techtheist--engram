@@ -570,7 +570,15 @@ impl Setup {
              of every new session: call engram's `brief` with `project` set to this \
              workspace's ABSOLUTE path. Windsurf answers no MCP roots, so the session \
              starts bound to a fallback graph until you rebind it; the call returns \
-             this project's memory brief — read it before planning.\n\n{}",
+             this project's memory brief — read it before planning.\n\nVERIFY every \
+             `brief` reply: its first line names the graph. If it says the home graph, \
+             a fallback, or a project that is not this workspace, rebind with the same \
+             call before doing anything else. This applies even when you believe you \
+             already bound the session: a resumed conversation, an IDE restart or an MCP \
+             reload starts a NEW engram session on the fallback binding. An unbound \
+             session refuses writes with \"bound to the home graph by fallback\" — that \
+             error means: rebind, then retry the write. Every write verdict names the \
+             `project` it landed in; read it.\n\n{}",
             agent_block(&self.variant)
         );
         fs::write(&path, rule)?;

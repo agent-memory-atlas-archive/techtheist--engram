@@ -13,7 +13,10 @@ planning — unless the session already opens with an injected "# Engram brief"
 If the brief's first line says the session is bound by fallback — or it names
 a project that is not your workspace (a client that never answered MCP
 roots) — call `brief` again with `project` set to this workspace's ABSOLUTE
-path: it rebinds the session and returns the right project's brief.
+path: it rebinds the session and returns the right project's brief. A write
+refused as "bound to the home graph by fallback" means the same (a resumed or
+restarted session starts unbound): bind, then retry; every write verdict names
+the `project` it landed in.
 Before any non-trivial decision, `search` the graph; hits carry their 1-hop
 neighbors — read `conflicts-with` / `replaces` edges first, and pass
 `parents`/`children` to `get_node` when you need the reasoning chain. For

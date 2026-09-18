@@ -11,9 +11,10 @@ use engram_core::{
 };
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::{
-    CallToolResult, ContentBlock, Implementation, ListResourceTemplatesResult, ListResourcesResult,
-    PaginatedRequestParams, ReadResourceRequestParams, ReadResourceResult, Resource,
-    ResourceContents, ResourceTemplate, ServerCapabilities, ServerInfo,
+    CallToolResult, ContentBlock, Implementation, InitializeRequestParams, InitializeResult,
+    ListResourceTemplatesResult, ListResourcesResult, PaginatedRequestParams,
+    ReadResourceRequestParams, ReadResourceResult, Resource, ResourceContents, ResourceTemplate,
+    ServerCapabilities, ServerInfo,
 };
 use rmcp::service::RequestContext;
 use rmcp::{ErrorData, RoleServer, ServerHandler, ServiceExt, tool, tool_handler, tool_router};
@@ -31,7 +32,10 @@ Engram is the project's durable reasoning/decision memory as an editable graph. 
 First call `brief` for the canon digest; if its first line says the session is \
 bound by fallback — or the briefed project isn't your workspace — call `brief` \
 again with `project` set to your workspace's absolute path: it rebinds this \
-session and returns THAT project's brief. `search` before non-trivial work. \
+session and returns THAT project's brief. A write refused as \"bound to the home \
+graph by fallback\" means the same (a resumed or restarted session starts unbound): \
+bind, then retry — every write verdict names the `project` it landed in. \
+`search` before non-trivial work. \
 Capture decisions silently as they happen — a feature request usually hides one. \
 Node types (this graph's actual set: `describe_ontology`): Decision, Principle, \
 Caution, Problem, Resolution, Insight, Intent, Anchor, Tombstone (a record \
@@ -167,6 +171,92 @@ struct Binding {
     /// Session lifecycle journal rows in the bound graph; the old graph gets
     /// its `mcp_session_ended` when a rebind drops this.
     trace: Arc<SessionTrace>,
+    /// Which rung of the binding ladder produced this binding (issue #11).
+    /// A bridge announces its rung in the upstream initialize; a scoped
+    /// `brief` overwrites it with [`BoundBy::Brief`].
+    bound_by: BoundBy,
+    /// The end client's `clientInfo.name` as the bridge relayed it
+    /// ("Windsurf", "claude-code", …) — for teaching errors and the census.
+    client: Option<String>,
+    /// Writes this session has made (through any tool): the binding note
+    /// on a fallback-bound session rides only the first one.
+    writes: u32,
+}
+
+/// How a session came to be bound to its project (issue #11: a resumed
+/// Windsurf conversation writes into whatever graph a freshly spawned bridge
+/// fell back to, and nothing said so). The bridge knows its rung and relays
+/// it upstream in `clientInfo.description` as `bound_by=<rung>`; the core
+/// records it per session and gates writes on it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BoundBy {
+    /// The session's route decided it and no bridge said more (a direct
+    /// HTTP MCP client, a pre-0.9.8 bridge, or tests).
+    Route,
+    /// An explicit `--db` on the bridge.
+    Db,
+    /// The client's MCP roots.
+    Roots,
+    /// The bridge's launch directory hosts the project.
+    Cwd,
+    /// The machine-level default-agent-project setting.
+    DefaultProject,
+    /// The home graph, because nothing else could bind: the client answered
+    /// no roots and the launch directory can't host a project. The ONLY rung
+    /// that refuses writes until the agent binds the session itself.
+    Home,
+    /// The agent rebound the session with a scoped `brief`.
+    Brief,
+}
+
+impl BoundBy {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            BoundBy::Route => "route",
+            BoundBy::Db => "db",
+            BoundBy::Roots => "roots",
+            BoundBy::Cwd => "cwd",
+            BoundBy::DefaultProject => "default-project",
+            BoundBy::Home => "home",
+            BoundBy::Brief => "brief",
+        }
+    }
+
+    /// The inverse of [`as_str`](Self::as_str); unknown tokens read as
+    /// `Route` — a newer bridge's vocabulary never breaks an older core.
+    pub fn parse(s: &str) -> Self {
+        match s.trim() {
+            "db" => BoundBy::Db,
+            "roots" => BoundBy::Roots,
+            "cwd" => BoundBy::Cwd,
+            "default-project" => BoundBy::DefaultProject,
+            "home" => BoundBy::Home,
+            "brief" => BoundBy::Brief,
+            _ => BoundBy::Route,
+        }
+    }
+
+    /// The `bound_by=<rung>` token a bridge puts in its upstream
+    /// `clientInfo.description`.
+    pub fn announce(self) -> String {
+        format!("bound_by={}", self.as_str())
+    }
+
+    /// Reads the announced rung out of a `clientInfo.description`, if the
+    /// client is an engram bridge that announced one.
+    pub fn from_description(description: Option<&str>) -> Option<Self> {
+        description?
+            .split(';')
+            .map(str::trim)
+            .find_map(|part| part.strip_prefix("bound_by="))
+            .map(Self::parse)
+    }
+
+    /// A rung the agent did not choose and the user did not configure —
+    /// the session is in the home graph only because nothing else worked.
+    pub fn refuses_writes(self) -> bool {
+        self == BoundBy::Home
+    }
 }
 
 /// Removes the session from the hub's live census when the last clone drops.
@@ -222,6 +312,9 @@ impl Engram {
                 trace: SessionTrace::start(&engine, &session_id, None),
                 engine,
                 bound: None,
+                bound_by: BoundBy::Route,
+                client: None,
+                writes: 0,
             })),
             conflicts: Arc::new(Mutex::new(hub.subscribe_conflicts())),
             _registration: Arc::new(SessionRegistration {
@@ -249,6 +342,9 @@ impl Engram {
                 ),
                 engine,
                 bound: Some(selector.into()),
+                bound_by: BoundBy::Route,
+                client: None,
+                writes: 0,
             })),
             conflicts: Arc::new(Mutex::new(hub.subscribe_conflicts())),
             _registration: Arc::new(SessionRegistration {
@@ -282,6 +378,145 @@ impl Engram {
             None => Ok(self.session_engine()),
             Some(sel) => self.hub.get(sel).map_err(map_err),
         }
+    }
+
+    /// The write-side [`engine_for`](Self::engine_for) (issue #11): a
+    /// session that sits in the home graph only because nothing else could
+    /// bind it (`bound_by=home`: the client answered no MCP roots and the
+    /// launch directory can't host a project) refuses every write addressed
+    /// to "this project" — reads keep working so the agent can find its
+    /// workspace, and the error teaches the one call that binds it. An
+    /// explicit `project` selector is a deliberate target and passes.
+    fn write_engine_for(&self, project: &Option<String>) -> Result<Arc<Mutex<Engine>>, ErrorData> {
+        if project.is_none() && self.bound_by().refuses_writes() {
+            return Err(ErrorData::invalid_params(
+                self.unbound_write_refusal(),
+                None,
+            ));
+        }
+        self.engine_for(project)
+    }
+
+    fn bound_by(&self) -> BoundBy {
+        self.binding.read().unwrap().bound_by
+    }
+
+    /// What the initialize's `clientInfo` says about this session: the end
+    /// client's name, and — from an engram bridge — the ladder rung. A
+    /// scoped `brief` that already ran keeps its `Brief` rung.
+    pub fn record_client(&self, info: &Implementation) {
+        let name = info.name.trim().to_string();
+        let client = (!name.is_empty()).then_some(name);
+        let bound_by = BoundBy::from_description(info.description.as_deref());
+        {
+            let mut b = self.binding.write().unwrap();
+            if client.is_some() {
+                b.client = client.clone();
+            }
+            if let Some(rung) = bound_by
+                && b.bound_by != BoundBy::Brief
+            {
+                b.bound_by = rung;
+            }
+        }
+        self.hub.session_meta(
+            &self.session_id,
+            client,
+            bound_by.unwrap_or(BoundBy::Route).as_str(),
+        );
+    }
+
+    fn session_client(&self) -> Option<String> {
+        self.binding.read().unwrap().client.clone()
+    }
+
+    /// The teaching error behind a refused write: who the client is, why the
+    /// session landed here, the exact call that fixes it, and the roster to
+    /// pick from.
+    fn unbound_write_refusal(&self) -> String {
+        let client = self
+            .session_client()
+            .unwrap_or_else(|| "your MCP client".into());
+        let roster: Vec<String> = self
+            .hub
+            .projects_for(self.session_bound().as_deref())
+            .into_iter()
+            .filter(|p| !p.home)
+            .map(|p| match &p.root {
+                Some(root) => format!("{} ({root})", p.name),
+                None => p.name.clone(),
+            })
+            .collect();
+        let roster = if roster.is_empty() {
+            "none registered yet — `engram-alpha serve` inside the repo registers it".to_string()
+        } else {
+            roster.join(", ")
+        };
+        format!(
+            "write refused: this session is bound to the home graph by fallback — {client} \
+             answered no MCP roots and the bridge's launch directory can't host a project, so \
+             engram doesn't know which workspace you are in (a resumed or restarted session \
+             starts here again even if you bound it earlier). Call `brief` with `project` set \
+             to your workspace's ABSOLUTE path, then retry this write; `brief` with \
+             project \"home\" writes the user-level graph deliberately. Registered projects: \
+             {roster}."
+        )
+    }
+
+    /// The display name of the graph a write went to: the session's own
+    /// project when `project` was omitted, else the selector resolved.
+    fn project_label(&self, project: &Option<String>) -> String {
+        let id = match project.as_deref() {
+            Some(sel) => match self.hub.resolve_id(sel) {
+                Ok(id) => id,
+                Err(_) => return sel.to_string(),
+            },
+            None => match self.session_bound() {
+                Some(b) => self.hub.resolve_id(&b).unwrap_or_else(|_| b.to_string()),
+                None => self.hub.current().id.clone(),
+            },
+        };
+        self.hub.project_name(&id)
+    }
+
+    /// Stamp a write verdict with where it landed (issue #11): `project`
+    /// on every write, plus — on the FIRST write of a session bound by a
+    /// fallback rung the user configured (the default agent project) — a
+    /// one-time `binding_note` saying the workspace was never confirmed.
+    /// Explicit cross-project writes name their own target and carry no
+    /// note; the home-fallback rung never gets here (writes are refused).
+    fn stamp_write(&self, out: &mut serde_json::Value, project: &Option<String>) {
+        if !out.is_object() {
+            return;
+        }
+        out["project"] = json!(self.project_label(project));
+        let (bound_by, first) = {
+            let mut b = self.binding.write().unwrap();
+            let first = b.writes == 0;
+            b.writes = b.writes.saturating_add(1);
+            (b.bound_by, first)
+        };
+        if first && project.is_none() && bound_by == BoundBy::DefaultProject {
+            out["binding_note"] = json!(format!(
+                "this session is bound to '{}' by the machine-level default-agent-project \
+                 setting, not by your workspace ({} answered no MCP roots). If that is not \
+                 the project you are working in, call `brief` with `project` set to your \
+                 workspace's absolute path — this note rides the first write only.",
+                out["project"].as_str().unwrap_or_default(),
+                self.session_client()
+                    .unwrap_or_else(|| "the MCP client".into())
+            ));
+        }
+    }
+
+    /// [`reply`](Self::reply) for writes: stamps the verdict first.
+    fn reply_write(
+        &self,
+        mut out: serde_json::Value,
+        project: &Option<String>,
+    ) -> Result<CallToolResult, ErrorData> {
+        self.stamp_write(&mut out, project);
+        self.reply(&out)
     }
 
     /// Apply a search `detail` level: compact strips snippets and neighbors,
@@ -720,8 +955,9 @@ impl Engram {
         &self,
         Parameters(a): Parameters<AddNoteArgs>,
     ) -> Result<CallToolResult, ErrorData> {
+        let project = a.project.clone();
         let payload = self.create_note(a)?;
-        self.reply(&payload)
+        self.reply_write(payload, &project)
     }
 
     /// The add_note core, shared with the batch form. Each note resolves its
@@ -729,7 +965,8 @@ impl Engram {
     /// the home-graph pointer (PLAN §7C: fan-out writes are replication).
     fn create_note(&self, a: AddNoteArgs) -> Result<serde_json::Value, ErrorData> {
         let node_type = NodeType::parse(&a.node_type).map_err(map_err)?;
-        let engine = self.engine_for(&a.project)?;
+        let engine = self.write_engine_for(&a.project)?;
+        let explicit = a.project.clone();
         // Durability defaults from the ontology; born-open status for
         // worklist types is applied by Engine::add_node (the write boundary
         // owns it, so every surface gets it).
@@ -794,6 +1031,11 @@ impl Engram {
                     out["action_required"] = json!(SUSPECT_ACTION);
                 }
                 Self::attach_canon(&mut out, &canon);
+                if explicit.is_some() {
+                    // A batch item aimed at another graph says so; the
+                    // envelope names the session's own project.
+                    out["project"] = json!(self.project_label(&explicit));
+                }
                 out
             }
             WriteOutcome::Matched {
@@ -849,7 +1091,7 @@ impl Engram {
                     .unwrap_or_else(|e| json!({ "ok": false, "error": e.message }))
             })
             .collect();
-        self.reply(&json!({ "results": results }))
+        self.reply_write(json!({ "results": results }), &None)
     }
 
     #[tool(
@@ -882,11 +1124,19 @@ impl Engram {
                 let mut binding = self.binding.write().unwrap();
                 binding.engine = engine.clone();
                 binding.bound = Some(id.as_str().into());
+                // The agent chose this binding itself: the fallback write
+                // guard and the first-write note stand down.
+                binding.bound_by = BoundBy::Brief;
                 // Dropping the old trace journals mcp_session_ended in the
                 // graph this session is leaving.
                 binding.trace = trace;
             }
             self.hub.session_bind(&self.session_id, Some(&id));
+            self.hub.session_meta(
+                &self.session_id,
+                self.session_client(),
+                BoundBy::Brief.as_str(),
+            );
             let max_chars = engine.lock().unwrap().brief_chars(a.max_chars);
             let brief = self.hub.brief_for(Some(&id), max_chars).map_err(map_err)?;
             let text = format!("_Session rebound to project '{id}'._\n\n{brief}");
@@ -931,7 +1181,7 @@ impl Engram {
         &self,
         Parameters(a): Parameters<SetVersionArgs>,
     ) -> Result<CallToolResult, ErrorData> {
-        let engine = self.engine_for(&a.project)?;
+        let engine = self.write_engine_for(&a.project)?;
         let (previous, history, enabled_by_this_call) = {
             let engine = self.mcp(&engine);
             let was_on = engine.config().versioning.enabled;
@@ -958,13 +1208,13 @@ impl Engram {
                 "was off — enabled by this call; new version-bound notes are stamped from now on"
             );
         }
-        self.reply(&reply)
+        self.reply_write(reply, &a.project)
     }
 
     #[tool(description = "Delete one edge by id (repair a mislink). Nodes are \
         never deleted here — hard delete is user-only.")]
     async fn unlink(&self, Parameters(a): Parameters<IdArg>) -> Result<CallToolResult, ErrorData> {
-        let engine = self.engine_for(&a.project)?;
+        let engine = self.write_engine_for(&a.project)?;
         let removed = self.mcp(&engine).delete_edge(&a.id).map_err(map_err)?;
         if !removed {
             return Err(ErrorData::invalid_params(
@@ -972,7 +1222,7 @@ impl Engram {
                 None,
             ));
         }
-        self.reply(&json!({ "ok": true }))
+        self.reply_write(json!({ "ok": true }), &a.project)
     }
 
     #[tool(
@@ -996,12 +1246,12 @@ impl Engram {
             confidence: a.confidence,
             strength: None,
         };
-        let engine = self.engine_for(&a.project)?;
+        let engine = self.write_engine_for(&a.project)?;
         let edge = self
             .mcp(&engine)
             .update_edge(&a.id, patch)
             .map_err(map_err)?;
-        self.reply(&json!({ "ok": true, "id": edge.id }))
+        self.reply_write(json!({ "ok": true, "id": edge.id }), &a.project)
     }
 
     #[tool(description = "Link two nodes with a sentence-shaped edge: \
@@ -1010,7 +1260,7 @@ impl Engram {
         \"from <verb> to\" must read as an English sentence.")]
     async fn link(&self, Parameters(a): Parameters<LinkArgs>) -> Result<CallToolResult, ErrorData> {
         let edge_type = EdgeType::parse(&a.edge_type).map_err(map_err)?;
-        let engine = self.engine_for(&a.project)?;
+        let engine = self.write_engine_for(&a.project)?;
         let edge = self
             .mcp(&engine)
             .add_edge(NewEdge {
@@ -1031,7 +1281,7 @@ impl Engram {
             // already knows; don't echo its own alert back on the next call.
             let _ = self.drain_conflict_alerts();
         }
-        self.reply(&json!({ "id": edge.id }))
+        self.reply_write(json!({ "id": edge.id }), &a.project)
     }
 
     #[tool(
@@ -1083,7 +1333,7 @@ impl Engram {
         Parameters(a): Parameters<ResolveSuspectArgs>,
     ) -> Result<CallToolResult, ErrorData> {
         let verdict = SuspectVerdict::parse(&a.verdict).map_err(map_err)?;
-        let engine = self.engine_for(&a.project)?;
+        let engine = self.write_engine_for(&a.project)?;
         let edge = self
             .mcp(&engine)
             .resolve_suspect(&a.id, verdict, Source::Claude)
@@ -1092,7 +1342,7 @@ impl Engram {
             // The judge doesn't need its own verdict pushed back at it.
             let _ = self.drain_conflict_alerts();
         }
-        self.reply(&json!({ "ok": true, "edge": edge }))
+        self.reply_write(json!({ "ok": true, "edge": edge }), &a.project)
     }
 
     #[tool(description = "Approve a node: trust restarts at 100%. ONLY on \
@@ -1102,9 +1352,12 @@ impl Engram {
         &self,
         Parameters(a): Parameters<ApproveArgs>,
     ) -> Result<CallToolResult, ErrorData> {
-        let engine = self.engine_for(&a.project)?;
+        let engine = self.write_engine_for(&a.project)?;
         let node = self.mcp(&engine).approve(&a.id).map_err(map_err)?;
-        self.reply(&json!({ "ok": true, "id": node.id, "trust": node.trust }))
+        self.reply_write(
+            json!({ "ok": true, "id": node.id, "trust": node.trust }),
+            &a.project,
+        )
     }
 
     #[tool(
@@ -1117,8 +1370,9 @@ impl Engram {
         &self,
         Parameters(a): Parameters<UpdateArgs>,
     ) -> Result<CallToolResult, ErrorData> {
+        let project = a.project.clone();
         let payload = self.patch_node(a)?;
-        self.reply(&payload)
+        self.reply_write(payload, &project)
     }
 
     /// The update_node core, shared with the batch form.
@@ -1147,7 +1401,7 @@ impl Engram {
             tags: a.tags,
             fields: a.fields,
         };
-        let engine = self.engine_for(&a.project)?;
+        let engine = self.write_engine_for(&a.project)?;
         let engram_core::CheckedUpdate {
             node,
             warnings,
@@ -1192,7 +1446,7 @@ impl Engram {
                 None,
             ));
         }
-        let engine = self.engine_for(&a.project)?;
+        let engine = self.write_engine_for(&a.project)?;
         let outcome = self
             .mcp(&engine)
             .merge_nodes(&a.survivor, &a.victims, a.title, a.body, Source::Claude)
@@ -1213,7 +1467,7 @@ impl Engram {
             out["action_required"] = json!(SUSPECT_ACTION);
         }
         Self::attach_canon(&mut out, &outcome.canon);
-        self.reply(&out)
+        self.reply_write(out, &a.project)
     }
 
     #[tool(description = "Batch update_node for curation sweeps: items apply \
@@ -1238,7 +1492,7 @@ impl Engram {
                     .unwrap_or_else(|e| json!({ "ok": false, "id": id, "error": e.message }))
             })
             .collect();
-        self.reply(&json!({ "results": results }))
+        self.reply_write(json!({ "results": results }), &None)
     }
 
     #[tool(description = "Lossless paged read: complete nodes with filters \
@@ -1398,16 +1652,36 @@ impl Engram {
             Some(b) => self.hub.resolve_id(&b).ok()?,
             None => self.hub.current().id.clone(),
         };
+        let bound_by = self.bound_by();
+        // The bridge said so (0.9.8), or — for a bridge that doesn't
+        // announce its rung — the graph itself gives it away.
         let default = engram_core::settings::load().default_agent_project;
-        if id != registry::HOME_PROJECT && default.as_deref() != Some(id.as_str()) {
+        let on_fallback = matches!(bound_by, BoundBy::Home | BoundBy::DefaultProject)
+            || (bound_by == BoundBy::Route
+                && (id == registry::HOME_PROJECT || default.as_deref() == Some(id.as_str())));
+        if !on_fallback {
             return None;
         }
-        Some(format!(
-            "_This session is bound to '{id}' by fallback. If your workspace is a \
-             different project, call `brief` again with `project` set to your \
-             workspace's absolute path — it rebinds this session and returns \
-             that project's brief._"
-        ))
+        let client = self
+            .session_client()
+            .unwrap_or_else(|| "your MCP client".into());
+        Some(if bound_by.refuses_writes() {
+            format!(
+                "_This session is bound to the home graph by fallback: {client} answered no \
+                 MCP roots and the bridge's launch directory can't host a project. WRITES \
+                 ARE REFUSED until you bind it — call `brief` again with `project` set to \
+                 your workspace's absolute path (it rebinds this session and returns that \
+                 project's brief), or with project \"home\" to work in the user-level graph \
+                 deliberately._"
+            )
+        } else {
+            format!(
+                "_This session is bound to '{id}' by fallback. If your workspace is a \
+                 different project, call `brief` again with `project` set to your \
+                 workspace's absolute path — it rebinds this session and returns \
+                 that project's brief._"
+            )
+        })
     }
 }
 
@@ -1433,6 +1707,21 @@ fn engram_server_info() -> ServerInfo {
 impl ServerHandler for Engram {
     fn get_info(&self) -> ServerInfo {
         engram_server_info()
+    }
+
+    /// The handshake is where a session learns who it serves (issue #11):
+    /// an engram bridge announces the end client's name and the binding
+    /// ladder rung it landed on (`clientInfo.description` =
+    /// `bound_by=<rung>`); a direct client announces itself. A scoped
+    /// `brief` later overrides the rung with `brief`.
+    async fn initialize(
+        &self,
+        request: InitializeRequestParams,
+        context: RequestContext<RoleServer>,
+    ) -> Result<InitializeResult, ErrorData> {
+        self.record_client(&request.client_info);
+        context.peer.set_peer_info(request);
+        Ok(self.get_info())
     }
 
     /// Appendix A: `engram://node/{id}` so a user can @-mention a node in a
@@ -1714,6 +2003,11 @@ pub enum BridgeTarget {
 pub struct ResolvedTarget {
     pub url: String,
     pub lease_root: String,
+    /// The ladder rung the resolver landed on (issue #11): `Cwd` when the
+    /// root itself hosts the project (the bridge upgrades it to `Roots`
+    /// when the client named that root), `DefaultProject`, `Home`, or `Db`
+    /// for the fixed shape. Relayed to the core in the upstream initialize.
+    pub bound_by: BoundBy,
 }
 
 /// Maps a project root to the upstream MCP target serving it (registering
@@ -1843,6 +2137,7 @@ impl BridgeState {
         self: &Arc<Self>,
         url: &str,
         lease_root: Option<&str>,
+        bound_by: BoundBy,
     ) -> anyhow::Result<rmcp::model::ServerInfo> {
         let transport = rmcp::transport::StreamableHttpClientTransport::with_client(
             self.http.clone(),
@@ -1850,7 +2145,20 @@ impl BridgeState {
                 url.to_string(),
             ),
         );
-        let client = ().serve(transport).await?;
+        // The bridge identifies itself upstream as the client it fronts
+        // (issue #11): `name` is the end client's clientInfo.name when the
+        // stdio handshake already said it, `description` carries the
+        // ladder rung — the core records both per session, gates writes on
+        // the rung, and shows them in the census.
+        let end_client = self.client_name.lock().unwrap().clone();
+        let mut client_info = rmcp::model::ClientInfo::default();
+        client_info.client_info = Implementation::new(
+            end_client.unwrap_or_else(|| "engram-bridge".into()),
+            env!("CARGO_PKG_VERSION"),
+        )
+        .with_title("via engram-bridge")
+        .with_description(bound_by.announce());
+        let client = client_info.serve(transport).await?;
         let info = client
             .peer()
             .peer_info()
@@ -2055,7 +2363,7 @@ impl RootsBinding {
     /// Bind the session to `root`: resolve its upstream URL (registering the
     /// project with the core), open the new session, retire the old one.
     /// No-op when already bound there.
-    async fn bind_to(&self, root: std::path::PathBuf) -> anyhow::Result<()> {
+    async fn bind_to(&self, root: std::path::PathBuf, from_roots: bool) -> anyhow::Result<()> {
         let root = std::fs::canonicalize(&root).unwrap_or(root);
         let _gate = self.bind_gate.lock().await;
         if self.current_root.lock().unwrap().as_deref() == Some(&root) {
@@ -2064,10 +2372,21 @@ impl RootsBinding {
         let resolve = self.resolve.clone();
         let resolving = root.clone();
         let target = tokio::task::spawn_blocking(move || resolve(resolving)).await??;
+        // The resolver only knows whether the root hosts a project; the
+        // bridge knows whether the client named it.
+        let bound_by = match target.bound_by {
+            BoundBy::Cwd if from_roots => BoundBy::Roots,
+            other => other,
+        };
         self.state
-            .connect(&target.url, Some(&target.lease_root))
+            .connect(&target.url, Some(&target.lease_root), bound_by)
             .await?;
-        tracing::info!("bridge bound to {} ({})", target.lease_root, target.url);
+        tracing::info!(
+            "bridge bound to {} ({}) by {}",
+            target.lease_root,
+            target.url,
+            bound_by.as_str()
+        );
         *self.current_root.lock().unwrap() = Some(root);
         Ok(())
     }
@@ -2080,6 +2399,7 @@ impl RootsBinding {
         peer: rmcp::service::Peer<rmcp::RoleServer>,
         client_has_roots: bool,
     ) -> anyhow::Result<()> {
+        let mut from_roots = false;
         let root = if client_has_roots {
             let mut rx = self.initialized.subscribe();
             let initialized = async {
@@ -2098,6 +2418,7 @@ impl RootsBinding {
             match self.query_roots(&peer).await {
                 Some(root) => {
                     tracing::info!("binding by client roots: {}", root.display());
+                    from_roots = true;
                     root
                 }
                 None => {
@@ -2112,18 +2433,17 @@ impl RootsBinding {
             );
             self.fallback_root.clone()
         };
-        self.bind_to(root).await
+        self.bind_to(root, from_roots).await
     }
 
     /// roots/list_changed: re-ask, rebind when the project changed. A failed
     /// rebind keeps the current binding — better a stale project than a dead
     /// session — and logs why.
     async fn rebind_from(self: Arc<Self>, peer: &rmcp::service::Peer<rmcp::RoleServer>) {
-        let root = self
-            .query_roots(peer)
-            .await
-            .unwrap_or_else(|| self.fallback_root.clone());
-        if let Err(e) = self.bind_to(root).await {
+        let answered = self.query_roots(peer).await;
+        let from_roots = answered.is_some();
+        let root = answered.unwrap_or_else(|| self.fallback_root.clone());
+        if let Err(e) = self.bind_to(root, from_roots).await {
             tracing::warn!(
                 "rebind after roots/list_changed failed — keeping the current project: {e:#}"
             );
@@ -2327,7 +2647,7 @@ pub async fn serve_stdio_bridge(target: BridgeTarget) -> anyhow::Result<()> {
                 .and_then(|r| r);
             let connected = match resolved {
                 Ok(t) => fail_state
-                    .connect(&t.url, Some(&t.lease_root))
+                    .connect(&t.url, Some(&t.lease_root), t.bound_by)
                     .await
                     .map(|_| ()),
                 Err(e) => Err(e),
@@ -4641,7 +4961,7 @@ mod transport_tests {
             exit,
             failed: std::sync::Mutex::new(None),
         });
-        let info = state.connect(&url, None).await.unwrap();
+        let info = state.connect(&url, None, BoundBy::Route).await.unwrap();
         let proxy = Passthrough {
             state: state.clone(),
             info,
@@ -4977,6 +5297,240 @@ mod scoped_transport_tests {
             !text.contains("rebinds this session"),
             "a single-project session never sees the hint: {text}"
         );
+    }
+
+    /// Issue #11: a session that fell back to the home graph (the bridge
+    /// announced `bound_by=home` — Windsurf answered no roots, the launch
+    /// dir can't host a project) refuses writes with a teaching error,
+    /// answers reads, and writes again once the agent binds it with a
+    /// scoped `brief` — explicit `project` targets pass throughout.
+    #[tokio::test]
+    async fn home_fallback_session_refuses_writes_until_briefed() {
+        let factory: engram_core::EngineFactory = Box::new(|db| {
+            Ok(Engine::new(
+                SqliteStore::open(db)?,
+                Box::new(FakeEmbedder::default()),
+            ))
+        });
+        let home = Engine::new(
+            SqliteStore::open_in_memory().unwrap(),
+            Box::new(FakeEmbedder::default()),
+        );
+        let hub = Arc::new(Hub::new_home(Arc::new(Mutex::new(home)), Some(factory)));
+        let s = Engram::with_hub(hub.clone());
+        s.record_client(
+            &Implementation::new("Windsurf", "1.0.0").with_description("bound_by=home"),
+        );
+
+        // Census legibility rides the same handshake.
+        let row = hub
+            .sessions()
+            .into_iter()
+            .find(|r| r.session_id == *s.session_id)
+            .expect("the session is in the census");
+        assert_eq!(row.client.as_deref(), Some("Windsurf"));
+        assert_eq!(row.bound_by.as_deref(), Some("home"));
+
+        let note = |title: &str, project: Option<&str>| AddNoteArgs {
+            node_type: "Decision".into(),
+            title: title.into(),
+            body: None,
+            tags: vec![],
+            code_refs: vec![],
+            durability: None,
+            version: None,
+            created_at: None,
+            session_id: None,
+            fields: None,
+            project: project.map(str::to_string),
+        };
+        let err = s
+            .add_note(Parameters(note("lands nowhere", None)))
+            .await
+            .expect_err("an unbound session refuses the write");
+        assert!(
+            err.message.contains("write refused")
+                && err.message.contains("Windsurf")
+                && err.message.contains("`brief`"),
+            "the refusal teaches the fix: {}",
+            err.message
+        );
+        for name in ["link", "update_node", "set_version"] {
+            let refused = match name {
+                "link" => s
+                    .link(Parameters(LinkArgs {
+                        from: "a".into(),
+                        to: "b".into(),
+                        edge_type: "because".into(),
+                        note: None,
+                        confidence: None,
+                        project: None,
+                    }))
+                    .await
+                    .is_err(),
+                "update_node" => s
+                    .update_node(Parameters(UpdateArgs {
+                        id: "a".into(),
+                        node_type: None,
+                        title: Some("x".into()),
+                        body: None,
+                        durability: None,
+                        status: None,
+                        code_refs: None,
+                        tags: None,
+                        version: None,
+                        fields: None,
+                        project: None,
+                    }))
+                    .await
+                    .is_err(),
+                _ => s
+                    .set_version(Parameters(SetVersionArgs {
+                        version: Some("1.0".into()),
+                        project: None,
+                    }))
+                    .await
+                    .is_err(),
+            };
+            assert!(refused, "{name} is refused while unbound");
+        }
+        // Reads answer, and the brief's hint says writes are refused.
+        let brief = s
+            .brief(Parameters(BriefArgs {
+                max_chars: None,
+                project: None,
+            }))
+            .await
+            .unwrap();
+        let text = format!("{:?}", brief.content);
+        assert!(
+            text.contains("WRITES ARE REFUSED") && text.contains("Windsurf"),
+            "the brief hint names the client and the refusal: {text}"
+        );
+        assert!(
+            text.contains("the home graph (user-level, no project)"),
+            "the brief's first line names the graph: {text}"
+        );
+        // An explicit target is deliberate — it passes even now.
+        let explicit = s
+            .add_note(Parameters(note("deliberately in home", Some("home"))))
+            .await
+            .expect("explicit project passes");
+        assert!(
+            format!("{:?}", explicit.content).contains("\\\"project\\\": \\\"home\\\""),
+            "the verdict names the graph: {:?}",
+            explicit.content
+        );
+        // The agent binds the session: writes flow, the hint is gone.
+        s.brief(Parameters(BriefArgs {
+            max_chars: None,
+            project: Some("home".into()),
+        }))
+        .await
+        .expect("brief(project) rebinds");
+        let ok = s
+            .add_note(Parameters(note("after binding", None)))
+            .await
+            .expect("bound sessions write");
+        assert!(
+            format!("{:?}", ok.content).contains("\\\"project\\\": \\\"home\\\""),
+            "every write names its graph: {:?}",
+            ok.content
+        );
+        let brief = s
+            .brief(Parameters(BriefArgs {
+                max_chars: None,
+                project: None,
+            }))
+            .await
+            .unwrap();
+        assert!(
+            !format!("{:?}", brief.content).contains("by fallback"),
+            "a session the agent bound itself sees no fallback hint"
+        );
+        let row = hub
+            .sessions()
+            .into_iter()
+            .find(|r| r.session_id == *s.session_id)
+            .unwrap();
+        assert_eq!(row.bound_by.as_deref(), Some("brief"));
+    }
+
+    /// The default-agent-project rung is a user's explicit setting, so it
+    /// writes — but the first write of the session says the workspace was
+    /// never confirmed, once.
+    #[tokio::test]
+    async fn default_project_session_notes_its_first_write_only() {
+        let s = super::tool_tests::server();
+        s.record_client(
+            &Implementation::new("Windsurf", "1.0.0").with_description("bound_by=default-project"),
+        );
+        let note = |title: &str| AddNoteArgs {
+            node_type: "Decision".into(),
+            title: title.into(),
+            body: None,
+            tags: vec![],
+            code_refs: vec![],
+            durability: None,
+            version: None,
+            created_at: None,
+            session_id: None,
+            fields: None,
+            project: None,
+        };
+        let first = format!(
+            "{:?}",
+            s.add_note(Parameters(note("first write")))
+                .await
+                .unwrap()
+                .content
+        );
+        assert!(
+            first.contains("binding_note") && first.contains("default-agent-project"),
+            "the first write carries the note: {first}"
+        );
+        let second = format!(
+            "{:?}",
+            s.add_note(Parameters(note("second write")))
+                .await
+                .unwrap()
+                .content
+        );
+        assert!(
+            !second.contains("binding_note") && second.contains("\\\"project\\\""),
+            "the second write only names the graph: {second}"
+        );
+    }
+
+    #[test]
+    fn bound_by_round_trips_through_the_client_description() {
+        for rung in [
+            BoundBy::Db,
+            BoundBy::Roots,
+            BoundBy::Cwd,
+            BoundBy::DefaultProject,
+            BoundBy::Home,
+            BoundBy::Brief,
+        ] {
+            assert_eq!(
+                BoundBy::from_description(Some(&rung.announce())),
+                Some(rung)
+            );
+        }
+        assert_eq!(BoundBy::from_description(None), None);
+        assert_eq!(BoundBy::from_description(Some("a plain client")), None);
+        assert_eq!(
+            BoundBy::from_description(Some("x=1; bound_by=roots; y=2")),
+            Some(BoundBy::Roots)
+        );
+        assert_eq!(
+            BoundBy::from_description(Some("bound_by=something-newer")),
+            Some(BoundBy::Route),
+            "an unknown rung from a newer bridge reads as the route alone"
+        );
+        assert!(BoundBy::Home.refuses_writes());
+        assert!(!BoundBy::DefaultProject.refuses_writes());
+        assert!(!BoundBy::Roots.refuses_writes());
     }
 }
 

@@ -196,6 +196,14 @@ pub struct SessionBinding {
     pub name: String,
     pub since: i64,
     pub last_seen: i64,
+    /// The end client's name as its bridge relayed it ("Windsurf",
+    /// "claude-code"), once the session's initialize said (0.9.8).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client: Option<String>,
+    /// Which rung of the binding ladder bound the session ("roots", "cwd",
+    /// "default-project", "home", "db", "brief"; absent = the route alone).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bound_by: Option<String>,
 }
 
 /// A session binding this stale (no tool call, and the transport never
@@ -437,8 +445,20 @@ impl Hub {
         self.factory.is_some()
     }
 
+    /// The root directory of a resolved project id, when it has one.
+    pub fn project_root(&self, id: &str) -> Option<String> {
+        if id == self.current.id {
+            return self.current.root.as_ref().map(|p| p.display().to_string());
+        }
+        registry::load()
+            .projects
+            .into_iter()
+            .find(|p| p.id == id)
+            .map(|p| p.root)
+    }
+
     /// The display name for a resolved project id.
-    fn project_name(&self, id: &str) -> String {
+    pub fn project_name(&self, id: &str) -> String {
         if id == self.current.id {
             return self.current.name.clone();
         }
@@ -473,10 +493,26 @@ impl Hub {
                 name: name.clone(),
                 since: now,
                 last_seen: now,
+                client: None,
+                bound_by: None,
             });
         entry.project = id;
         entry.name = name;
         entry.last_seen = now;
+    }
+
+    /// What a session learned about itself after binding (0.9.8): the end
+    /// client's name and the ladder rung — census legibility for `/system`
+    /// and the pane, so "which Windsurf session is still on the fallback"
+    /// is a glance, not a log dig.
+    pub fn session_meta(&self, session_id: &str, client: Option<String>, bound_by: &str) {
+        if let Some(s) = self.sessions.lock().unwrap().get_mut(session_id) {
+            if client.is_some() {
+                s.client = client;
+            }
+            s.bound_by = Some(bound_by.to_string());
+            s.last_seen = crate::store::now();
+        }
     }
 
     /// A tool call on the session — keeps its census row alive.
@@ -801,6 +837,23 @@ impl Hub {
             .lock()
             .unwrap()
             .brief(max_chars.saturating_sub(reserve))?;
+        // The first line names the graph (issue #11): an agent verifying
+        // its binding after a resume reads one line, not the roster.
+        let header = if id == HOME_PROJECT {
+            "# Engram brief — the home graph (user-level, no project)".to_string()
+        } else {
+            let root = self.project_root(&id);
+            match root {
+                Some(root) => format!(
+                    "# Engram brief — project '{}' ({root})",
+                    self.project_name(&id)
+                ),
+                None => format!("# Engram brief — project '{}'", self.project_name(&id)),
+            }
+        };
+        if let Some(rest) = out.strip_prefix("# Engram brief\n") {
+            out = format!("{header}\n{rest}");
+        }
         if let Some(section) = home {
             out.push_str(&section);
         }

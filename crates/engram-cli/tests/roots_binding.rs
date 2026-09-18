@@ -329,25 +329,77 @@ impl Bridge {
         self.pump_until_response(id)
     }
 
-    fn add_note(&mut self, id: u64, title: &str) -> serde_json::Value {
+    /// One tools/call, raw: the caller judges the reply.
+    fn call_tool(
+        &mut self,
+        id: u64,
+        name: &str,
+        arguments: serde_json::Value,
+    ) -> serde_json::Value {
         self.send(
             &serde_json::json!({
                 "jsonrpc": "2.0",
                 "id": id,
                 "method": "tools/call",
-                "params": {
-                    "name": "add_note",
-                    "arguments": { "type": "Decision", "title": title }
-                }
+                "params": { "name": name, "arguments": arguments }
             })
             .to_string(),
         );
-        let resp = self.pump_until_response(id);
+        self.pump_until_response(id)
+    }
+
+    fn add_note(&mut self, id: u64, title: &str) -> serde_json::Value {
+        let resp = self.call_tool(
+            id,
+            "add_note",
+            serde_json::json!({ "type": "Decision", "title": title }),
+        );
         assert!(
             resp.get("error").is_none() && resp["result"]["isError"] != serde_json::json!(true),
             "add_note failed: {resp}"
         );
         resp
+    }
+
+    /// The text of a successful tool reply (its first content block).
+    fn reply_text(resp: &serde_json::Value) -> String {
+        resp["result"]["content"][0]["text"]
+            .as_str()
+            .unwrap_or_default()
+            .to_string()
+    }
+
+    /// Issue #11: a session on the home-graph fallback refuses writes with
+    /// the teaching error; returns that error's text.
+    fn add_note_refused(&mut self, id: u64, title: &str) -> String {
+        let resp = self.call_tool(
+            id,
+            "add_note",
+            serde_json::json!({ "type": "Decision", "title": title }),
+        );
+        let msg = resp["error"]["message"]
+            .as_str()
+            .map(str::to_string)
+            .or_else(|| {
+                (resp["result"]["isError"] == serde_json::json!(true))
+                    .then(|| Self::reply_text(&resp))
+            })
+            .unwrap_or_else(|| panic!("the write was not refused: {resp}"));
+        assert!(
+            msg.contains("bound to the home graph by fallback"),
+            "the refusal teaches the fix: {msg}"
+        );
+        msg
+    }
+
+    /// The agent's rebind gesture: `brief` with `project`.
+    fn brief_project(&mut self, id: u64, project: &str) -> String {
+        let resp = self.call_tool(id, "brief", serde_json::json!({ "project": project }));
+        assert!(
+            resp.get("error").is_none() && resp["result"]["isError"] != serde_json::json!(true),
+            "brief(project) failed: {resp}"
+        );
+        Self::reply_text(&resp)
     }
 
     fn kill(&mut self) {
@@ -538,11 +590,33 @@ fn unwritable_cwd_binds_home_graph() {
         tools.contains("add_note"),
         "tools answer against the home graph: {tools}"
     );
-    bridge.add_note(3, "home graph fallback proof note");
+    // Issue #11: nothing chose this graph, so writes are refused — the
+    // error names the client and the rebind call — until the agent binds
+    // the session itself; reads answer throughout.
+    let refusal = bridge.add_note_refused(3, "home graph fallback proof note");
+    assert!(
+        refusal.contains("roots-test") && refusal.contains("`brief`"),
+        "the refusal names the client and the fix: {refusal}"
+    );
+    assert!(
+        !http_get(port, "/projects/home/graph")
+            .is_some_and(|g| g.contains("home graph fallback proof note")),
+        "a refused write landed nowhere"
+    );
+    let brief = bridge.brief_project(4, "home");
+    assert!(
+        brief.contains("the home graph (user-level, no project)"),
+        "the brief's first line names the graph: {brief}"
+    );
+    let ok = bridge.add_note(5, "home graph fallback proof note");
+    assert!(
+        Bridge::reply_text(&ok).contains("\"project\": \"home\""),
+        "the verdict names the graph it landed in: {ok}"
+    );
     assert!(
         http_get(port, "/projects/home/graph")
             .is_some_and(|g| g.contains("home graph fallback proof note")),
-        "the note landed in the HOME graph"
+        "once bound deliberately, the note landed in the HOME graph"
     );
 
     let home_root = sb.home.display().to_string();
@@ -580,11 +654,11 @@ fn list_changed_rebinds_home_to_project() {
     // → home graph.
     let mut bridge = Bridge::spawn(&sb, &["mcp", "--fake-embeddings"], &jail, Some(vec![]));
     let port = sb.wait_core_healthy(CORE_HEALTH_WINDOW);
-    bridge.add_note(2, "note born on the home graph");
+    bridge.add_note_refused(2, "note born on the home graph");
     assert!(
-        http_get(port, "/projects/home/graph")
+        !http_get(port, "/projects/home/graph")
             .is_some_and(|g| g.contains("note born on the home graph")),
-        "pre-rebind writes land in the home graph"
+        "pre-rebind writes are refused, not misplaced (issue #11)"
     );
 
     bridge.roots = vec![file_uri(&beta)];
@@ -600,7 +674,11 @@ fn list_changed_rebinds_home_to_project() {
         "census follows the home→project rebind: {:?}",
         census(port)
     );
-    bridge.add_note(3, "note after leaving home");
+    let ok = bridge.add_note(3, "note after leaving home");
+    assert!(
+        Bridge::reply_text(&ok).contains("\"project\": \"beta\""),
+        "the verdict names the project: {ok}"
+    );
     assert!(
         sb.graph_has(port, "beta", "note after leaving home"),
         "post-rebind writes land in the project graph"
@@ -690,7 +768,17 @@ fn default_agent_project_binds_unbindable_session() {
         tools.contains("add_note"),
         "tools answer against the configured project: {tools}"
     );
-    bridge.add_note(3, "default agent project proof note");
+    let first = bridge.add_note(3, "default agent project proof note");
+    let text = Bridge::reply_text(&first);
+    assert!(
+        text.contains("\"project\": \"gamma\"") && text.contains("binding_note"),
+        "the first write names the project and says the workspace was never confirmed: {text}"
+    );
+    let second = Bridge::reply_text(&bridge.add_note(4, "second default-project note"));
+    assert!(
+        second.contains("\"project\": \"gamma\"") && !second.contains("binding_note"),
+        "the note rides the first write only: {second}"
+    );
     assert!(
         sb.graph_has(port, "gamma", "default agent project proof note"),
         "the note landed in the CONFIGURED project's graph"
@@ -793,5 +881,63 @@ fn explicit_db_wins_over_roots() {
     assert!(
         sb.project_id(port, "beta").is_none(),
         "the advertised root was never registered"
+    );
+}
+
+/// Issue #11, the shape this repo's own machine showed: the Windsurf
+/// JetBrains plugin launches the bridge from the user's HOME directory,
+/// which is writable — so the cwd rung used to register `~` as a project
+/// (named after the user, a second graph under ~/.engram) and the session
+/// wrote there without a word. Now `~` (and `/`) can never host a project:
+/// the ladder falls through to the home graph, writes are refused until the
+/// agent binds, and the registry refuses the root outright.
+#[test]
+fn home_directory_cwd_never_becomes_a_project() {
+    let sb = Sandbox::new("homedir", 19140);
+    let home_dir = sb.root.join("home"); // $HOME for every sandbox process
+    let mut bridge = Bridge::spawn(&sb, &["mcp", "--fake-embeddings"], &home_dir, None);
+    let port = sb.wait_core_healthy(CORE_HEALTH_WINDOW);
+
+    let tools = bridge.tools_list(2).to_string();
+    assert!(tools.contains("add_note"), "tools answer: {tools}");
+    bridge.add_note_refused(3, "note from a home-dir launch");
+    assert!(
+        !home_dir.join(".engram/graph.tepin").exists()
+            && !home_dir.join(".engram/graph.db").exists(),
+        "no project graph was minted beside the home graph"
+    );
+    let projects = http_get(port, "/projects").unwrap_or_default();
+    assert!(
+        !projects.contains(&canon(&home_dir)),
+        "the home directory is not on the registry: {projects}"
+    );
+    assert!(
+        http_post(
+            port,
+            "/projects",
+            &serde_json::json!({ "path": home_dir }).to_string()
+        )
+        .is_none(),
+        "registering the home directory by hand is refused too"
+    );
+    let home_root = sb.home.display().to_string();
+    assert!(
+        eventually(Duration::from_secs(10), || {
+            let rows = census(port);
+            rows.len() == 1 && rows[0]["root"] == serde_json::json!(home_root)
+        }),
+        "the lease sits on the engram home, the home-graph rung: {:?}",
+        census(port)
+    );
+    let ok = bridge.brief_project(4, "home");
+    assert!(
+        ok.contains("Session rebound"),
+        "brief(project) rebinds: {ok}"
+    );
+    bridge.add_note(5, "note after binding home deliberately");
+    assert!(
+        http_get(port, "/projects/home/graph")
+            .is_some_and(|g| g.contains("note after binding home deliberately")),
+        "a deliberate home binding writes the home graph"
     );
 }
