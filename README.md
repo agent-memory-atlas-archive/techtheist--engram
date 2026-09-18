@@ -3,7 +3,7 @@
 [![Backend](https://github.com/techtheist/engram/actions/workflows/backend.yml/badge.svg)](https://github.com/techtheist/engram/actions/workflows/backend.yml)
 [![Frontend](https://github.com/techtheist/engram/actions/workflows/frontend.yml/badge.svg)](https://github.com/techtheist/engram/actions/workflows/frontend.yml)
 [![JetBrains plugin](https://github.com/techtheist/engram/actions/workflows/jetbrains.yml/badge.svg)](https://github.com/techtheist/engram/actions/workflows/jetbrains.yml)
-[![VSCode extension](https://github.com/techtheist/engram/actions/workflows/vscode.yml/badge.svg)](https://github.com/techtheist/engram/actions/workflows/vscode.yml) \
+[![VSCode extension](https://github.com/techtheist/engram/actions/workflows/vscode.yml/badge.svg)](https://github.com/techtheist/engram/actions/workflows/vscode.yml)
 [![JetBrains Marketplace](https://img.shields.io/jetbrains/plugin/v/32654-engram)](https://plugins.jetbrains.com/plugin/32654-engram)
 [![Downloads](https://img.shields.io/jetbrains/plugin/d/32654-engram.svg)](https://plugins.jetbrains.com/plugin/32654-engram)
 [![VS Marketplace](https://vsmarketplacebadges.dev/version/techtheist.engram-alpha.svg?label=VS%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=techtheist.engram-alpha)
@@ -11,19 +11,17 @@
 [![Downloads](https://img.shields.io/open-vsx/dt/techtheist/engram-alpha)](https://open-vsx.org/extension/techtheist/engram-alpha)
 
 <p align="center">
-  <img src="frontend/public/engram-1024.png" alt="Engram Alpha" width="300" height="300">
+<img src="frontend/public/engram-dark-512.png" alt="Engram Alpha" width="256" height="256">
 </p>
 
-> The most powerful and feature-rich inspectable long-term graph memory for software development with AI agents — built on reproducible research.
+> The most feature-rich inspectable long-term graph memory for software development with AI agents — built on reproducible research.
 
 Engram is the **reasoning and decision layer** for AI coding assistants: why
 we chose this, what bit us, what's still open — kept as a graph you can see,
 edit, and own. It lives in a file inside your repo, every model that reads it
 runs on your machine, and one core serves every assistant you use.
 
-**[Open the live demo →](https://techtheist.github.io/engram/demo/)** — the
-real pane, in your browser, over an invented project's memory. Nothing to
-install. Your edits stay in the tab.
+**[Open the live demo →](https://techtheist.github.io/engram/demo/)**
 
 ![The Engram pane: the live memory graph with the review queue open on the left and the theme & layout menu on the right](.screenshots/engram-alpha-standalone.png)
 
@@ -72,9 +70,6 @@ would have prevented it.
 - **Graph-first.** The graph is the product surface, not hidden plumbing.
   Reviewing, judging, and repairing memory all happen in the pane — in the
   browser, in JetBrains IDEs, or in VS Code.
-
-Every screenshot on this page is Engram's own graph — the project is built by
-dogfooding it.
 
 </details>
 
@@ -205,30 +200,29 @@ troubleshooting (`engram-alpha doctor` diagnoses the whole chain,
 `engram-alpha status` shows what's running, `engram-alpha stop` halts it).
 
 Security posture: [`SECURITY.md`](./SECURITY.md). The roadmap lives in the
-project's own memory graph — dogfooding is the spec. **Status:** early
-development, heavily dogfooded, benchmark-driven — retrieval changes cite a
-measured run or they don't ship.
+project's own memory graph — dogfooding is the spec.
 
 </details>
 
 <details>
 <summary><b>Benchmark results</b> <i>(click to expand)</i></summary>
 
-1,883 notes, 9,008 tasks, one seed, from https://github.com/techtheist/knowledgedrift:
+1,883 notes, 9,008 tasks, from https://github.com/techtheist/knowledgedrift:
 
-| system                                               | success | families | signal | tokens | **score** | tok / answer |
-|------------------------------------------------------|---|---|---|---|---|---|
-| **Engram Alpha 0.9.6**                               | **69%** | **700** | 32 | 69 | **801** | ~460 |
-| TF-IDF over titles, one snippet per answer (`tfidf`) | 43% | 442 | 37 | 100 | **580** | ~160 |
-| the whole file in context                            | 71% | 390 | 0 | 0 | **390** | ~404,000 |
-| MemContinuum 0.2.0rc5 (topics + `for-path` chains)   | 44% | 326 | 7 | 47 | **380** | ~840 |
-| vector top-k (`rag`)                                 | 48% | 340 | 7 | 11 | **359** | ~2,200 |
-| LangMem 0.0.30 (store + semantic index)              | 48% | 340 | 7 | 11 | **359** | ~2,200 |
-| Mem0 2.0.20 (`infer=False`)                          | 44% | 333 | 6 | 8 | **348** | ~2,400 |
-| keyword overlap (`grep`)                             | 41% | 315 | 6 | 3 | **325** | ~2,800 |
-| cognee 1.5.4 (no LLM: chunk store)                   | 43% | 240 | 8 | 16 | **263** | ~1,900 |
-| chance                                               | 3% | 103 | 0 | 9 | **112** | ~2,300 |
-| a curated 3,000-token file                           | 5% | 108 | 0 | 1 | **109** | ~2,960 |
+| system                                                       | success | families | signal | tokens | **score** | tok / answer |
+|--------------------------------------------------------------|---------|----------|--------|--------|-----------|--------------|
+| Engram Alpha                                                 | **69%** | **700**  | 32     | 69     | **801**   | ~460         |
+| TF-IDF over titles, one snippet per answer (`tfidf`)         | 43%     | 442      | 37     | 100    | **580**   | ~160         |
+| the whole file in context                                    | 71%     | 390      | 0      | 0      | **390**   | ~404,000     |
+| MemContinuum 0.2.0rc5 (topics + `for-path` chains)           | 44%     | 326      | 7      | 47     | **380**   | ~840         |
+| Supermemory local 0.0.8 (no LLM: direct memories, versioned) | 48%     | 345      | 8      | 12     | **364**   | ~2,200       |
+| vector top-k (`rag`)                                         | 48%     | 340      | 7      | 11     | **359**   | ~2,200       |
+| LangMem 0.0.30 (store + semantic index)                      | 48%     | 340      | 7      | 11     | **359**   | ~2,200       |
+| Mem0 2.0.20 (`infer=False`)                                  | 44%     | 333      | 6      | 8      | **348**   | ~2,400       |
+| keyword overlap (`grep`)                                     | 41%     | 315      | 6      | 3      | **325**   | ~2,800       |
+| cognee 1.5.4 (no LLM: chunk store)                           | 43%     | 240      | 8      | 16     | **263**   | ~1,900       |
+| chance                                                       | 3%      | 103      | 0      | 9      | **112**   | ~2,300       |
+| a curated 3,000-token file                                   | 5%      | 108      | 0      | 1      | **109**   | ~2,960       |
 
 </details>
 
