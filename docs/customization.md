@@ -190,9 +190,9 @@ It's reactive memory without a new node type.
 
 ## Teaching the assistant your ontology
 
-Config is a **user gesture** — the redactor and the HTTP API only; there are
-deliberately no MCP tools that let the assistant reshape your ontology, the
-same way pinning and hard-delete are yours alone. But the assistant still
+Config is a **user decision** — the redactor and the HTTP API only; there
+are deliberately no MCP tools that let the assistant reshape your ontology,
+the same way pinning and hard-delete are yours alone. But the assistant still
 needs to *know* the shape:
 
 - The `describe_ontology` MCP tool (and the optional brief section above) tell
@@ -202,6 +202,25 @@ needs to *know* the shape:
   from your ontology* — it teaches your actual type and verb names, your
   durability defaults, and your tuned trust numbers in plain words. Reinstall
   after reshaping the ontology so the skill and the graph stay in step.
+
+## Asking the assistant to change a setting
+
+Since 0.9.8 the assistant can do the configuring for you, on your ask. The
+core serves an operator's guide at `GET /guide` — the manual behind every
+section on this page as HTTP recipes: the config document and its rules
+(`PUT /config` replaces the whole document; nothing still in use can be
+dropped; the rename routes migrate data), history recording, custom fields,
+presets, the brief's composition, policy knobs, version tracking, model
+swaps, encryption, the project registry, the checkup sweeps. The skills and
+the MCP instructions point the assistant there whenever you ask to change
+how memory behaves ("turn on history recording", "add a `ticket` field",
+"rename Decision to Choice", "switch to the research ontology"), and on a
+cold start it reviews the settings with you before seeding — a customized
+ontology or custom fields are worth choosing *before* the first hundred
+notes land. The ground rules the guide sets: read before write, never on the
+assistant's own judgment, say what changed, and reinstall the skill plus
+turn on **Teach ontology** after reshaping. Reading the guide yourself is a
+fine way to script a change with `curl`.
 
 ## It travels with the graph
 

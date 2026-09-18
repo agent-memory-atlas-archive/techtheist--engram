@@ -471,6 +471,75 @@ async fn brief_returns_markdown_digest() {
     assert!(text.len() <= 2000);
 }
 
+/// `GET /guide` is the operator's manual (0.9.8): markdown, and every route
+/// it names as `` `METHOD /path` `` must exist on the router — a recipe that
+/// points at a route that isn't there teaches the assistant a 404.
+#[tokio::test]
+async fn guide_is_markdown_and_names_only_real_routes() {
+    let app = test_app();
+    let request = Request::builder()
+        .method("GET")
+        .uri("/guide")
+        .body(Body::empty())
+        .unwrap();
+    let resp = app.clone().oneshot(request).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let ct = resp
+        .headers()
+        .get("content-type")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
+    assert!(ct.starts_with("text/markdown"), "{ct}");
+    let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+    let text = String::from_utf8(bytes.to_vec()).unwrap();
+    assert!(text.starts_with("# Engram operator's guide"));
+    for must in [
+        "PUT /config",
+        "brief.ontology.show",
+        "history",
+        "POST /models",
+        "POST /skills/install",
+        "Before a digest",
+    ] {
+        assert!(text.contains(must), "the guide covers {must}");
+    }
+
+    // Every `METHOD /path` the guide names (placeholders excluded) is a
+    // route: anything but 404. `/settings` legitimately 404s here — the
+    // test app has no core runtime — so it is the one allowed miss.
+    let mut checked = 0;
+    for token in text.split('`').skip(1).step_by(2) {
+        let Some((method, path)) = token.split_once(' ') else {
+            continue;
+        };
+        if !matches!(method, "GET" | "PUT" | "POST" | "DELETE") || !path.starts_with('/') {
+            continue;
+        }
+        let path = path.split([' ', '?']).next().unwrap();
+        if path.contains('{') || path.contains('<') {
+            continue;
+        }
+        let request = Request::builder()
+            .method(method)
+            .uri(path)
+            .header("content-type", "application/json")
+            .body(Body::from("{}"))
+            .unwrap();
+        let status = app.clone().oneshot(request).await.unwrap().status();
+        assert!(
+            status != StatusCode::NOT_FOUND || path == "/settings",
+            "the guide names {method} {path}, which the router doesn't serve"
+        );
+        checked += 1;
+    }
+    assert!(
+        checked >= 20,
+        "the guide names at least twenty routes: {checked}"
+    );
+}
+
 /// `GET /brief?project=` is "brief me as a session bound there" — the shape
 /// the SessionStart hook uses, since a hook holds a folder and the machine
 /// core's own launch graph is nobody's project.

@@ -4717,7 +4717,11 @@ knowledge as provisional nodes: key Decisions with their reasons (`because` \
 edges), stated Principles and conventions, known Cautions, and open Intents, \
 attached to Anchors where several notes share a subject. Afterward, point the \
 user at the pane to review what was captured. If the user declines, don't ask \
-again — just capture knowledge as it emerges.\n";
+again — just capture knowledge as it emerges.\n\n\
+Before seeding, review the settings with the user: `GET /guide` on the core \
+(port in `.engram/daemon.json`) is the manual — does the shipped ontology fit, \
+or would a preset, a custom set, or custom fields fit better? A customized \
+graph wants `brief.ontology.show` on, so every session learns its vocabulary.\n";
 
 /// Longest `replaces`-path from a timeline node down to an original (which is
 /// generation 0). Memoized; a cycle (bad data) counts as 0 instead of hanging.

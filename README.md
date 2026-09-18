@@ -212,6 +212,27 @@ measured run or they don't ship.
 </details>
 
 <details>
+<summary><b>Benchmark results</b> <i>(click to expand)</i></summary>
+
+1,883 notes, 9,008 tasks, one seed, from https://github.com/techtheist/knowledgedrift:
+
+| system                                               | success | families | signal | tokens | **score** | tok / answer |
+|------------------------------------------------------|---|---|---|---|---|---|
+| **Engram Alpha 0.9.6**                               | **69%** | **700** | 32 | 69 | **801** | ~460 |
+| TF-IDF over titles, one snippet per answer (`tfidf`) | 43% | 442 | 37 | 100 | **580** | ~160 |
+| the whole file in context                            | 71% | 390 | 0 | 0 | **390** | ~404,000 |
+| MemContinuum 0.2.0rc5 (topics + `for-path` chains)   | 44% | 326 | 7 | 47 | **380** | ~840 |
+| vector top-k (`rag`)                                 | 48% | 340 | 7 | 11 | **359** | ~2,200 |
+| LangMem 0.0.30 (store + semantic index)              | 48% | 340 | 7 | 11 | **359** | ~2,200 |
+| Mem0 2.0.20 (`infer=False`)                          | 44% | 333 | 6 | 8 | **348** | ~2,400 |
+| keyword overlap (`grep`)                             | 41% | 315 | 6 | 3 | **325** | ~2,800 |
+| cognee 1.5.4 (no LLM: chunk store)                   | 43% | 240 | 8 | 16 | **263** | ~1,900 |
+| chance                                               | 3% | 103 | 0 | 9 | **112** | ~2,300 |
+| a curated 3,000-token file                           | 5% | 108 | 0 | 1 | **109** | ~2,960 |
+
+</details>
+
+<details>
 <summary><b>Stack</b> <i>(Rust core, Vue pane, IDE hosts — click to expand)</i></summary>
 
 - **Core — Rust.** One `engram-alpha` binary: the engine, the MCP server

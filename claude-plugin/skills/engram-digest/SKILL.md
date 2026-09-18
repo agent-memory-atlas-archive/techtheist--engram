@@ -15,6 +15,8 @@ Digestion turns a codebase that predates its memory graph into a first graph. It
 
 **1. Recall first.** Call `brief` (or read the injected one). If the graph already has nodes, digestion tops up: `search` each area before writing about it, and lean on the dupe guard — never re-state what the graph already holds.
 
+**1b. Choose the shape before the first write.** A digest pours dozens of nodes into whatever ontology the graph has, so review the settings with the user first: `GET /projects/<name>/config` on the core (the manual is `GET /guide` — read it once), then ask whether the shipped 9-type set fits this project, or whether a preset (`research`, `minimal`, `general`) or a custom ontology fits better, and whether custom fields should carry what the user would otherwise repeat in every body (an owner, a component, a ticket, an effective date). If anything is customized: `PUT /config` per the guide, set `brief.ontology.show = true` so every later session learns the vocabulary, reinstall the skill (`POST /skills/install`), and translate the examples below into that vocabulary. The user decides; you propose.
+
 **2. Offline marker scan (tier 1).** The daemon scans the tree for `FIXME`/`TODO` markers, gitignore-aware:
 
 ```sh

@@ -41,6 +41,22 @@ body of its GitHub Release (draft-release.yml lifts it automatically).
   with a second graph under `~/.engram/` beside the home graph — the
   wrong-graph shape in a different coat. `/` and the home directory now
   fall through to the next rung, and the registry refuses them outright.
+- **The assistant can configure the graph, on your ask.** Everything the
+  pane's Settings can do, the core's HTTP API always could — but no
+  assistant knew. `GET /guide` on the core now serves the operator's
+  manual: the config document and its rules (whole-document `PUT /config`,
+  nothing in use is ever dropped, rename routes migrate data), history
+  recording and its harness switches, custom fields, presets and the
+  ontology's roles, the brief's composition, every policy knob with the
+  caveats that matter, version tracking, model swaps, encryption, the
+  default agent project, the project registry, the checkup sweeps, and
+  what to review with the user before a digest. The MCP instructions, all
+  three skill variants, the `AGENTS.md` block and the cold-start brief
+  point there: read it when the user asks to change how memory behaves,
+  and once on a cold start to choose the shape — a preset, a custom
+  ontology, custom fields, the brief's ontology section — before the
+  first notes land. Config stays the user's decision; the assistant
+  proposes and executes on their word.
 - **The generated Windsurf rule verifies the binding.** It now tells
   Cascade to read the brief's first line after every `brief`, to expect a
   new session after any resume, IDE restart, or MCP reload, and that a

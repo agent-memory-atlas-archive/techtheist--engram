@@ -83,6 +83,10 @@ Since v0.6.0 one hub serves every registered project plus a user-level **home gr
 
 Edges never cross graphs — if nodes in different graphs relate, say so in body text, don't force a link. Promotion of recurring Principles/Cautions into home is the *user's* gesture (the pane's Checkup nominates); don't copy canon into home unprompted.
 
+## Changing how memory behaves (on the user's ask)
+
+Everything the pane's Settings can do, the core's HTTP API can do — and the MCP tools deliberately cannot. When the user asks to change a setting (turn history recording on or off, add a custom field, reshape or rename the ontology, apply a preset, tune a trust or retrieval knob, swap a model, set the default agent project, encryption), or when a graph is a cold start and you are reviewing the settings with them, first read the manual: `GET /guide` on the core (port in `.engram/daemon.json`, base `http://127.0.0.1:<port>`, scope every graph route as `/projects/<name>/…`). It carries the ground rules (read before write — `PUT /config` replaces the whole document; nothing in use can be dropped; tell the user what changed; reinstall the skill and turn on the brief's ontology section after reshaping) and a recipe per setting. Never change config on your own judgment.
+
 ## Answering "why" — retell the reasoning chain
 
 When the user asks *"why did we decide X?"* or *"why is it like this?"*: `search` the topic, then follow `because` / `answers` edges (`get_node`, `traverse`) and — when the decision has history — `timeline` for the supersession chain. Retell it as a short narrative: the decision, its reason, what it replaced and why, and what problem drove it. Include dates when the history matters.
@@ -112,7 +116,7 @@ Capture **liberally**:
 ## How to write
 
 1. **Avoid duplicates — proportionally.** On a small graph, or right after you've already searched/recalled the area, write directly: `add_note` self-checks similarity and returns `{ matched, created: false }` instead of duping — then `update_node` the match. **Search first when the graph has grown large or the topic is plausibly already covered.**
-2. **Pick the type** from the list above. Don't invent types — there are exactly 9: `Decision`, `Principle`, `Caution`, `Problem`, `Resolution`, `Insight`, `Intent`, `Anchor`, `Tombstone`. *(0.7+: a graph can run a **customized ontology** — renamed types, different verbs. If the brief opens by teaching one, or a write is refused with "unknown node type", call `describe_ontology` and use *that* vocabulary: the graph defines its ontology, not this skill. Reshaping it is the user's gesture — the pane's Settings or `GET/PUT /config` over HTTP; never write config yourself.)*
+2. **Pick the type** from the list above. Don't invent types — there are exactly 9: `Decision`, `Principle`, `Caution`, `Problem`, `Resolution`, `Insight`, `Intent`, `Anchor`, `Tombstone`. *(0.7+: a graph can run a **customized ontology** — renamed types, different verbs. If the brief opens by teaching one, or a write is refused with "unknown node type", call `describe_ontology` and use *that* vocabulary: the graph defines its ontology, not this skill. Reshaping it is the user's decision — the pane's Settings, or the HTTP API on their explicit ask: see **Changing how memory behaves** below.)*
 3. **Custom fields (0.9.0).** If the brief or `describe_ontology` lists custom fields, pass them as `"fields": {"name": value}` on `add_note`/`update_node` (update MERGES: present keys overwrite, `null` deletes). A refusal for a missing/unknown field is a teaching error — it names the full roster and vocabulary; follow it exactly. Field *definitions* are the user's gesture (pane Settings), never yours.
 4. **Title**: a short, declarative label. **Body**: the reasoning in 1–3 sentences — the *why*, not a transcript.
 5. **Link it.** Edges must read as an English sentence: subject → verb → object. Use:

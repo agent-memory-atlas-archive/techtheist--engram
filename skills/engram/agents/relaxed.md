@@ -16,7 +16,10 @@ roots) — call `brief` again with `project` set to this workspace's ABSOLUTE
 path: it rebinds the session and returns the right project's brief. A write
 refused as "bound to the home graph by fallback" means the same (a resumed or
 restarted session starts unbound): bind, then retry; every write verdict names
-the `project` it landed in.
+the `project` it landed in. How memory behaves (ontology, custom fields,
+brief, history recording, policy knobs, models) is configured over the core's
+HTTP API on the user's ask, never on your own: `GET /guide` on the core (port
+in `.engram/daemon.json`) is the manual — read it first.
 Before any non-trivial decision, `search` the graph; hits carry their 1-hop
 neighbors — read `conflicts-with` / `replaces` edges first, and pass
 `parents`/`children` to `get_node` when you need the reasoning chain. For

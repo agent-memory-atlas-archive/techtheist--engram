@@ -16,6 +16,12 @@ const BIN: &str = env!("CARGO_BIN_EXE_engram-alpha");
 /// starved CI runner regularly needs more than the old 30s (the production
 /// spawner itself allows 180s). Three flakes taught this; don't shrink it.
 const CORE_HEALTH_WINDOW: Duration = Duration::from_secs(120);
+/// How long a census assertion waits for a (re)bind to land. A rebind
+/// registers the project and opens its store; on a starved CI runner with
+/// ten sandboxed cores in flight that took longer than the old 10s (the
+/// 0.9.8 push run) — the window is slack over the worst legitimate case,
+/// never the expected wait (Caution 00bywotv5tx7).
+const CENSUS_WINDOW: Duration = Duration::from_secs(45);
 
 struct Sandbox {
     root: PathBuf,
@@ -503,7 +509,7 @@ fn roots_list_changed_rebinds_and_census_follows() {
     // (the row moves — same lease renewed with the new root, no duplicate).
     let beta_root = canon(&beta);
     assert!(
-        eventually(Duration::from_secs(10), || {
+        eventually(CENSUS_WINDOW, || {
             let rows = census(port);
             rows.len() == 1 && rows[0]["root"] == serde_json::json!(beta_root)
         }),
@@ -561,7 +567,7 @@ fn unanswered_roots_list_falls_back_to_cwd() {
     );
     let alpha_root = canon(&proj);
     assert!(
-        eventually(Duration::from_secs(10), || {
+        eventually(CENSUS_WINDOW, || {
             let rows = census(port);
             rows.len() == 1 && rows[0]["root"] == serde_json::json!(alpha_root)
         }),
@@ -621,7 +627,7 @@ fn unwritable_cwd_binds_home_graph() {
 
     let home_root = sb.home.display().to_string();
     assert!(
-        eventually(Duration::from_secs(10), || {
+        eventually(CENSUS_WINDOW, || {
             let rows = census(port);
             rows.len() == 1
                 && rows[0]["root"] == serde_json::json!(home_root)
@@ -667,7 +673,7 @@ fn list_changed_rebinds_home_to_project() {
 
     let beta_root = canon(&beta);
     assert!(
-        eventually(Duration::from_secs(10), || {
+        eventually(CENSUS_WINDOW, || {
             let rows = census(port);
             rows.len() == 1 && rows[0]["root"] == serde_json::json!(beta_root)
         }),
@@ -793,7 +799,7 @@ fn default_agent_project_binds_unbindable_session() {
     // client (clientInfo.name from the stdio initialize).
     let gamma_root = canon(&gamma);
     assert!(
-        eventually(Duration::from_secs(10), || {
+        eventually(CENSUS_WINDOW, || {
             let rows = census(port);
             rows.len() == 1
                 && rows[0]["root"] == serde_json::json!(gamma_root)
@@ -906,9 +912,17 @@ fn home_directory_cwd_never_becomes_a_project() {
             && !home_dir.join(".engram/graph.db").exists(),
         "no project graph was minted beside the home graph"
     );
+    // By root, not by substring: the home graph's own db path lives UNDER
+    // the home directory, so a text match would always fire.
     let projects = http_get(port, "/projects").unwrap_or_default();
+    let projects: serde_json::Value = serde_json::from_str(&projects).unwrap_or_default();
+    let home_root = canon(&home_dir);
     assert!(
-        !projects.contains(&canon(&home_dir)),
+        projects
+            .as_array()
+            .into_iter()
+            .flatten()
+            .all(|p| p["root"] != serde_json::json!(home_root)),
         "the home directory is not on the registry: {projects}"
     );
     assert!(
@@ -922,7 +936,7 @@ fn home_directory_cwd_never_becomes_a_project() {
     );
     let home_root = sb.home.display().to_string();
     assert!(
-        eventually(Duration::from_secs(10), || {
+        eventually(CENSUS_WINDOW, || {
             let rows = census(port);
             rows.len() == 1 && rows[0]["root"] == serde_json::json!(home_root)
         }),

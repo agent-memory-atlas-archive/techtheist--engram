@@ -684,6 +684,7 @@ fn api_router(state: Arc<AppState>) -> Router {
         .route("/import", post(import))
         .route("/config", get(get_config).put(put_config))
         .route("/config/presets", get(config_presets))
+        .route("/guide", get(guide))
         .route("/version", get(get_version).put(put_version))
         .route("/config/rename-type", post(rename_type))
         .route("/config/rename-field", post(rename_field))
@@ -2040,6 +2041,25 @@ async fn put_version(
     let engine = state.engine_arc(&scope)?;
     let previous = pane(&engine).set_current_version(p.version.as_deref())?;
     Ok(Json(json!({ "previous": previous, "current": p.version })))
+}
+
+/// The operator's guide (0.9.8): the manual an assistant reads before it
+/// changes how a graph behaves on the user's ask — every settings surface
+/// the pane has (ontology, custom fields, brief, history recording, policy
+/// knobs, models, encryption, the registry) as HTTP recipes, with the
+/// ground rules. Static markdown, project-independent; the skills point
+/// here instead of carrying the manual themselves.
+pub const OPERATOR_GUIDE: &str = include_str!("guide.md");
+
+async fn guide() -> Response {
+    (
+        [(
+            axum::http::header::CONTENT_TYPE,
+            "text/markdown; charset=utf-8",
+        )],
+        OPERATOR_GUIDE,
+    )
+        .into_response()
 }
 
 /// The curated ontology templates (PLAN §7D stage 4) — machine-level data,

@@ -61,6 +61,11 @@ To retire knowledge yourself (no successor, don't re-learn): add_note a \
 Tombstone \"Removed: <title>\" with the why, then link {\"from\": <tombstone>, \
 \"to\": <victim>, \"type\": \"replaces\"} — the victim is archived, traceably; \
 hard delete stays user-only. \
+How memory BEHAVES (ontology, custom fields, brief composition, history \
+recording, policy knobs, models) is configured over the core's HTTP API, never \
+MCP: `GET /guide` on the core (port in `.engram/daemon.json`) is the manual — \
+read it when the user asks to change a setting, and once on a cold start to \
+review the settings with them. \
 Nodes carry computed `trust` and `stale` (verify before relying); only \
 deliberate acts refresh trust — a still-true stale node wants `update_node`. \
 Pinning is user-only; a `replaces` that would archive a pinned node is refused. \
