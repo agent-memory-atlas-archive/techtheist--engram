@@ -3,6 +3,86 @@
 Release notes for Engram Alpha. Each release's section below becomes the
 body of its GitHub Release (draft-release.yml lifts it automatically).
 
+## v0.9.9
+
+### Contradictions travel along edges
+
+- **A contradiction now reaches the notes that depend on it.** When a new
+  note contradicts one your graph already holds, or you link it `replaces` /
+  `conflicts-with`, every note that builds on, needs, or holds because of the
+  old one is queued for review against the new one, hinted `inherited`.
+  This catches the transitive case ("the harbor ingester mirrors the
+  sibling's settings" + "the sibling now retries 19 times") that no sentence
+  model can see, because the two notes name different subjects. On the
+  generated bench it lifts separation from 0.75 to 0.82 AUROC with no extra
+  false alarms; replayed on this repo's own graph it queues nothing new.
+- **Verbs carry an `inherits` role.** On by default for `builds-on`,
+  `needs` and `because`; a graph's ontology can switch it per verb. The pane
+  marks `inherited` suspects in their own color, and every capture skill and
+  agent instruction block teaches how to judge them.
+
+### A second logic model
+
+- **Laya is selectable as the contradiction judge.** Two new choices in
+  Settings → System → Choose models: Laya English int4 (262 MB) and Laya
+  multilingual int8 (873 MB, for notes in other languages). The
+  DeBERTa-tasksource model stays the default: Laya catches compound
+  contradictions far better, but it flags more pairs on real notes and costs
+  ~15× more per pair. MobileBERT and nli-deberta-v3-small left the list (an
+  existing selection keeps working). The Laya exports are published at
+  huggingface.co/techtheist/laya-onnx.
+- **Each model in the picker says what it trades.**
+
+### The brief opens with the current cycle
+
+- With version tracking on, the brief's first section lists the open work
+  stamped with the working version. Graphs without version tracking get the
+  brief they always got.
+- **Two new brief settings** (Graph settings → Brief composition, or
+  `brief.bodies` / `brief.canon_order` in the config): *note bodies* off
+  makes every entry its title alone — worth it when titles are already whole
+  claims; *canon order* `connected` ranks each type's section by trust
+  weighted by how many live edges a note has, so the knowledge others lean
+  on leads. Defaults keep today's brief.
+
+### The Claude Code plugin brings its own MCP server
+
+- **Install the plugin and the `engram` tools are there** — no per-repo
+  `.mcp.json` entry any more. The plugin's server is a new bridge mode,
+  `engram-alpha mcp --wired-only`: it binds repositories that are already
+  Engram projects (a `.engram/` directory, or any folder inside a registered
+  project) and never turns a folder into one. Anywhere else it reads the home
+  graph and refuses project writes with the fix spelled out (`/engram:setup`).
+- `/engram:setup` now marks the repo (`.engram/` + git-ignore) instead of
+  writing `.mcp.json`; with the plugin installed, `engram-alpha setup --cli
+  claude` skips the project entry and warns about an old one, which would
+  load every engram tool twice.
+- The launcher finds `engram-alpha` off Claude Code's PATH and refuses a
+  binary older than 0.9.9.
+
+### A sweep no longer freezes the core
+
+- The session-start validation, the six-hourly sweep and the pane's *Scan
+  now* held the graph's lock for the whole conflict scan. With a slow logic
+  model (Laya takes about a minute on a 580-note graph) every request on that
+  graph queued behind it until the core stopped answering entirely and MCP
+  sessions dropped with "the engram core went away". The scan now takes the
+  lock one note at a time and steps aside between notes; *Scan now* runs off
+  the async workers.
+
+### Tools take numbers as text
+
+- Every numeric MCP argument (`limit`, `depth`, `max_chars`, `window`,
+  `turn`, `confidence`, …) now accepts a numeric string too — `"limit":
+  "15"` works the same as `15`. Some agents quote every argument and had
+  their calls refused.
+
+### Eval
+
+- `engram-eval --shapes`: fifteen contradiction shapes from KnowledgeDrift v2
+  plus chain shapes, judged on titles, on title + body + related notes, and
+  with the propagation rule. Receipts under `eval/results/2026-09-24-*`.
+
 ## v0.9.8
 
 ### Unbound sessions refuse writes

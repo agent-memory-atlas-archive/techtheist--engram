@@ -528,9 +528,13 @@ async fn guide_is_markdown_and_names_only_real_routes() {
             .body(Body::from("{}"))
             .unwrap();
         let status = app.clone().oneshot(request).await.unwrap().status();
+        // 405 counts as a miss too: `GET /nodes` once slipped through here
+        // because the router serves POST /nodes (found by following the
+        // guide on a real graph, 0.9.9).
         assert!(
-            status != StatusCode::NOT_FOUND || path == "/settings",
-            "the guide names {method} {path}, which the router doesn't serve"
+            (status != StatusCode::NOT_FOUND && status != StatusCode::METHOD_NOT_ALLOWED)
+                || path == "/settings",
+            "the guide names {method} {path}, which the router doesn't serve ({status})"
         );
         checked += 1;
     }

@@ -59,7 +59,11 @@ Top-level keys: `ontology`, `policy`, `brief`, `versioning`, `history`,
   `brief` {`show`, `cap`, `excerpt`} — this type's canon section in the brief.
 - `verbs[]`: `name` (lowercase, hyphen-joined so "from verb to" reads as a
   sentence), `reads_as` (a worked example), `roles` {`supersession`,
-  `contradiction`, `reason`, `answer`, `dependency`}. Exactly one verb must
+  `contradiction`, `reason`, `answer`, `dependency`, `inherits`}.
+  `inherits` (optional; unset = on for `dependency`/`reason` verbs and
+  `builds-on`) means the source holds what the target holds: when a note
+  contradicts or replaces the target, the source is queued for review with
+  hint `inherited`. Exactly one verb must
   carry `supersession` and exactly one `contradiction` — these are the two
   edges that make the graph active. Move the role, never remove it.
 - **Add a type or verb**: append to the array and PUT. **Rename**:
@@ -88,11 +92,28 @@ value moves. Assistants then pass `"fields": {"name": value}` on
 `total_chars` (budget, ~4 chars per token), `tags` {show, cap}, `conflicts`
 {show; uncapped}, `suspects` {show, cap}, `recent` {show, cap, excerpt},
 `open` {show, cap, excerpt}, `handoff` {show, cap, excerpt} (notes tagged
-`handoff` get guaranteed first placement), `home_reserve` (chars kept for the
-home-graph section), `ontology` {show} — **teach this graph's types, verbs
-and custom fields at the top of every brief**. Off in the shipped preset
-because the skill already teaches the default ontology; turn it on for any
-customized ontology or when custom fields exist.
+`handoff` get guaranteed first placement), `cycle` {show, cap, excerpt} (with
+version tracking on: open work stamped with the working version, placed
+first), `home_reserve` (chars kept for the home-graph section), `ontology`
+{show} — **teach this graph's types, verbs and custom fields at the top of
+every brief**. Off in the shipped preset because the skill already teaches
+the default ontology; turn it on for any customized ontology or when custom
+fields exist.
+
+Two shape switches:
+
+- `bodies` (default `true`): entries carry a body excerpt after the title.
+  `false` = titles only, every section's `excerpt` ignored. Turn it off when
+  this graph's titles are already whole claims (long, sentence-shaped) — the
+  same budget then holds more entries; keep it on when titles are short
+  labels and the fact lives in the body. Read a few titles first
+  (`GET /graph` returns every node — look at thirty live titles and their
+  bodies) and say which you saw.
+- `canon_order` (default `"endorsed"`): how each type's canon section picks
+  entries. `"endorsed"` = pinned, then approved, then newest endorsement or
+  capture. `"connected"` = pinned, then trust weighted by live edges — the
+  notes other knowledge leans on lead. Prefer `connected` on a mature,
+  well-linked graph whose canon sections show old or peripheral notes.
 
 ### `history` — session recording
 
