@@ -66,6 +66,7 @@ The roles you can assign:
 | **reason** | the "because" edge; its absence is what the structural checkup flags | because |
 | **answer** | closes a worklist item | answers |
 | **dependency** | a live blocker | needs |
+| **inherits** | the source holds what the target holds: when a note contradicts or replaces the target, the source is queued for review against it (hint `inherited`). Unset = on for the dependency and reason verbs and `builds-on`; config key `roles.inherits` | builds-on, needs, because |
 
 Two invariants hold across **any** configuration, and Save enforces them:
 edges stay sentence-shaped, and **exactly one** verb carries supersession and
@@ -155,8 +156,8 @@ project's own graph; treat them as a good starting point, not a ceiling.
 
 The **Brief composition** section controls what the session-start digest
 includes and how big it gets: the character budget, which sections appear
-(tags, conflicts, suspects, recent, open work), and their caps. Two switches
-worth knowing:
+(tags, conflicts, suspects, recent, open work), and their caps. The
+switches worth knowing:
 
 - **Teach ontology** — prepend a description of this graph's types and verbs
   to every brief. Off by default (the assistant already knows the shipped
@@ -164,6 +165,16 @@ worth knowing:
   learns the vocabulary immediately.
 - Per-type **brief section** (on each type card) — which types get their own
   canon section, and how many entries.
+- **Note bodies** (on by default) — entries carry a body excerpt after the
+  title. Off, every entry is its title alone: worth it when your titles are
+  already whole claims, since the same budget then holds more entries; keep
+  it on when titles are short labels and the fact lives in the body.
+- **Canon order** — `endorsed` (default: pinned, then approved, then newest)
+  or `connected` (pinned, then trust weighted by how many live edges a note
+  has, so the knowledge other notes lean on leads). `connected` suits a
+  mature, well-linked graph.
+- With version tracking on, the brief opens with a **Current cycle** section:
+  the open Intents and Problems stamped with the working version.
 
 ## Version tracking
 

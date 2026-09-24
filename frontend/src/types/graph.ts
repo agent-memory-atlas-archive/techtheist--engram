@@ -563,6 +563,8 @@ export interface VerbRoles {
     answer: boolean
     /** A live dependency. */
     dependency: boolean
+    /** The source holds what the target holds; unset = derived (0.9.9). */
+    inherits?: boolean | null
 }
 
 export interface VerbDef {
@@ -620,6 +622,14 @@ export interface BriefConfig {
     home_reserve: number
     /** Teach the graph's ontology at the top of the brief. */
     ontology: BriefToggle
+    /** Notes left for the next session (tag `handoff`), placed first. */
+    handoff?: BriefSectionCfg
+    /** Open work stamped with the working version (0.9.9). */
+    cycle?: BriefSectionCfg
+    /** Entries carry a body excerpt; false = titles only (0.9.9). */
+    bodies?: boolean
+    /** Canon section order: 'endorsed' (default) or 'connected' (0.9.9). */
+    canon_order?: 'endorsed' | 'connected'
 }
 
 /** Per-harness ingestion switches for the history layer (0.8.4). */

@@ -854,6 +854,75 @@ fn engine_with_nli() -> Engine {
     e
 }
 
+/// A logic model as slow as Laya on CPU: every judge call sleeps.
+struct SlowNli(std::time::Duration);
+
+impl crate::nli::Nli for SlowNli {
+    fn judge(&self, pairs: &[(String, String)]) -> Result<Vec<NliJudgment>> {
+        std::thread::sleep(self.0);
+        crate::nli::FakeNli.judge(pairs)
+    }
+}
+
+#[test]
+fn a_shared_sweep_never_holds_the_engine_for_the_whole_scan() {
+    // 0.9.9: the session-boundary pass held the engine lock for the whole
+    // conflict scan; with a slow logic model (~60 s) every request on the
+    // graph queued behind it and the core's async workers starved. The
+    // shared sweep releases the lock per node — another caller gets in
+    // within one node's judging, however long the scan runs.
+    let mut e = engine();
+    for i in 0..15 {
+        // Plain add_node skips the write-time scan, so the sweep has the
+        // judging to do.
+        e.add_node(new_node(
+            NodeType::Decision,
+            &format!("contra: rule {i} forbids tabs"),
+            "law",
+        ))
+        .unwrap();
+        e.add_node(new_node(
+            NodeType::Insight,
+            &format!("contra: rule {i} forbids tabs!!"),
+            "law",
+        ))
+        .unwrap();
+    }
+    e.set_nli(Box::new(SlowNli(std::time::Duration::from_millis(10))));
+    let shared = std::sync::Arc::new(std::sync::Mutex::new(e));
+    let sweeper = {
+        let shared = shared.clone();
+        std::thread::spawn(move || {
+            let t0 = std::time::Instant::now();
+            let added = Engine::scan_conflicts_shared(&shared).unwrap();
+            (added, t0.elapsed())
+        })
+    };
+    std::thread::sleep(std::time::Duration::from_millis(100));
+    let mut worst = std::time::Duration::ZERO;
+    for _ in 0..5 {
+        let t0 = std::time::Instant::now();
+        let guard = shared.lock().unwrap();
+        worst = worst.max(t0.elapsed());
+        let _ = guard.store().get_node("nope");
+        drop(guard);
+        std::thread::sleep(std::time::Duration::from_millis(60));
+    }
+    let (added, took) = sweeper.join().unwrap();
+    assert!(
+        added >= 15,
+        "the sweep judged and queued the pairs: {added}"
+    );
+    assert!(
+        took > std::time::Duration::from_millis(600),
+        "the scan is long enough to matter: {took:?}"
+    );
+    assert!(
+        worst < std::time::Duration::from_millis(200),
+        "a caller waited {worst:?} for the engine during a {took:?} sweep"
+    );
+}
+
 #[test]
 fn write_time_suspects_carry_nli_hints() {
     let e = engine_with_nli();
@@ -5081,6 +5150,7 @@ fn custom_ontology() -> GraphConfig {
                 reason: false,
                 answer: false,
                 dependency: false,
+                inherits: None,
             },
         },
         crate::config::VerbDef {
@@ -5092,6 +5162,7 @@ fn custom_ontology() -> GraphConfig {
                 reason: false,
                 answer: false,
                 dependency: false,
+                inherits: None,
             },
         },
     ];
@@ -6991,6 +7062,56 @@ fn handoff_notes_lead_the_brief() {
 }
 
 #[test]
+fn current_cycle_work_leads_the_brief_under_the_version_line() {
+    let e = engine();
+    let open = |title: &str, t: NodeType| {
+        let mut n = new_node(t, title, "owed");
+        n.status = Some(NodeStatus::Open);
+        e.add_node(n).unwrap()
+    };
+    e.set_current_version(Some("0.9.8")).unwrap();
+    let old = open("last cycle's leftover intent", NodeType::Intent);
+    e.set_current_version(Some("0.9.9")).unwrap();
+    open("measure the new judge on every shape", NodeType::Intent);
+    open("the bench pads every row to 512", NodeType::Problem);
+
+    let brief = e.brief(16_000).unwrap();
+    let cycle = brief
+        .find("## Current cycle — 0.9.9")
+        .expect("cycle section");
+    assert_eq!(cycle, brief.find("##").unwrap(), "first section: {brief}");
+    // The section ends at the next heading; other versions' work lives on
+    // below it (Recently added or Open, whichever claims it first).
+    let end = cycle + 2 + brief[cycle + 2..].find("\n## ").unwrap();
+    let body = &brief[cycle..end];
+    assert!(body.contains("measure the new judge on every shape"));
+    assert!(body.contains("the bench pads every row to 512"));
+    assert!(
+        !body.contains(&old.title),
+        "other versions stay out: {brief}"
+    );
+    assert!(brief[end..].contains(&old.title));
+    // Each note appears once.
+    assert_eq!(brief.matches("measure the new judge").count(), 1);
+
+    // Tracking switched off: no section even with a version still set, and
+    // the brief is exactly what a graph that never tracked versions gets —
+    // the eval benches (versioning off) keep their brief byte for byte.
+    let mut cfg = e.config().as_ref().clone();
+    cfg.versioning.enabled = false;
+    e.set_graph_config(&cfg).unwrap();
+    let off = e.brief(16_000).unwrap();
+    assert!(!off.contains("## Current cycle"), "{off}");
+    assert!(!off.contains("Current working version"));
+
+    // No working version, no section.
+    cfg.versioning.enabled = true;
+    e.set_graph_config(&cfg).unwrap();
+    e.set_current_version(None).unwrap();
+    assert!(!e.brief(16_000).unwrap().contains("## Current cycle"));
+}
+
+#[test]
 fn contradiction_hints_carry_a_direction() {
     let e = engine_with_nli();
     // Older node carries the negation marker; texts are near-identical so
@@ -7025,6 +7146,216 @@ fn contradiction_hints_carry_a_direction() {
         brief.contains("negation likely on the older side"),
         "{brief}"
     );
+}
+
+#[test]
+fn brief_bodies_and_canon_order_are_graph_settings() {
+    let e = engine();
+    let lonely = e
+        .add_node(new_node(
+            NodeType::Decision,
+            "a lonely decision",
+            "its body text",
+        ))
+        .unwrap();
+    let hub = e
+        .add_node(new_node(
+            NodeType::Decision,
+            "a load-bearing decision",
+            "hub body",
+        ))
+        .unwrap();
+    e.store().backdate_node(&hub.id, now() - 5_000).unwrap();
+    for i in 0..4 {
+        let n = e
+            .add_node(new_node(
+                NodeType::Insight,
+                &format!("leans on it {i}"),
+                "x",
+            ))
+            .unwrap();
+        edge(&e, EdgeType::BuildsOn, &n.id, &hub.id);
+    }
+    let mut cfg = e.config().as_ref().clone();
+    cfg.brief.recent.show = false; // let the canon section place both
+    e.set_graph_config(&cfg).unwrap();
+
+    // Defaults: bodies on, endorsed order (newest capture first).
+    let brief = e.brief(16_000).unwrap();
+    assert!(brief.contains("a lonely decision [Decision"));
+    assert!(brief.contains("— its body text"), "{brief}");
+    assert!(brief.find(&lonely.title) < brief.find(&hub.title));
+
+    // Titles only, connected canon first.
+    cfg.brief.bodies = false;
+    cfg.brief.canon_order = "connected".into();
+    e.set_graph_config(&cfg).unwrap();
+    let brief = e.brief(16_000).unwrap();
+    assert!(!brief.contains(" — its body text"), "{brief}");
+    assert!(!brief.contains(" — hub body"));
+    assert!(
+        brief.find(&hub.title) < brief.find(&lonely.title),
+        "{brief}"
+    );
+
+    // Unknown orders are refused with the roster.
+    cfg.brief.canon_order = "random".into();
+    let err = e.set_graph_config(&cfg).unwrap_err().to_string();
+    assert!(
+        err.contains("endorsed") && err.contains("connected"),
+        "{err}"
+    );
+}
+
+#[test]
+fn a_contradiction_reaches_what_inherits_from_its_target() {
+    // The transitive shape (0.9.9): X builds on G's setting, a new note flips
+    // G's setting. The judge reads (G-old, G-new) — same subject — and the
+    // builds-on edge carries the contradiction to X.
+    let e = engine_with_nli();
+    let upstream = e
+        .add_node(new_node(
+            NodeType::Decision,
+            "contra: the sibling ingester retries seven times",
+            "law",
+        ))
+        .unwrap();
+    e.store()
+        .backdate_node(&upstream.id, now() - 2_000)
+        .unwrap();
+    let dependent = e
+        .add_node(new_node(
+            NodeType::Decision,
+            "the harbor ingester mirrors its sibling's settings",
+            "same template",
+        ))
+        .unwrap();
+    e.store()
+        .backdate_node(&dependent.id, now() - 1_000)
+        .unwrap();
+    edge(&e, EdgeType::BuildsOn, &dependent.id, &upstream.id);
+    // An `about` edge carries no inheritance.
+    let bystander = e
+        .add_node(new_node(NodeType::Insight, "retry budgets drift", "noted"))
+        .unwrap();
+    edge(&e, EdgeType::About, &bystander.id, &upstream.id);
+
+    let flip = e
+        .add_node_checked(new_node(
+            NodeType::Insight,
+            "contra neg: the sibling ingester retries seven times!!",
+            "law",
+        ))
+        .unwrap();
+    let WriteOutcome::Created { node: flip, .. } = flip else {
+        panic!("the flip is a new note, not a match");
+    };
+    let flip_id = flip.id.clone();
+    let suspects = e.suspects().unwrap();
+    let pair = |x: &str, y: &str| {
+        suspects
+            .iter()
+            .find(|s| (s.a.id == x && s.b.id == y) || (s.a.id == y && s.b.id == x))
+    };
+    assert_eq!(
+        pair(&flip_id, &upstream.id).and_then(|s| s.nli_label.as_deref()),
+        Some("contradiction")
+    );
+    let inherited = pair(&flip_id, &dependent.id).expect("the dependent is queued");
+    assert_eq!(inherited.nli_label.as_deref(), Some("inherited"));
+    assert!(
+        pair(&flip_id, &bystander.id).is_none(),
+        "about doesn't inherit"
+    );
+    assert!(e.brief(16_000).unwrap().contains("hint: inherited"));
+}
+
+#[test]
+fn a_judged_link_propagates_but_a_tombstone_does_not() {
+    let e = engine();
+    let upstream = e
+        .add_node(new_node(
+            NodeType::Decision,
+            "the sibling retries seven times",
+            "x",
+        ))
+        .unwrap();
+    let dependent = e
+        .add_node(new_node(
+            NodeType::Decision,
+            "the harbor mirrors the sibling",
+            "x",
+        ))
+        .unwrap();
+    edge(&e, EdgeType::Needs, &dependent.id, &upstream.id);
+    let flip = e
+        .add_node(new_node(
+            NodeType::Decision,
+            "the sibling retries nineteen times",
+            "x",
+        ))
+        .unwrap();
+    edge(&e, EdgeType::ConflictsWith, &flip.id, &upstream.id);
+    let suspects = e.suspects().unwrap();
+    assert_eq!(suspects.len(), 1, "{suspects:?}");
+    assert_eq!(suspects[0].nli_label.as_deref(), Some("inherited"));
+    let ids = [suspects[0].a.id.as_str(), suspects[0].b.id.as_str()];
+    assert!(ids.contains(&flip.id.as_str()) && ids.contains(&dependent.id.as_str()));
+
+    // Burying the upstream is the user's gesture, not a new claim.
+    let other_up = e
+        .add_node(new_node(
+            NodeType::Decision,
+            "the cache keeps ten entries",
+            "x",
+        ))
+        .unwrap();
+    let other_dep = e
+        .add_node(new_node(
+            NodeType::Insight,
+            "the pane assumes the cache size",
+            "x",
+        ))
+        .unwrap();
+    edge(&e, EdgeType::BuildsOn, &other_dep.id, &other_up.id);
+    let tomb = e
+        .add_node(new_node(
+            NodeType::Tombstone,
+            "Removed: the cache keeps ten entries",
+            "wrong",
+        ))
+        .unwrap();
+    edge(&e, EdgeType::Replaces, &tomb.id, &other_up.id);
+    assert_eq!(
+        e.suspects().unwrap().len(),
+        1,
+        "no suspect from a tombstone"
+    );
+
+    // An explicit `inherits: false` on a verb turns it off for this graph.
+    let mut cfg = e.config().as_ref().clone();
+    for v in &mut cfg.ontology.verbs {
+        if v.name == "needs" {
+            v.roles.inherits = Some(false);
+        }
+    }
+    e.set_graph_config(&cfg).unwrap();
+    let up3 = e
+        .add_node(new_node(NodeType::Decision, "the queue drains hourly", "x"))
+        .unwrap();
+    let dep3 = e
+        .add_node(new_node(
+            NodeType::Decision,
+            "reports assume hourly drains",
+            "x",
+        ))
+        .unwrap();
+    edge(&e, EdgeType::Needs, &dep3.id, &up3.id);
+    let flip3 = e
+        .add_node(new_node(NodeType::Decision, "the queue drains daily", "x"))
+        .unwrap();
+    edge(&e, EdgeType::ConflictsWith, &flip3.id, &up3.id);
+    assert_eq!(e.suspects().unwrap().len(), 1, "needs no longer inherits");
 }
 
 #[test]

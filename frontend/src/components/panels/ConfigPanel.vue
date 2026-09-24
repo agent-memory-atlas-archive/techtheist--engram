@@ -200,6 +200,10 @@ const DURABILITY_OPTIONS: { value: Durability; label: string }[] = [
     { value: 'volatile', label: 'Volatile' },
 ]
 const FIELD_KIND_OPTIONS = ['text', 'number', 'bool', 'date', 'enum', 'url'].map((k) => ({ value: k, label: k }))
+const CANON_ORDER_OPTIONS = [
+    { value: 'endorsed', label: 'endorsed — pinned, approved, newest' },
+    { value: 'connected', label: 'connected — trust × links' },
+]
 
 const SKILL_OPTIONS = [
     { value: 'relaxed', label: 'relaxed' },
@@ -478,6 +482,20 @@ const deliveryWords = computed(() => {
     ]
 })
 
+// Brief shape (0.9.9): both keys are optional on the wire — a daemon older
+// than the pane never sends them — so the controls read the defaults.
+const briefBodies = computed({
+    get: () => draft.value?.brief.bodies ?? true,
+    set: (v: boolean) => {
+        if (draft.value) draft.value.brief.bodies = v
+    },
+})
+const canonOrder = computed({
+    get: () => draft.value?.brief.canon_order ?? 'endorsed',
+    set: (v: string) => {
+        if (draft.value) draft.value.brief.canon_order = v === 'connected' ? 'connected' : 'endorsed'
+    },
+})
 const kneeOn = computed({
     get: () => draft.value?.policy.knee_cliff != null,
     set: (v: boolean) => {
@@ -949,6 +967,17 @@ const nliGate = computed({
                     label="teach ontology"
                     title="Teach this graph's ontology at the top of every brief — for customized ontologies the assistant's skill can't know"
                 />
+                <ToggleChip
+                    v-model="briefBodies"
+                    label="note bodies"
+                    title="Entries carry a body excerpt after the title. Off = titles only: worth it when titles are already whole claims, so the same budget holds more entries"
+                />
+            </div>
+            <div class="grid">
+                <label>
+                    canon order
+                    <SelectMenu v-model="canonOrder" :options="CANON_ORDER_OPTIONS" aria-label="canon order" />
+                </label>
             </div>
             <div class="grid">
                 <label>tags cap <StepperInput v-model="draft.brief.tags.cap" :max="100" aria-label="tags cap" /></label>

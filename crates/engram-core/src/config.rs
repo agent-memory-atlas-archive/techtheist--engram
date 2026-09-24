@@ -340,6 +340,24 @@ pub struct VerbRoles {
     /// A live dependency that keeps worklist edges active (`needs`).
     #[serde(default)]
     pub dependency: bool,
+    /// The source holds what the target holds (0.9.9): when a note
+    /// contradicts or supersedes the target, the source inherits the
+    /// contradiction and is queued for review against it. Unset = derived:
+    /// on for the `dependency` and `reason` verbs and for `builds-on` — so
+    /// graphs saved before the role existed get the shipped behaviour without
+    /// a migration. See [`VerbDef::inherits`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inherits: Option<bool>,
+}
+
+impl VerbDef {
+    /// Whether an edge of this verb carries a contradiction of its target
+    /// back to its source (the explicit role, else the derived default).
+    pub fn inherits(&self) -> bool {
+        self.roles
+            .inherits
+            .unwrap_or(self.roles.dependency || self.roles.reason || self.name == "builds-on")
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -609,12 +627,44 @@ pub struct BriefConfig {
     /// session — guaranteed first placement, generous excerpts.
     #[serde(default = "default_handoff")]
     pub handoff: BriefSection,
+    /// The current-cycle section (0.9.9): the open worklist notes stamped
+    /// with the graph's current working version — what this cycle set out to
+    /// do and still owes — placed right under the version line. Needs
+    /// version tracking; without a working version it renders nothing and
+    /// those notes stay in the ordinary open section.
+    #[serde(default = "default_cycle")]
+    pub cycle: BriefSection,
+    /// Whether entries carry a body excerpt after the title (0.9.9). On by
+    /// default — on graphs of short notes the body often holds the one fact
+    /// that matters. Off = every entry is its title alone (each section's
+    /// `excerpt` is then ignored): graphs whose titles are already whole
+    /// claims buy more entries with the same budget.
+    #[serde(default = "default_true")]
+    pub bodies: bool,
+    /// How each type's canon section picks and orders its entries (0.9.9):
+    /// `endorsed` (default) = pinned, then approved, then newest endorsement
+    /// or capture; `connected` = pinned first, then trust weighted by how
+    /// connected the note is (live edges), so the load-bearing canon leads.
+    #[serde(default = "default_canon_order")]
+    pub canon_order: String,
+}
+
+fn default_canon_order() -> String {
+    "endorsed".to_string()
 }
 
 fn default_handoff() -> BriefSection {
     BriefSection {
         show: true,
         cap: 10,
+        excerpt: 400,
+    }
+}
+
+fn default_cycle() -> BriefSection {
+    BriefSection {
+        show: true,
+        cap: 8,
         excerpt: 400,
     }
 }
@@ -657,6 +707,9 @@ impl Default for BriefConfig {
                 cap: 0,
             },
             handoff: default_handoff(),
+            cycle: default_cycle(),
+            bodies: true,
+            canon_order: default_canon_order(),
         }
     }
 }
@@ -1345,6 +1398,14 @@ impl GraphConfig {
             .unwrap_or("conflicts-with")
     }
 
+    /// Whether `verb` carries inheritance (see [`VerbRoles::inherits`]).
+    pub fn verb_inherits(&self, verb: &str) -> bool {
+        self.ontology
+            .verbs
+            .iter()
+            .any(|v| v.name == verb && v.inherits())
+    }
+
     /// The supersession verb as an [`EdgeType`], for creating edges.
     pub fn supersession_edge(&self) -> crate::types::EdgeType {
         crate::types::EdgeType::parse(self.supersession_verb())
@@ -1434,6 +1495,9 @@ impl GraphConfig {
             }
             if v.roles.dependency {
                 roles.push("a live dependency");
+            }
+            if v.inherits() {
+                roles.push("inherits: a contradiction of the target reaches the source");
             }
             out.push_str(&format!(
                 "- {} — e.g. {}{}\n",
@@ -1727,6 +1791,13 @@ impl GraphConfig {
         validate_section(&b.recent, "brief.recent")?;
         validate_section(&b.open, "brief.open")?;
         validate_section(&b.handoff, "brief.handoff")?;
+        validate_section(&b.cycle, "brief.cycle")?;
+        if !matches!(b.canon_order.as_str(), "endorsed" | "connected") {
+            return fail(format!(
+                "brief.canon_order {:?} is not one of \"endorsed\", \"connected\"",
+                b.canon_order
+            ));
+        }
 
         for p in &self.history.exclude_paths {
             if p.trim().is_empty() {

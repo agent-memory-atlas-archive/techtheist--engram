@@ -319,7 +319,14 @@
             "show": true,
             "cap": 10,
             "excerpt": 400
-        }
+        },
+        "cycle": {
+            "show": true,
+            "cap": 8,
+            "excerpt": 400
+        },
+        "bodies": true,
+        "canon_order": "endorsed"
     },
     "versioning": {
         "enabled": true

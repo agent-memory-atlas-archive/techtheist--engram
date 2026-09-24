@@ -1171,6 +1171,50 @@ impl Engine {
     /// waiting for the six-hourly sweep. Journaled as a `graph_validated`
     /// activity row; returns the summary note.
     pub fn validate_graph(&self) -> Result<String> {
+        let prelude = self.validate_prelude()?;
+        let suspects = self.scan_conflicts()?;
+        self.validate_finish(prelude, suspects)
+    }
+
+    /// [`Engine::validate_graph`] for an engine shared behind a mutex — the
+    /// shape every long-running caller has (the session-boundary pass, the
+    /// core's six-hourly sweep). The cheap parts run under one lock; the
+    /// conflict scan — the part whose cost grows with the graph and the
+    /// logic model (~60 s at 580 notes with Laya) — releases the lock after
+    /// every node, so tool calls and pane requests interleave instead of
+    /// queueing behind the sweep. Holding it for the whole scan starved the
+    /// core's async workers until even `/health` went silent and every
+    /// bridge exited with "the engram core went away" (found 2026-09-24).
+    pub fn validate_graph_shared(engine: &std::sync::Mutex<Engine>) -> Result<String> {
+        let prelude = lock_engine(engine)?.validate_prelude()?;
+        let suspects = Engine::scan_conflicts_shared(engine)?;
+        lock_engine(engine)?.validate_finish(prelude, suspects)
+    }
+
+    /// [`Engine::scan_conflicts`] one node per lock — see
+    /// [`Engine::validate_graph_shared`]. A node archived or deleted between
+    /// two steps is skipped; a node written meanwhile was already scanned by
+    /// its own write.
+    pub fn scan_conflicts_shared(engine: &std::sync::Mutex<Engine>) -> Result<usize> {
+        let ids = lock_engine(engine)?.scan_ids()?;
+        let mut added = 0;
+        for id in ids {
+            added += lock_engine(engine)?.scan_one(&id)?;
+            // Releasing is not enough: std's Mutex is not fair, and a loop
+            // that unlocks and relocks at once wins every race — a waiting
+            // caller measured 12 s behind a 12.5 s sweep. A millisecond
+            // off the lock per node hands it over (~0.6 s at 580 notes).
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+        if added > 0 {
+            lock_engine(engine)?.notify(ChangeEvent::SuspectsChanged);
+        }
+        Ok(added)
+    }
+
+    /// Decay, supersession healing and calibration — the part of a
+    /// validation pass that runs before the conflict scan.
+    fn validate_prelude(&self) -> Result<(usize, usize, Option<String>)> {
         self.last_validated
             .store(crate::store::now(), std::sync::atomic::Ordering::Relaxed);
         let ttl = self.store.config().policy.decay_ttl_days;
@@ -1179,7 +1223,15 @@ impl Engine {
         // Calibrate before scanning, so this session's conflict pass already
         // runs under the floor the graph's own judgments support.
         let tuned = self.auto_tune()?;
-        let suspects = self.scan_conflicts()?;
+        Ok((archived, retired, tuned))
+    }
+
+    /// Drift count and the journaled summary — the part after the scan.
+    fn validate_finish(
+        &self,
+        (archived, retired, tuned): (usize, usize, Option<String>),
+        suspects: usize,
+    ) -> Result<String> {
         let drift = match self.repo_root().map(std::path::Path::to_path_buf) {
             Some(root) => self.scan_code_refs(&root)?.len(),
             None => 0,
@@ -2062,7 +2114,96 @@ impl Engine {
         self.notify(ChangeEvent::EdgeAdded(edge.clone()));
         self.reconcile_conflict_demotion(&edge)?;
         self.retire_superseded(&edge)?;
+        self.propagate_from_edge(&edge)?;
         Ok(edge)
+    }
+
+    /// Live edges per node id (resolved/dismissed edges don't count) — the
+    /// connectedness `canon_order: connected` weighs.
+    fn live_degrees(&self) -> std::collections::HashMap<String, usize> {
+        let mut out = std::collections::HashMap::new();
+        for e in self.store.all_edges().unwrap_or_default() {
+            if matches!(e.status, Some(EdgeStatus::Resolved | EdgeStatus::Dismissed)) {
+                continue;
+            }
+            *out.entry(e.from_id).or_insert(0) += 1;
+            *out.entry(e.to_id).or_insert(0) += 1;
+        }
+        out
+    }
+
+    /// A judged contradiction or supersession reaches whatever depended on
+    /// its target (0.9.9): the edge's source now disagrees with, or replaces,
+    /// the target, so every note that `inherits` from the target (builds on
+    /// it, needs it, holds because of it) is queued against the source. A
+    /// tombstone's `replaces` doesn't propagate — burying knowledge is the
+    /// user's gesture, not a new claim to hold dependents against.
+    fn propagate_from_edge(&self, edge: &Edge) -> Result<()> {
+        let cfg = self.store.config();
+        let verb = edge.edge_type.as_str();
+        if (verb != cfg.supersession_verb() && verb != cfg.contradiction_verb())
+            || matches!(
+                edge.status,
+                Some(EdgeStatus::Resolved | EdgeStatus::Dismissed)
+            )
+        {
+            return Ok(());
+        }
+        let Some(source) = self.store.get_node(&edge.from_id)? else {
+            return Ok(());
+        };
+        if is_tombstone(&cfg, &source) {
+            return Ok(());
+        }
+        let score = edge.confidence.unwrap_or(1.0);
+        if self.propagate_inherited(&source, &edge.to_id, score)? > 0 {
+            self.notify(ChangeEvent::SuspectsChanged);
+        }
+        Ok(())
+    }
+
+    /// Queue `(newer, dependent)` for every live note that `inherits` from
+    /// `upstream` (an incoming edge whose verb carries the role) — the
+    /// transitive contradiction a pairwise judge cannot see, because the two
+    /// notes name different subjects and only the edge says one holds what
+    /// the other holds. The hint label is `inherited`; its score is the
+    /// strength of the upstream contradiction. Returns how many were queued.
+    fn propagate_inherited(&self, newer: &Node, upstream: &str, score: f64) -> Result<usize> {
+        let cfg = self.store.config();
+        let newer_vec = self.store.embedding_of(&newer.id)?;
+        let mut added = 0;
+        for e in self.store.edges_in(upstream)? {
+            if e.from_id == newer.id
+                || !cfg.verb_inherits(e.edge_type.as_str())
+                || matches!(e.status, Some(EdgeStatus::Resolved | EdgeStatus::Dismissed))
+            {
+                continue;
+            }
+            let Some(dependent) = self.store.get_node(&e.from_id)? else {
+                continue;
+            };
+            if dependent.valid_until.is_some()
+                || is_anchor(&cfg, &dependent)
+                || is_tombstone(&cfg, &dependent)
+                || self.store.pair_linked(&newer.id, &dependent.id)?
+                || self.store.suspect_between(&newer.id, &dependent.id)?
+            {
+                continue;
+            }
+            let similarity = match (&newer_vec, self.store.embedding_of(&dependent.id)?) {
+                (Some(a), Some(b)) => cosine(a, &b),
+                _ => 0.0,
+            };
+            let (a, b) = if newer.created_at >= dependent.created_at {
+                (&newer.id, &dependent.id)
+            } else {
+                (&dependent.id, &newer.id)
+            };
+            self.store
+                .add_suspect(a, b, similarity, Some(("inherited", score, None)))?;
+            added += 1;
+        }
+        Ok(added)
     }
 
     /// Supersession is retirement: wherever a live `replaces` edge lands — a
@@ -3433,6 +3574,8 @@ impl Engine {
         let bc = &cfg.brief;
         let mut out = String::from("# Engram brief\n");
         let mut included: Vec<String> = Vec::new();
+        // `brief.bodies` off = titles only, whatever each section's excerpt.
+        let ex = |excerpt: usize| if bc.bodies { excerpt } else { 0 };
         let mut seen = std::collections::HashSet::new();
 
         let push_line = |out: &mut String, line: &str| -> bool {
@@ -3459,8 +3602,13 @@ impl Engine {
             // Version tracking: the current working version leads the brief
             // (every version-bound note is stamped with it; set_version
             // moves it when the project does).
+            let working_version = if cfg.versioning.enabled {
+                self.store.current_version()?
+            } else {
+                None
+            };
             if cfg.versioning.enabled {
-                let line = match self.store.current_version()? {
+                let line = match working_version.clone() {
                     Some(v) => format!(
                         "Current working version: {v} — new notes are stamped with it; call `set_version` when the project moves on."
                     ),
@@ -3481,6 +3629,42 @@ impl Engine {
                 .list_open(&[])?
                 .into_iter()
                 .partition(|n| n.tags.iter().any(|t| t == crate::config::HANDOFF_TAG));
+            // The current cycle (0.9.9): open worklist notes stamped with the
+            // working version lead, right under the version line — what this
+            // cycle set out to do and still owes. Handoff notes keep their own
+            // section; everything else stays in the open section below.
+            let (cycle, worklist): (Vec<Node>, Vec<Node>) = match (&working_version, bc.cycle.show)
+            {
+                (Some(v), true) => worklist
+                    .into_iter()
+                    .partition(|n| n.version.as_deref() == Some(v.as_str())),
+                _ => (Vec::new(), worklist),
+            };
+            if let Some(v) = working_version.as_deref().filter(|_| !cycle.is_empty()) {
+                let heading = format!(
+                    "\n## Current cycle — {v}\nOpen work stamped with the working version: what this cycle set out to do and still owes. `search` with `during_version: \"{v}\"` reads everything captured in it."
+                );
+                if !push_line(&mut out, &heading) {
+                    break 'assemble;
+                }
+                for n in cycle.iter().take(bc.cycle.cap) {
+                    let line = node_line_cfg(n, ex(bc.cycle.excerpt), Some(&cfg));
+                    if !push_line(&mut out, &line) {
+                        break 'assemble;
+                    }
+                    seen.insert(n.id.clone());
+                    included.push(n.id.clone());
+                }
+                if cycle.len() > bc.cycle.cap {
+                    let line = format!(
+                        "- …and {} more of this cycle — `list_open` has the full worklist.",
+                        cycle.len() - bc.cycle.cap
+                    );
+                    if !push_line(&mut out, &line) {
+                        break 'assemble;
+                    }
+                }
+            }
             if bc.handoff.show {
                 if !handoff.is_empty()
                     && !push_line(
@@ -3491,7 +3675,7 @@ impl Engine {
                     break 'assemble;
                 }
                 for n in handoff.iter().take(bc.handoff.cap) {
-                    let line = node_line_cfg(n, bc.handoff.excerpt, Some(&cfg));
+                    let line = node_line_cfg(n, ex(bc.handoff.excerpt), Some(&cfg));
                     if !push_line(&mut out, &line) {
                         break 'assemble;
                     }
@@ -3574,7 +3758,9 @@ impl Engine {
                 let heading = "\n## Suspected conflicts — judge these\nThe local scan flagged \
                      unlinked look-alike pairs. For each: `resolve_suspect(id, verdict)` with \
                      `conflict` (they contradict), `replaces` (the newer supersedes — archives \
-                     the older), or `dismiss` (unrelated/fine together).";
+                     the older), or `dismiss` (unrelated/fine together). A hint of `inherited` \
+                     means the newer note contradicts or replaces something the other one builds \
+                     on, needs, or holds because of — follow its edges before judging.";
                 if !push_line(&mut out, heading) {
                     break 'assemble;
                 }
@@ -3631,7 +3817,7 @@ impl Engine {
                 break 'assemble;
             }
             for n in recent {
-                let line = node_line_cfg(&n, bc.recent.excerpt, Some(&cfg));
+                let line = node_line_cfg(&n, ex(bc.recent.excerpt), Some(&cfg));
                 if !push_line(&mut out, &line) {
                     break 'assemble;
                 }
@@ -3665,7 +3851,7 @@ impl Engine {
                 break 'assemble;
             }
             for n in open.iter().take(bc.open.cap) {
-                let line = node_line_cfg(n, bc.open.excerpt, Some(&cfg));
+                let line = node_line_cfg(n, ex(bc.open.excerpt), Some(&cfg));
                 if !push_line(&mut out, &line) {
                     break 'assemble;
                 }
@@ -3682,6 +3868,9 @@ impl Engine {
                 }
             }
 
+            // Live-edge counts for `canon_order: connected`, computed once
+            // on first use.
+            let mut degree: Option<std::collections::HashMap<String, usize>> = None;
             // The per-type canon sections, in ontology order (the shipped set
             // shows Principles, then Decisions with a shorter excerpt —
             // their titles are already declarative — then Cautions).
@@ -3695,7 +3884,11 @@ impl Engine {
                 // window misses seen nodes ranked below it and the overflow
                 // line then double-counts them as "more".
                 let total = self.store.count_by_type_active(&node_type)? as usize;
-                let fetched = self.store.nodes_by_type_active(&node_type, total)?;
+                let mut fetched = self.store.nodes_by_type_active(&node_type, total)?;
+                if bc.canon_order == "connected" {
+                    let degree = degree.get_or_insert_with(|| self.live_degrees());
+                    sort_connected(&mut fetched, degree);
+                }
                 let elsewhere = fetched.iter().filter(|n| seen.contains(&n.id)).count();
                 let nodes: Vec<Node> = fetched
                     .into_iter()
@@ -3707,7 +3900,7 @@ impl Engine {
                 }
                 let shown = nodes.len();
                 for n in nodes {
-                    let line = node_line_cfg(&n, excerpt, Some(&cfg));
+                    let line = node_line_cfg(&n, ex(excerpt), Some(&cfg));
                     if !push_line(&mut out, &line) {
                         break 'assemble;
                     }
@@ -3788,16 +3981,38 @@ impl Engine {
     /// suspects were queued.
     pub fn scan_conflicts(&self) -> Result<usize> {
         let mut added = 0;
-        for node in self.store.scannable_nodes()? {
-            let Some(vec) = self.store.embedding_of(&node.id)? else {
-                continue;
-            };
-            added += self.suspects_near(&node, &vec)?;
+        for id in self.scan_ids()? {
+            added += self.scan_one(&id)?;
         }
         if added > 0 {
             self.notify(ChangeEvent::SuspectsChanged);
         }
         Ok(added)
+    }
+
+    /// The nodes a conflict scan visits, in scan order.
+    pub fn scan_ids(&self) -> Result<Vec<String>> {
+        Ok(self
+            .store
+            .scannable_nodes()?
+            .into_iter()
+            .map(|n| n.id)
+            .collect())
+    }
+
+    /// Scan one node for suspects; 0 when it is gone, archived or has no
+    /// vector (it may have changed since [`Engine::scan_ids`] listed it).
+    pub fn scan_one(&self, id: &str) -> Result<usize> {
+        let Some(node) = self.store.get_node(id)? else {
+            return Ok(0);
+        };
+        if node.valid_until.is_some() {
+            return Ok(0);
+        }
+        let Some(vec) = self.store.embedding_of(id)? else {
+            return Ok(0);
+        };
+        self.suspects_near(&node, &vec)
     }
 
     // ---- local cortex, logic layer (PLAN §7A). All read-only nominations:
@@ -4341,13 +4556,26 @@ impl Engine {
                     _ => continue,
                 }
             };
-            let (newer, older) = if node.created_at >= other.created_at {
-                (&node.id, &other.id)
+            let (newer, older): (&Node, &Node) = if node.created_at >= other.created_at {
+                (node, &other)
             } else {
-                (&other.id, &node.id)
+                (&other, node)
             };
-            self.store.add_suspect(newer, older, similarity, hint)?;
+            self.store
+                .add_suspect(&newer.id, &older.id, similarity, hint)?;
             added += 1;
+            // A confident contradiction of the older note reaches whatever
+            // inherits from it (0.9.9, the transitive shape): the judge read
+            // one same-subject pair, the edges carry the rest.
+            let inherit_gate = cfg
+                .policy
+                .conflict_nli_gate
+                .unwrap_or(cfg.policy.nli_sweep_min_confidence);
+            if let Some(("contradiction", score, _)) = hint
+                && score >= inherit_gate
+            {
+                added += self.propagate_inherited(newer, &older.id, score)?;
+            }
         }
         Ok(added)
     }
@@ -5307,11 +5535,39 @@ pub fn node_line_cfg(
             line.push_str(&format!(" {{{}}}", shown.join("; ")));
         }
     }
-    if let Some(body) = n.body.as_deref().filter(|b| !b.is_empty()) {
+    if let Some(body) = n
+        .body
+        .as_deref()
+        .filter(|b| !b.is_empty() && excerpt_max > 0)
+    {
         line.push_str(" — ");
         line.push_str(&excerpt_words(&body.replace('\n', " "), excerpt_max));
     }
     line
+}
+
+/// Lock a shared engine; a poisoned lock (a panic mid-write elsewhere) is an
+/// error for the caller, not a second panic.
+fn lock_engine(engine: &std::sync::Mutex<Engine>) -> Result<std::sync::MutexGuard<'_, Engine>> {
+    engine
+        .lock()
+        .map_err(|_| crate::Error::Io("engine lock poisoned".into()))
+}
+
+/// `canon_order: connected` (0.9.9): pinned first, then trust × (1 +
+/// ln(1 + live edges)) — the canon other knowledge leans on leads — with the
+/// endorsed order (the input's) breaking ties.
+fn sort_connected(nodes: &mut [Node], degree: &std::collections::HashMap<String, usize>) {
+    let weight = |n: &Node| {
+        let d = degree.get(&n.id).copied().unwrap_or(0) as f64;
+        n.trust * (1.0 + (1.0 + d).ln())
+    };
+    nodes.sort_by(|a, b| {
+        b.trust_override
+            .is_some()
+            .cmp(&a.trust_override.is_some())
+            .then(weight(b).total_cmp(&weight(a)))
+    });
 }
 
 /// Whether a node's type carries the `anchor` role under this graph's

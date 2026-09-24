@@ -58,7 +58,8 @@ numbers, transient state).
 **Maintain.** Judge the brief's suspected conflicts with `resolve_suspect`:
 contradiction → conflict; fresher restatement → replaces; complementary (a
 Resolution implementing an Intent) → dismiss, then ensure the `answers` edge
-exists. When a Resolution answers a Problem/Intent, also set that node's
+exists; a hint of `inherited` means the newer note contradicts something the
+other builds on — dismiss if it still stands on its own. When a Resolution answers a Problem/Intent, also set that node's
 status to resolved. `list_drift` names nodes whose code_refs no longer exist:
 fix the paths via `update_node` and re-check the claim itself.
 

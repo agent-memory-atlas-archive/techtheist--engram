@@ -177,7 +177,9 @@ async function scanNow(): Promise<void> {
                         v-if="s.nli_label"
                         class="nli-hint"
                         :class="s.nli_label"
-                        :title="`Local NLI hint (${Math.round((s.nli_score ?? 0) * 100)}%)${s.nli_direction ? ` — negation likely on the ${s.nli_direction} side` : ''} — a suggestion for your judgment, never a verdict`"
+                        :title="s.nli_label === 'inherited'
+                            ? `Inherited (${Math.round((s.nli_score ?? 0) * 100)}%): the newer note contradicts or replaces something the other builds on, needs, or holds because of — check whether it still stands`
+                            : `Local NLI hint (${Math.round((s.nli_score ?? 0) * 100)}%)${s.nli_direction ? ` — negation likely on the ${s.nli_direction} side` : ''} — a suggestion for your judgment, never a verdict`"
                     >{{ s.nli_label }}{{ s.nli_direction ? ` · ${s.nli_direction} negates` : '' }}</span>
                 </div>
                 <div class="row-actions">
@@ -494,5 +496,12 @@ async function scanNow(): Promise<void> {
 .nli-hint.entailment {
     color: var(--trust-trusted);
     background-color: color-mix(in srgb, var(--trust-trusted) 14%, transparent);
+}
+
+/* 0.9.9: queued because the newer note contradicts something this one
+   builds on / needs / holds because of — a review, not a direct clash. */
+.nli-hint.inherited {
+    color: var(--node-caution);
+    background-color: color-mix(in srgb, var(--node-caution) 14%, transparent);
 }
 </style>

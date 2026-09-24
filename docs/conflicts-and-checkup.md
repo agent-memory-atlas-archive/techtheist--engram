@@ -25,6 +25,16 @@ first — but never decides anything. When the model reads a contradiction as
 lopsided, the hint also names which side likely carries the negation ("the
 older side"), so you know where to look first.
 
+A contradiction also travels along edges. When a new note contradicts one
+already in the graph — or you link it `replaces` / `conflicts-with` — every
+note that **builds on**, **needs**, or **holds because of** the old one is
+queued against the new one with the hint `inherited`: "the harbor ingester
+mirrors the sibling's settings" is worth a second look the moment "the
+sibling now retries 19 times" arrives, though no sentence model can see that
+pair as a contradiction — the two notes name different subjects. Judge it
+like any other suspect: dismiss it if the dependent still stands on its own.
+Which verbs carry this is the `inherits` role in the graph's ontology.
+
 ## Checkup: interrogate the canon
 
 Beyond finding what the graph *says*, the **Checkup** panel asks whether it
