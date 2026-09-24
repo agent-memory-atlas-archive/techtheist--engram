@@ -1145,8 +1145,10 @@ fn load_nli(spec: &engram_core::cortex::ModelSpec) -> anyhow::Result<Arc<dyn Nli
         ensure_nli_model();
         return Ok(Arc::new(engram_core::FastNli::new()?));
     }
+    // A selected judge is either a three-label NLI export or a Laya
+    // typed-decision model (0.9.9); the directory says which.
     let dir = provision(Role::Nli, spec)?;
-    Ok(Arc::new(engram_core::FastNli::from_dir(&dir)?))
+    Ok(Arc::from(engram_core::nli::load_dir(&dir)?))
 }
 
 /// Make sure a spec's files exist under `~/.cache/engram/<name>/`,

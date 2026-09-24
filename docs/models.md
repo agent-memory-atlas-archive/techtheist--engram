@@ -28,7 +28,15 @@ they don't generate.
 Settings → System → **Choose models** swaps any layer:
 
 - **Presets** — known-good ONNX exports: `bge-small`/`bge-base`/`all-MiniLM`
-  embeddings, `jina-turbo`/`bge-reranker-base` rerankers.
+  embeddings, `jina-turbo`/`bge-reranker-base` rerankers, and three logic
+  models: `deberta-v3-small-tasksource-nli` (default — fast, the fewest false
+  alarms on real notes), **Laya English int4** (262 MB — a typed-decision
+  model that reads compound sentences far better, ~15× slower per pair) and
+  **Laya multilingual int8** (873 MB — for notes written in other languages).
+  The Laya exports are published at
+  [huggingface.co/techtheist/laya-onnx](https://huggingface.co/techtheist/laya-onnx);
+  the measurements behind the choice are in
+  [`eval/CONTRADICTIONS.md`](../eval/CONTRADICTIONS.md).
 - **Custom by URL** — any compatible ONNX export: give it a name, a base URL
   (Hugging Face `…/resolve/main` style), and for embeddings the vector width
   and pooling.

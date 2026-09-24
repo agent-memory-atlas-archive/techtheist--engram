@@ -302,6 +302,10 @@ export interface ModelSpec {
     model_file: string
     dim?: number | null
     pooling?: string | null
+    /** One line the picker shows: what this model trades (0.9.9). */
+    description?: string | null
+    /** NLI only: "laya" = a Laya typed-decision model directory. */
+    layout?: string | null
 }
 
 export interface ModelRoleInfo {

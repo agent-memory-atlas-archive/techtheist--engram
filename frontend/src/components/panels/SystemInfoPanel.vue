@@ -187,6 +187,11 @@ const applyNote = ref<Record<string, string>>({})
 
 const roles = computed<ModelRoleInfo[]>(() => selection.value?.roles ?? [])
 
+/** The picked preset's one-line trade-off, when the catalog carries one. */
+function presetDescription(r: ModelRoleInfo): string | null {
+    return r.presets.find((p) => p.name === picks.value[r.role])?.description ?? null
+}
+
 function presetOptions(r: ModelRoleInfo): { value: string; label: string }[] {
     return [
         ...r.presets.map((p) => ({ value: p.name, label: `${p.name}${p.name === r.default ? ' (default)' : ''}` })),
@@ -498,6 +503,7 @@ function wiringStatus(w: { wired: boolean; prerename: boolean }): { status: Stat
                             block
                             @update:model-value="picks[r.role] = $event"
                         />
+                        <p v-if="presetDescription(r)" class="pick-note">{{ presetDescription(r) }}</p>
                         <template v-if="picks[r.role] === 'custom'">
                             <input
                                 v-model="customName[r.role]"

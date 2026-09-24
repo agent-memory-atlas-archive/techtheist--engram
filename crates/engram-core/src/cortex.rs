@@ -67,6 +67,22 @@ pub struct ModelSpec {
     /// Embedding role only: `cls` (BERT/bge family) or `mean`.
     #[serde(default)]
     pub pooling: Option<String>,
+    /// One line the pane shows under the picker: what this model trades.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// NLI role only: the directory layout. `None` = a three-label NLI
+    /// export (`config.json` with `id2label`); `"laya"` = a Laya
+    /// typed-decision model (`rl_agent_config.json` + `tokenizer_config.json`,
+    /// see [`crate::laya`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub layout: Option<String>,
+}
+
+impl ModelSpec {
+    /// Whether this spec provisions a Laya typed-decision model.
+    pub fn is_laya(&self) -> bool {
+        self.layout.as_deref() == Some("laya")
+    }
 }
 
 fn default_model_file() -> String {
@@ -169,6 +185,8 @@ pub fn presets(role: Role) -> Vec<ModelSpec> {
                 model_file: "onnx/model.onnx".into(),
                 dim: Some(384),
                 pooling: Some("cls".into()),
+                description: None,
+                layout: None,
             },
             ModelSpec {
                 name: "bge-base-en-v1.5".into(),
@@ -176,6 +194,8 @@ pub fn presets(role: Role) -> Vec<ModelSpec> {
                 model_file: default_model_file(),
                 dim: Some(768),
                 pooling: Some("cls".into()),
+                description: None,
+                layout: None,
             },
             ModelSpec {
                 name: "all-MiniLM-L6-v2".into(),
@@ -183,6 +203,8 @@ pub fn presets(role: Role) -> Vec<ModelSpec> {
                 model_file: default_model_file(),
                 dim: Some(384),
                 pooling: Some("mean".into()),
+                description: None,
+                layout: None,
             },
         ],
         Role::Reranker => vec![
@@ -192,6 +214,8 @@ pub fn presets(role: Role) -> Vec<ModelSpec> {
                 model_file: "onnx/model.onnx".into(),
                 dim: None,
                 pooling: None,
+                description: None,
+                layout: None,
             },
             ModelSpec {
                 name: "bge-reranker-base".into(),
@@ -199,16 +223,21 @@ pub fn presets(role: Role) -> Vec<ModelSpec> {
                 model_file: default_model_file(),
                 dim: None,
                 pooling: None,
+                description: None,
+                layout: None,
             },
         ],
         // First entry is the default (see `effective`). The tasksource
         // DeBERTa replaced MobileBERT in 0.8.1 on the contradiction
-        // benchmark: false alarms 38%→18–29% at the shipped gate on
-        // generated prose, 28%→0% unbiased queue noise on this repo's real
-        // graph, and it stops calling unrelated same-register notes
-        // contradictions (the failure users actually hit). Predecessors
-        // stay listed so an existing explicit selection keeps resolving
-        // and so the choice can be reversed from the pane.
+        // benchmark and stays the default after 0.9.9's Laya bench: Laya
+        // (a typed-decision model asked Laya's own XNLI question) separates
+        // generated contradictions a little better and reads compound
+        // sentences far better, but on this repo's real graph it flags more
+        // dismissed pairs (28% vs 19% at the 0.80 gate) at 15× the cost per
+        // pair (eval/results/2026-09-24-shapes-*, -realgraph-*). MobileBERT
+        // and nli-deberta-v3-small left the list in 0.9.9; an old explicit
+        // selection of either still resolves through `effective` as a
+        // custom spec.
         Role::Nli => vec![
             ModelSpec {
                 name: "deberta-v3-small-tasksource-nli".into(),
@@ -216,20 +245,32 @@ pub fn presets(role: Role) -> Vec<ModelSpec> {
                 model_file: default_model_file(),
                 dim: None,
                 pooling: None,
+                description: Some(
+                    "Fast and careful (172 MB, ~10 ms a pair): the fewest false alarms on real notes.".into(),
+                ),
+                layout: None,
             },
             ModelSpec {
-                name: "mobilebert-uncased-mnli".into(),
-                base_url: hf("Xenova/mobilebert-uncased-mnli"),
-                model_file: default_model_file(),
+                name: "laya-en-int4".into(),
+                base_url: hf("techtheist/laya-onnx") + "/en",
+                model_file: "model_int4.onnx".into(),
                 dim: None,
                 pooling: None,
+                description: Some(
+                    "Laya, English, int4 (262 MB, ~15× slower): catches compound contradictions, flags more real pairs.".into(),
+                ),
+                layout: Some("laya".into()),
             },
             ModelSpec {
-                name: "nli-deberta-v3-small".into(),
-                base_url: hf("Xenova/nli-deberta-v3-small"),
-                model_file: default_model_file(),
+                name: "laya-multilingual-int8".into(),
+                base_url: hf("techtheist/laya-onnx") + "/multilingual",
+                model_file: "model_int8.onnx".into(),
                 dim: None,
                 pooling: None,
+                description: Some(
+                    "Laya, 100+ languages, int8 (873 MB): for notes written in other languages; noisier on English.".into(),
+                ),
+                layout: Some("laya".into()),
             },
         ],
     }
@@ -245,9 +286,23 @@ pub fn cache_dir(name: &str) -> Option<PathBuf> {
 }
 
 /// The (local filename, source URL) pairs a spec needs on disk. Embeddings
-/// and rerankers ride fastembed's five-file layout; NLI needs three.
+/// and rerankers ride fastembed's five-file layout; NLI needs three; a Laya
+/// model needs four (its own config and the tokenizer's, no `config.json`).
 pub fn spec_files(role: Role, spec: &ModelSpec) -> Vec<(String, String)> {
     let src = |rel: &str| format!("{}/{}", spec.base_url.trim_end_matches('/'), rel);
+    if spec.is_laya() {
+        return crate::laya::LAYA_MODEL_FILES
+            .iter()
+            .map(|f| {
+                let from = if *f == "model.onnx" {
+                    spec.model_file.as_str()
+                } else {
+                    f
+                };
+                (f.to_string(), src(from))
+            })
+            .collect();
+    }
     let mut files = vec![
         ("model.onnx".to_string(), src(&spec.model_file)),
         ("tokenizer.json".to_string(), src("tokenizer.json")),

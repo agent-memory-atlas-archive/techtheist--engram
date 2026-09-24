@@ -3920,8 +3920,31 @@ fn cortex_config_defaults_and_presets() {
         cfg.effective(Role::Nli).name,
         "deberta-v3-small-tasksource-nli"
     );
-    // NLI needs three files, the fastembed-loaded roles five.
+    // NLI needs three files, the fastembed-loaded roles five, a Laya judge
+    // four — its graph saved as model.onnx whatever the repo calls it.
     assert_eq!(spec_files(Role::Nli, &presets(Role::Nli)[0]).len(), 3);
+    let nli = presets(Role::Nli);
+    let names: Vec<&str> = nli.iter().map(|p| p.name.as_str()).collect();
+    assert_eq!(
+        names,
+        [
+            "deberta-v3-small-tasksource-nli",
+            "laya-en-int4",
+            "laya-multilingual-int8"
+        ]
+    );
+    assert!(nli.iter().all(|p| p.description.is_some()));
+    let laya = spec_files(Role::Nli, &nli[1]);
+    assert_eq!(laya.len(), 4);
+    assert_eq!(
+        laya[0],
+        (
+            "model.onnx".to_string(),
+            "https://huggingface.co/techtheist/laya-onnx/resolve/main/en/model_int4.onnx"
+                .to_string()
+        )
+    );
+    assert!(laya.iter().any(|(f, _)| f == "rl_agent_config.json"));
     assert_eq!(
         spec_files(Role::Embedding, &presets(Role::Embedding)[0]).len(),
         5
