@@ -18,6 +18,8 @@ out/
 # Environment & machine-local config
 .env
 .mcp.json
+# ...except the Claude Code plugin's server declaration, which ships with it
+!claude-plugin/.mcp.json
 
 # Plugin signing keys (contents live in GitHub Actions secrets)
 engram-jetbrains/.signing/

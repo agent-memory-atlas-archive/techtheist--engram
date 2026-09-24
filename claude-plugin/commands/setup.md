@@ -1,23 +1,23 @@
 ---
-description: Wire this repository to Engram — install the binary if missing, git-ignore the local graph, register the MCP server.
+description: Wire this repository to Engram — install the binary if missing, git-ignore the local graph, mark the repo as an Engram project.
 allowed-tools: Bash
 ---
 
-Wire the current repository to Engram. The plugin already provides the capture skill and the session-brief hook globally, so the only per-repo work is the binary and the MCP registration — never install a project-level skill or hook here.
+Wire the current repository to Engram. The plugin already provides the capture skill, the session-brief hook and the MCP server globally — the server only binds repositories that are wired, so the per-repo work is the binary and marking this repo as a project. Never install a project-level skill, hook, or `.mcp.json` entry here.
 
-1. **Binary.** Check `command -v engram-alpha`. If missing, ask the user once for consent to install, then run:
+1. **Binary.** Check `command -v engram-alpha` (also `~/.local/bin/engram-alpha` and `~/.cargo/bin/engram-alpha`). If missing, ask the user once for consent to install, then run:
    ```sh
    curl -fsSL https://raw.githubusercontent.com/techtheist/engram/main/install.sh | sh -s -- --bin-only
    ```
-   (The installer only fetches the binary — `--bin-only` is accepted for compatibility and makes that explicit; repo wiring is step 2.) If they decline, stop and point them at https://github.com/techtheist/engram#install.
+   If they decline, stop and point them at https://github.com/techtheist/engram#install. If `engram-alpha --version` is older than 0.9.9, run `engram-alpha update` — the plugin's server needs `mcp --wired-only`.
 
 2. **Wire the repo.** From the repository root:
    ```sh
    engram-alpha setup --cli claude --mcp-only
    ```
-   This git-ignores `.engram/` and writes the `engram` MCP server into `.mcp.json` (or prints the snippet if a foreign `.mcp.json` exists — apply it, `.mcp.json` holds machine-absolute paths, so keep it out of version control).
+   This git-ignores `.engram/` and creates it — the directory is what tells the plugin's server this repo is a project. With the plugin installed it writes no `.mcp.json` entry (that would load every engram tool twice); if it reports an existing `engram` entry in `.mcp.json`, remove that entry.
 
-3. **Connect.** Tell the user to restart the session (or approve the new MCP server via `/mcp`) so the `engram` tools appear. The next session opens pre-briefed via the plugin's SessionStart hook.
+3. **Connect.** Tell the user to run `/mcp` and reconnect the `engram` server (or start a new session) so it binds this repo. The next session opens pre-briefed via the plugin's SessionStart hook.
 
 4. **Cold start.** If this created a brand-new graph, mention that once connected, the skill offers a one-time seeding pass from the project's existing docs/history — and that `/engram:pane` opens the graph UI.
 

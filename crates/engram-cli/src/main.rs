@@ -168,6 +168,16 @@ struct McpArgs {
     /// Use the deterministic fake embedder instead of the local ONNX model.
     #[arg(long)]
     fake_embeddings: bool,
+    /// Bind only folders that are already Engram projects.
+    ///
+    /// For a globally installed server that starts in every folder (the
+    /// Claude Code plugin's): a roots/cwd folder binds only when it holds
+    /// `.engram/` or sits inside a registered project — it is never turned
+    /// into a new project. Any other folder binds the home graph with
+    /// project writes refused until the folder is wired (`engram-alpha
+    /// setup`). Ignored with --db.
+    #[arg(long)]
+    wired_only: bool,
 }
 
 #[derive(clap::Args)]
@@ -318,8 +328,22 @@ fn init_tracing(command: &Command) {
         Command::Mcp(args) if std::env::var("ENGRAM_MCP_LOG").as_deref() != Ok("0") => {
             // db-less bridges tee into the cwd's .engram (Roots binding may
             // move the session later, but the log needs a home up front).
+            // A --wired-only bridge must not create that directory — it is
+            // exactly what marks a folder as wired (0.9.9: the e2e caught a
+            // plugin bridge promoting its own cwd through its log file) — so
+            // an unwired cwd logs into the machine-level ~/.engram instead.
             let db = args.db.clone().unwrap_or_else(default_db_path);
-            mcp_log_file(&db).map(|f| {
+            let unwired_cwd = args.db.is_none()
+                && args.wired_only
+                && !std::env::current_dir()
+                    .map(|d| d.join(".engram").is_dir())
+                    .unwrap_or(false);
+            let log = if unwired_cwd {
+                registry::engram_home().and_then(|home| mcp_log_file(&home.join("graph.db")))
+            } else {
+                mcp_log_file(&db)
+            };
+            log.map(|f| {
                 fmt::layer()
                     .with_writer(f)
                     .with_ansi(false)
@@ -1653,7 +1677,7 @@ async fn run_mcp(args: McpArgs) -> anyhow::Result<()> {
         Some(raw) => run_mcp_fixed(raw, args.fake_embeddings).await,
         // No --db: bind by the client's MCP roots, falling back to cwd —
         // one global config entry serves every project (issue #4).
-        None => run_mcp_roots(args.fake_embeddings).await,
+        None => run_mcp_roots(args.fake_embeddings, args.wired_only).await,
     }
 }
 
@@ -1728,12 +1752,17 @@ async fn run_mcp_fixed(raw_db: &Path, fake_embeddings: bool) -> anyhow::Result<(
     engram_mcp::serve_stdio_bridge(engram_mcp::BridgeTarget::Fixed { resolve }).await
 }
 
-async fn run_mcp_roots(fake_embeddings: bool) -> anyhow::Result<()> {
+async fn run_mcp_roots(fake_embeddings: bool, wired_only: bool) -> anyhow::Result<()> {
     tracing::info!(
         "engram-alpha mcp v{} (pid {}, no --db — binding by client roots, then cwd, \
-         then the default agent project, then home)",
+         then the default agent project, then home{})",
         env!("CARGO_PKG_VERSION"),
         std::process::id(),
+        if wired_only {
+            "; wired projects only"
+        } else {
+            ""
+        },
     );
     // IDE launchers spawn MCP servers from arbitrary cwds — `/`, a vanished
     // dir (the Windsurf JetBrains plugin does). A missing cwd must not kill
@@ -1742,6 +1771,47 @@ async fn run_mcp_roots(fake_embeddings: bool) -> anyhow::Result<()> {
     let fallback_root =
         std::env::current_dir().unwrap_or_else(|_| PathBuf::from(std::path::MAIN_SEPARATOR_STR));
     let resolve: engram_mcp::RootResolver = Arc::new(move |root: PathBuf| {
+        // --wired-only (0.9.9): a folder that isn't an Engram project is
+        // never turned into one. A folder inside a registered project binds
+        // that project's root; anything else reads the home graph with
+        // project writes refused — the folder is real and known, so the
+        // default-agent-project rung (for clients that can't reveal their
+        // folder) doesn't apply.
+        let root = if wired_only && root_cannot_host(&root).is_none() {
+            match wired_root(&root) {
+                Some(wired) => wired,
+                None => {
+                    tracing::info!(
+                        "{} is not an Engram project (--wired-only) — binding the home graph, \
+                         project writes refused until it is wired",
+                        root.display()
+                    );
+                    let deadline = std::time::Instant::now()
+                        + match ensure_machine_core(fake_embeddings) {
+                            Ok(_) => std::time::Duration::from_secs(20),
+                            Err(e) => {
+                                tracing::warn!("core spawn failed: {e:#}");
+                                std::time::Duration::ZERO
+                            }
+                        };
+                    loop {
+                        if let Some(port) = machine_core() {
+                            return Ok(engram_mcp::ResolvedTarget {
+                                url: format!("http://127.0.0.1:{port}/mcp"),
+                                lease_root: root.display().to_string(),
+                                bound_by: engram_mcp::BoundBy::Unwired,
+                            });
+                        }
+                        if std::time::Instant::now() >= deadline {
+                            return Err(no_core_error(&root));
+                        }
+                        std::thread::sleep(std::time::Duration::from_millis(500));
+                    }
+                }
+            }
+        } else {
+            root
+        };
         // Handshake-first: the machine core (project-independent) is ensured
         // HERE, in the binding that runs after the stdio handshake answered
         // — never before serving, where a slow first-run provision or a
@@ -1863,6 +1933,19 @@ fn default_agent_target(port: u16) -> Option<engram_mcp::ResolvedTarget> {
         lease_root: entry.root,
         bound_by: engram_mcp::BoundBy::DefaultProject,
     })
+}
+
+/// The Engram project a folder belongs to, for `mcp --wired-only`: the
+/// folder itself when it holds `.engram/`, else the root of the registered
+/// project containing it (longest root wins). None = not wired.
+fn wired_root(folder: &Path) -> Option<PathBuf> {
+    if folder.join(".engram").is_dir() {
+        return Some(folder.to_path_buf());
+    }
+    registry::load()
+        .resolve_root(folder)
+        .map(|entry| PathBuf::from(&entry.root))
+        .filter(|root| root_cannot_host(root).is_none())
 }
 
 /// Directories that are never a project root, whatever their permissions

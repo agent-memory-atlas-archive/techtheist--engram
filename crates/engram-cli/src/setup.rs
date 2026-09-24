@@ -110,6 +110,7 @@ impl Setup {
     /// personal graph is git-ignored.
     pub fn run(&self, agents: &[&str]) -> anyhow::Result<()> {
         self.ensure_gitignore()?;
+        self.ensure_graph_dir()?;
         let unique: BTreeSet<&str> = agents.iter().copied().collect();
         for agent in unique {
             match agent {
@@ -126,6 +127,27 @@ impl Setup {
             }
         }
         say("done — restart your assistant sessions so they pick up the MCP server");
+        Ok(())
+    }
+
+    /// A wired repo holds `.engram/` from the moment it is wired (0.9.9):
+    /// that directory is what a `--wired-only` bridge — the Claude Code
+    /// plugin's global server — reads as "this folder is an Engram project".
+    /// The store inside is the core's to create on first open. Never in `/`
+    /// or the home directory, which can't host a project.
+    fn ensure_graph_dir(&self) -> anyhow::Result<()> {
+        let canon = self
+            .repo
+            .canonicalize()
+            .unwrap_or_else(|_| self.repo.clone());
+        let home = std::env::var_os("HOME")
+            .or_else(|| std::env::var_os("USERPROFILE"))
+            .map(PathBuf::from)
+            .map(|h| h.canonicalize().unwrap_or(h));
+        if canon.parent().is_none() || home.as_ref() == Some(&canon) {
+            return Ok(());
+        }
+        fs::create_dir_all(self.repo.join(".engram"))?;
         Ok(())
     }
 
@@ -304,7 +326,23 @@ impl Setup {
     /// answers MCP roots), so the entry is db-less — portable across
     /// checkouts, and the bridge binds the right graph either way.
     fn wire_claude(&self) -> anyhow::Result<()> {
-        self.write_mcp_servers(".mcp.json", "claude", false)?;
+        if claude_plugin_installed() {
+            // The plugin serves MCP globally (`mcp --wired-only`, 0.9.9) —
+            // a project `.mcp.json` entry would load every engram tool a
+            // second time under another name.
+            say(
+                "claude: the Engram Claude Code plugin is installed and serves MCP in every \
+                 wired repo — no project .mcp.json entry written",
+            );
+            if mcp_json_has_engram(&self.repo) {
+                say(
+                    "claude: .mcp.json still registers an `engram` server — remove that entry, \
+                     or Claude Code loads the engram tools twice",
+                );
+            }
+        } else {
+            self.write_mcp_servers(".mcp.json", "claude", false)?;
+        }
         if self.mcp_only {
             return Ok(());
         }
@@ -857,6 +895,33 @@ impl Setup {
     }
 }
 
+/// Whether the Engram plugin is installed in Claude Code — any
+/// `engram@<marketplace>` entry in the plugin registry
+/// (`$CLAUDE_CONFIG_DIR` or `~/.claude`, `plugins/installed_plugins.json`).
+pub fn claude_plugin_installed() -> bool {
+    let base = std::env::var_os("CLAUDE_CONFIG_DIR")
+        .map(PathBuf::from)
+        .or_else(|| {
+            std::env::var_os("HOME")
+                .or_else(|| std::env::var_os("USERPROFILE"))
+                .map(|h| PathBuf::from(h).join(".claude"))
+        });
+    let Some(base) = base else { return false };
+    fs::read_to_string(base.join("plugins/installed_plugins.json"))
+        .ok()
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
+        .and_then(|v| v["plugins"].as_object().cloned())
+        .is_some_and(|plugins| plugins.keys().any(|k| k.starts_with("engram@")))
+}
+
+/// Whether the repo's `.mcp.json` registers a server named `engram`.
+pub fn mcp_json_has_engram(repo: &std::path::Path) -> bool {
+    fs::read_to_string(repo.join(".mcp.json"))
+        .ok()
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
+        .is_some_and(|v| v["mcpServers"].get("engram").is_some())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1078,8 +1143,37 @@ mod tests {
             include_str!("../../../claude-plugin/.claude-plugin/plugin.json"),
             include_str!("../../../.claude-plugin/marketplace.json"),
             include_str!("../../../claude-plugin/hooks/hooks.json"),
+            include_str!("../../../claude-plugin/.mcp.json"),
         ] {
             serde_json::from_str::<serde_json::Value>(raw).expect("plugin manifest is valid JSON");
+        }
+    }
+
+    // The plugin's global MCP server (0.9.9) must launch the wired-only
+    // bridge through a script that exists and is executable — a plugin that
+    // runs a plain `mcp` would turn every folder Claude Code opens into a
+    // project.
+    #[test]
+    fn plugin_mcp_server_is_the_wired_only_bridge() {
+        let mcp: serde_json::Value =
+            serde_json::from_str(include_str!("../../../claude-plugin/.mcp.json")).unwrap();
+        let command = mcp["mcpServers"]["engram"]["command"].as_str().unwrap();
+        let rel = command
+            .strip_prefix("${CLAUDE_PLUGIN_ROOT}/")
+            .expect("the command lives inside the plugin");
+        let script = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../claude-plugin")
+            .join(rel);
+        let body = std::fs::read_to_string(&script).expect("launcher exists");
+        assert!(
+            body.contains("mcp --wired-only"),
+            "launcher runs the wired-only bridge"
+        );
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = std::fs::metadata(&script).unwrap().permissions().mode();
+            assert!(mode & 0o111 != 0, "{} must be executable", script.display());
         }
     }
 

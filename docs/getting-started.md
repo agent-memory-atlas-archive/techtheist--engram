@@ -49,9 +49,12 @@ project:
 /plugin install engram@engram
 ```
 
-Then run `/engram:setup` once per repository you want remembered (it installs
-the binary if missing, git-ignores `.engram/`, and registers the MCP server).
-`/engram:pane` opens the graph UI. Details in
+The plugin brings the MCP server with it. Run `/engram:setup` once per
+repository you want remembered (it installs the binary if missing, git-ignores
+and creates `.engram/`), then `/mcp` → reconnect `engram`. The server binds
+only repositories wired this way and never creates a graph on its own; in any
+other folder it reads the home graph and refuses project writes until you wire
+it. `/engram:pane` opens the graph UI. Details in
 [`claude-plugin/`](../claude-plugin/).
 
 ## Wire any assistant

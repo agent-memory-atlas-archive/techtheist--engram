@@ -216,6 +216,12 @@ pub enum BoundBy {
     /// no roots and the launch directory can't host a project. The ONLY rung
     /// that refuses writes until the agent binds the session itself.
     Home,
+    /// The home graph, because the client's folder is not an Engram project
+    /// and the bridge runs `--wired-only` (0.9.9 — a globally installed
+    /// server such as the Claude Code plugin's, which starts in every
+    /// folder). Refuses project writes like [`BoundBy::Home`], but the fix it
+    /// teaches is wiring the folder, not naming it.
+    Unwired,
     /// The agent rebound the session with a scoped `brief`.
     Brief,
 }
@@ -229,6 +235,7 @@ impl BoundBy {
             BoundBy::Cwd => "cwd",
             BoundBy::DefaultProject => "default-project",
             BoundBy::Home => "home",
+            BoundBy::Unwired => "unwired",
             BoundBy::Brief => "brief",
         }
     }
@@ -242,6 +249,7 @@ impl BoundBy {
             "cwd" => BoundBy::Cwd,
             "default-project" => BoundBy::DefaultProject,
             "home" => BoundBy::Home,
+            "unwired" => BoundBy::Unwired,
             "brief" => BoundBy::Brief,
             _ => BoundBy::Route,
         }
@@ -266,7 +274,7 @@ impl BoundBy {
     /// A rung the agent did not choose and the user did not configure —
     /// the session is in the home graph only because nothing else worked.
     pub fn refuses_writes(self) -> bool {
-        self == BoundBy::Home
+        matches!(self, BoundBy::Home | BoundBy::Unwired)
     }
 }
 
@@ -463,6 +471,16 @@ impl Engram {
         } else {
             roster.join(", ")
         };
+        if self.bound_by() == BoundBy::Unwired {
+            return format!(
+                "write refused: this workspace is not an Engram project yet, so the session \
+                 reads the home graph and won't write into it by accident. To remember this \
+                 project, wire it — `/engram:setup` in Claude Code, or `engram-alpha setup` in \
+                 the repository root — then reconnect (`/mcp`) and retry. To write user-level \
+                 knowledge deliberately, pass project \"home\"; to write into another project, \
+                 pass its name. Registered projects: {roster}."
+            );
+        }
         format!(
             "write refused: this session is bound to the home graph by fallback — {client} \
              answered no MCP roots and the bridge's launch directory can't host a project, so \
@@ -1667,15 +1685,26 @@ impl Engram {
         // The bridge said so (0.9.8), or — for a bridge that doesn't
         // announce its rung — the graph itself gives it away.
         let default = engram_core::settings::load().default_agent_project;
-        let on_fallback = matches!(bound_by, BoundBy::Home | BoundBy::DefaultProject)
-            || (bound_by == BoundBy::Route
-                && (id == registry::HOME_PROJECT || default.as_deref() == Some(id.as_str())));
+        let on_fallback = matches!(
+            bound_by,
+            BoundBy::Home | BoundBy::DefaultProject | BoundBy::Unwired
+        ) || (bound_by == BoundBy::Route
+            && (id == registry::HOME_PROJECT || default.as_deref() == Some(id.as_str())));
         if !on_fallback {
             return None;
         }
         let client = self
             .session_client()
             .unwrap_or_else(|| "your MCP client".into());
+        if bound_by == BoundBy::Unwired {
+            return Some(
+                "_This workspace is not an Engram project yet — the session reads the home \
+                 graph and REFUSES writes addressed to this project. If the user wants this \
+                 project remembered, offer to wire it (`/engram:setup` in Claude Code, or \
+                 `engram-alpha setup` in the repository root), then reconnect._"
+                    .to_string(),
+            );
+        }
         Some(if bound_by.refuses_writes() {
             format!(
                 "_This session is bound to the home graph by fallback: {client} answered no \
@@ -5664,6 +5693,7 @@ mod scoped_transport_tests {
             BoundBy::Cwd,
             BoundBy::DefaultProject,
             BoundBy::Home,
+            BoundBy::Unwired,
             BoundBy::Brief,
         ] {
             assert_eq!(
@@ -5683,6 +5713,7 @@ mod scoped_transport_tests {
             "an unknown rung from a newer bridge reads as the route alone"
         );
         assert!(BoundBy::Home.refuses_writes());
+        assert!(BoundBy::Unwired.refuses_writes());
         assert!(!BoundBy::DefaultProject.refuses_writes());
         assert!(!BoundBy::Roots.refuses_writes());
     }

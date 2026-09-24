@@ -224,3 +224,124 @@ fn devin_mcp_config_launches_a_bridge_serving_current_tools() {
     );
     bridge.kill();
 }
+
+/// One tools/call on a bridge; skips anything that isn't the reply to `id`.
+fn call(bridge: &mut Bridge, id: u64, tool: &str, args: &str) -> String {
+    bridge.send(&format!(
+        r#"{{"jsonrpc":"2.0","id":{id},"method":"tools/call","params":{{"name":"{tool}","arguments":{args}}}}}"#
+    ));
+    loop {
+        let line = bridge.recv();
+        if line.contains(&format!(r#""id":{id}"#)) {
+            return line;
+        }
+    }
+}
+
+/// The Claude Code plugin's server (0.9.9) is `mcp --wired-only`, started in
+/// every folder Claude Code opens: a folder that isn't an Engram project is
+/// never turned into one (reads the home graph, project writes refused with
+/// the wiring instruction), and a folder anywhere inside a wired project
+/// binds that project — without growing a stray `.engram/` of its own.
+#[test]
+fn wired_only_bridge_never_creates_a_project() {
+    let sb = Sandbox::new("wiredonly", 19460);
+
+    let loose = sb.root.join("loose-repo");
+    std::fs::create_dir_all(loose.join(".git")).unwrap();
+    let mut bridge =
+        Bridge::spawn_cmd(sb.cmd(&["mcp", "--wired-only", "--fake-embeddings"], &loose));
+    let brief = call(&mut bridge, 2, "brief", "{}");
+    assert!(brief.contains("not an Engram project yet"), "{brief}");
+    let write = call(
+        &mut bridge,
+        3,
+        "add_note",
+        r#"{"type":"Insight","title":"a stray capture","body":"x"}"#,
+    );
+    assert!(
+        write.contains("write refused") && write.contains("/engram:setup"),
+        "{write}"
+    );
+    // A deliberate user-level write still works.
+    let home = call(
+        &mut bridge,
+        4,
+        "add_note",
+        r#"{"type":"Insight","title":"a deliberate user-level note","body":"x","project":"home"}"#,
+    );
+    assert!(home.contains("created"), "{home}");
+    bridge.kill();
+    assert!(
+        !loose.join(".engram").exists(),
+        "the loose repo stayed unwired"
+    );
+
+    let wired = sb.project("wired");
+    let deep = wired.join("src/deep");
+    std::fs::create_dir_all(&deep).unwrap();
+    // Registered the way `serve`/setup leave it: the project's own bridge
+    // binds once, which registers the root.
+    let mut own = Bridge::spawn_cmd(sb.cmd(&["mcp", "--fake-embeddings"], &wired));
+    let bound = call(&mut own, 2, "brief", "{}");
+    assert!(bound.contains("project 'wired'"), "{bound}");
+    own.kill();
+    let mut inner = Bridge::spawn_cmd(sb.cmd(&["mcp", "--wired-only", "--fake-embeddings"], &deep));
+    let write = call(
+        &mut inner,
+        2,
+        "add_note",
+        r#"{"type":"Insight","title":"captured from a subfolder","body":"x"}"#,
+    );
+    assert!(
+        write.contains("created") && write.contains("wired"),
+        "{write}"
+    );
+    assert!(
+        !deep.join(".engram").exists(),
+        "no stray .engram in the subfolder"
+    );
+}
+
+/// With the Engram Claude Code plugin installed, `setup --cli claude` wires
+/// the repo (git-ignore + `.engram/`) but writes no project `.mcp.json`
+/// entry — the plugin already serves MCP, and a second entry would load
+/// every engram tool twice.
+#[test]
+fn setup_defers_mcp_to_the_claude_plugin() {
+    let sb = Sandbox::new("claudeplugin", 19480);
+    let repo = sb.root.join("repo");
+    std::fs::create_dir_all(repo.join(".git")).unwrap();
+    let plugins = sb.root.join("home/.claude/plugins");
+    std::fs::create_dir_all(&plugins).unwrap();
+    std::fs::write(
+        plugins.join("installed_plugins.json"),
+        r#"{"version":2,"plugins":{"engram@engram":[{"scope":"user","version":"0.9.9"}]}}"#,
+    )
+    .unwrap();
+
+    let out = sb
+        .cmd(&["setup", "--cli", "claude", "--mcp-only"], &repo)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "setup failed: {out:?}");
+    let said =
+        String::from_utf8_lossy(&out.stdout).to_string() + &String::from_utf8_lossy(&out.stderr);
+    assert!(said.contains("plugin"), "{said}");
+    assert!(!repo.join(".mcp.json").exists(), "no duplicate MCP entry");
+    assert!(repo.join(".engram").is_dir(), "the repo is marked wired");
+    assert!(
+        std::fs::read_to_string(repo.join(".gitignore"))
+            .unwrap()
+            .contains(".engram/")
+    );
+
+    // Without the plugin, setup writes the project entry as before.
+    std::fs::remove_file(plugins.join("installed_plugins.json")).unwrap();
+    let out = sb
+        .cmd(&["setup", "--cli", "claude", "--mcp-only"], &repo)
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    assert!(repo.join(".mcp.json").exists());
+}

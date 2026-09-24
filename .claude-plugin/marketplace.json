@@ -9,7 +9,7 @@
       "name": "engram",
       "displayName": "Engram Alpha",
       "source": "./claude-plugin",
-      "description": "Capture skill + session-start brief hook + per-repo setup commands for the Engram memory graph.",
+      "description": "MCP server + capture skill + session-start brief hook + per-repo setup for the Engram memory graph.",
       "license": "MIT",
       "homepage": "https://github.com/techtheist/engram",
       "repository": "https://github.com/techtheist/engram",
