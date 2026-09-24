@@ -1707,7 +1707,13 @@ async fn scan_conflicts(
     scope: Scope,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let engine = state.engine_arc(&scope)?;
-    let added = pane(&engine).scan_conflicts()?;
+    // Off the async workers, one node per lock (0.9.9): a full scan with a
+    // slow logic model takes a minute, and holding the engine for all of it
+    // inside an async handler starved the whole core.
+    drop(pane(&engine)); // attribute the scan's writes to the pane
+    let added = tokio::task::spawn_blocking(move || Engine::scan_conflicts_shared(&engine))
+        .await
+        .map_err(|e| AppError::Core(Error::Io(format!("scan task: {e}"))))??;
     Ok(Json(json!({ "added": added })))
 }
 

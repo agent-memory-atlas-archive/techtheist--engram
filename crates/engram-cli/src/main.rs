@@ -2312,15 +2312,19 @@ async fn run_core(args: CoreArgs) -> anyhow::Result<()> {
             let (mut archived_total, mut added_total) = (0usize, 0usize);
             for engine in sweeper.engines() {
                 let result = {
-                    let mut engine = engine.lock().unwrap();
-                    // Sweep writes (decay archives, scan suspects) are the
-                    // daemon's own — attribute them as such in the journal.
-                    engine.set_audit_origin(engram_core::AuditOrigin::daemon());
-                    engine
-                        .decay(engine.graph_config().policy.decay_ttl_days, false)
-                        .and_then(|archived| {
-                            engine.scan_conflicts().map(|added| (archived.len(), added))
-                        })
+                    let decayed = {
+                        let mut engine = engine.lock().unwrap();
+                        // Sweep writes (decay archives, scan suspects) are the
+                        // daemon's own — attribute them as such in the journal.
+                        engine.set_audit_origin(engram_core::AuditOrigin::daemon());
+                        engine.decay(engine.graph_config().policy.decay_ttl_days, false)
+                    };
+                    // The scan releases the lock per node (0.9.9) — a
+                    // six-hourly sweep must not freeze the graph it sweeps.
+                    decayed.and_then(|archived| {
+                        engram_core::Engine::scan_conflicts_shared(&engine)
+                            .map(|added| (archived.len(), added))
+                    })
                 };
                 match result {
                     Ok((archived, added)) => {

@@ -142,15 +142,21 @@ impl SessionTrace {
         let engine = self.engine.clone();
         let session = self.session_id.clone();
         std::thread::spawn(move || {
-            if let Ok(mut engine) = engine.lock() {
+            // Decide and attribute under one short lock, then let the pass
+            // take and release it per step: holding it for the whole scan
+            // starved every request on this graph (0.9.9).
+            {
+                let Ok(mut engine) = engine.lock() else {
+                    return;
+                };
                 if engine.embeddings_are_fake()
                     || !engine.validation_due(VALIDATION_MIN_INTERVAL_SECS)
                 {
                     return;
                 }
                 engine.set_audit_origin(engram_core::AuditOrigin::mcp(session.to_string()));
-                let _ = engine.validate_graph();
             }
+            let _ = engram_core::Engine::validate_graph_shared(&engine);
         });
     }
 }
