@@ -2716,12 +2716,108 @@ pub async fn serve_stdio_bridge(target: BridgeTarget) -> anyhow::Result<()> {
 // the user-level home graph; "all" = every project, reads only (search /
 // check_claim). `list_projects` names what exists.
 
+/// Numbers the way models send them (0.9.9). Some agents quote every
+/// argument — `"limit": "15"` — and a strict `usize` refused the whole call,
+/// so a search failed on its limit. Every numeric tool argument goes through
+/// here: a JSON number or a numeric string (whitespace trimmed; a whole-valued
+/// float like `15.0` counts as an integer) is accepted, an empty string reads
+/// as absent, and anything else is refused with the field's own message. The
+/// advertised schema stays `integer`/`number`, so well-behaved clients are
+/// still steered to plain numbers.
+mod lenient {
+    use serde::de::Error;
+    use serde::{Deserialize, Deserializer};
+
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Raw {
+        Int(i64),
+        Float(f64),
+        Str(String),
+    }
+
+    pub trait Num: Sized {
+        const KIND: &'static str;
+        fn from_i64(v: i64) -> Option<Self>;
+        fn from_f64(v: f64) -> Option<Self> {
+            (v.is_finite() && v.fract() == 0.0 && v.abs() < 9.0e15)
+                .then(|| Self::from_i64(v as i64))
+                .flatten()
+        }
+    }
+
+    macro_rules! unsigned {
+        ($($t:ty),*) => {$(
+            impl Num for $t {
+                const KIND: &'static str = "a non-negative whole number";
+                fn from_i64(v: i64) -> Option<Self> {
+                    <$t>::try_from(v).ok()
+                }
+            }
+        )*};
+    }
+    unsigned!(usize, u64, u32);
+
+    impl Num for i64 {
+        const KIND: &'static str = "a whole number";
+        fn from_i64(v: i64) -> Option<Self> {
+            Some(v)
+        }
+    }
+
+    impl Num for f64 {
+        const KIND: &'static str = "a number";
+        fn from_i64(v: i64) -> Option<Self> {
+            Some(v as f64)
+        }
+        fn from_f64(v: f64) -> Option<Self> {
+            v.is_finite().then_some(v)
+        }
+    }
+
+    fn parse<T: Num, E: Error>(raw: Raw) -> Result<Option<T>, E> {
+        let refuse = |got: &str| E::custom(format!("expected {}, got {got}", T::KIND));
+        match raw {
+            Raw::Int(v) => T::from_i64(v)
+                .map(Some)
+                .ok_or_else(|| refuse(&v.to_string())),
+            Raw::Float(v) => T::from_f64(v)
+                .map(Some)
+                .ok_or_else(|| refuse(&v.to_string())),
+            Raw::Str(s) => {
+                let t = s.trim();
+                if t.is_empty() {
+                    return Ok(None);
+                }
+                t.parse::<i64>()
+                    .ok()
+                    .and_then(T::from_i64)
+                    .or_else(|| t.parse::<f64>().ok().and_then(T::from_f64))
+                    .map(Some)
+                    .ok_or_else(|| refuse(&format!("{s:?}")))
+            }
+        }
+    }
+
+    pub fn opt<'de, D: Deserializer<'de>, T: Num>(d: D) -> Result<Option<T>, D::Error> {
+        match Option::<Raw>::deserialize(d)? {
+            None => Ok(None),
+            Some(raw) => parse(raw),
+        }
+    }
+
+    pub fn req<'de, D: Deserializer<'de>, T: Num>(d: D) -> Result<T, D::Error> {
+        parse(Raw::deserialize(d)?)?
+            .ok_or_else(|| D::Error::custom(format!("expected {}, got an empty string", T::KIND)))
+    }
+}
+
 #[derive(Deserialize, JsonSchema, Default)]
 struct SearchArgs {
     query: String,
     #[serde(default)]
     types: Vec<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "lenient::opt")]
     limit: Option<usize>,
     /// Bitemporal search (0.9.0): aim `after`/`before` at a date-kind CUSTOM
     /// field instead of created_at — the event clock for historic imports.
@@ -2780,9 +2876,10 @@ struct ExpandHistoryArgs {
     /// The session handle a history hit carried.
     session: String,
     /// The turn to center on.
+    #[serde(deserialize_with = "lenient::req")]
     turn: u64,
     /// Messages of context on each side (default 4, max 25).
-    #[serde(default)]
+    #[serde(default, deserialize_with = "lenient::opt")]
     window: Option<u64>,
     #[serde(default)]
     project: Option<String>,
@@ -2791,7 +2888,7 @@ struct ExpandHistoryArgs {
 #[derive(Deserialize, JsonSchema, Default)]
 struct ListSessionsArgs {
     /// Max sessions returned, newest first (default 20, max 100).
-    #[serde(default)]
+    #[serde(default, deserialize_with = "lenient::opt")]
     limit: Option<usize>,
     /// Only sessions of one harness ("claude-code", "codex", "bob", …).
     #[serde(default)]
@@ -2829,11 +2926,11 @@ struct ProjectArg {
 #[derive(Deserialize, JsonSchema)]
 struct AuditArgs {
     /// Max rows to return (default 20, newest first).
-    #[serde(default)]
+    #[serde(default, deserialize_with = "lenient::opt")]
     limit: Option<usize>,
     /// Keyset cursor: only rows with seq strictly below this (page with the
     /// last row's seq).
-    #[serde(default)]
+    #[serde(default, deserialize_with = "lenient::opt")]
     before: Option<i64>,
     /// Restrict to one node/edge id's history.
     #[serde(default)]
@@ -2848,10 +2945,10 @@ struct AuditArgs {
 struct GetNodeArgs {
     id: String,
     /// Levels of parent hierarchy to include (nodes this one points at), 0-3.
-    #[serde(default)]
+    #[serde(default, deserialize_with = "lenient::opt")]
     parents: Option<usize>,
     /// Levels of child hierarchy to include (nodes pointing at this one), 0-3.
-    #[serde(default)]
+    #[serde(default, deserialize_with = "lenient::opt")]
     children: Option<usize>,
     /// Omit = current project; a name, id, or the project's directory =
     /// that project; "home".
@@ -2864,7 +2961,7 @@ struct TraverseArgs {
     from: String,
     #[serde(default)]
     edge_types: Vec<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "lenient::opt")]
     depth: Option<usize>,
     /// Omit = current project; a name, id, or the project's directory =
     /// that project; "home".
@@ -2937,7 +3034,7 @@ struct LinkArgs {
     edge_type: String,
     #[serde(default)]
     note: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "lenient::opt")]
     confidence: Option<f64>,
     /// Omit = current project; a name, id, or the project's directory =
     /// that project (both endpoints must live there — edges never cross
@@ -3043,10 +3140,10 @@ struct ListNodesArgs {
     #[serde(default)]
     pinned: Option<bool>,
     /// Page size (default 30, max 200).
-    #[serde(default)]
+    #[serde(default, deserialize_with = "lenient::opt")]
     limit: Option<usize>,
     /// Skip this many (after filtering, newest first).
-    #[serde(default)]
+    #[serde(default, deserialize_with = "lenient::opt")]
     offset: Option<usize>,
     /// Omit = current project; a name, id, or the project's directory =
     /// that project; "home".
@@ -3068,7 +3165,7 @@ struct CheckClaimArgs {
     /// The claim to verify, as one declarative sentence.
     claim: String,
     /// How many nearby nodes to judge (default 8, max 16).
-    #[serde(default)]
+    #[serde(default, deserialize_with = "lenient::opt")]
     limit: Option<usize>,
     /// Omit = current project; a name, id, or the project's directory =
     /// that project; "home"; "all" = judge across every project + home with
@@ -3104,7 +3201,7 @@ struct ListOpenArgs {
 #[derive(Deserialize, JsonSchema)]
 struct BriefArgs {
     /// Character budget for the digest (default ~16000, about 4k tokens).
-    #[serde(default)]
+    #[serde(default, deserialize_with = "lenient::opt")]
     max_chars: Option<usize>,
     /// Omit = this session's project plus the home-graph section. A name, an
     /// id, an absolute path inside a registered root, or "home" REBINDS this
@@ -3141,7 +3238,7 @@ struct UpdateEdgeArgs {
     status: Option<String>,
     #[serde(default)]
     note: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "lenient::opt")]
     confidence: Option<f64>,
     /// Omit = current project; a name, id, or the project's directory =
     /// that project; "home".
@@ -3357,6 +3454,52 @@ fn edge_types(v: &[String]) -> Result<Vec<EdgeType>, ErrorData> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn numeric_arguments_accept_numbers_and_numeric_strings() {
+        let parse = |v: serde_json::Value| serde_json::from_value::<super::SearchArgs>(v);
+        for limit in [
+            serde_json::json!(15),
+            serde_json::json!("15"),
+            serde_json::json!(" 15 "),
+            serde_json::json!(15.0),
+        ] {
+            let a = parse(serde_json::json!({"query": "q", "limit": limit})).unwrap();
+            assert_eq!(a.limit, Some(15));
+        }
+        let a = parse(serde_json::json!({"query": "q", "limit": ""})).unwrap();
+        assert_eq!(a.limit, None, "an empty string reads as absent");
+        let a = parse(serde_json::json!({"query": "q", "limit": null})).unwrap();
+        assert_eq!(a.limit, None);
+        for bad in [
+            serde_json::json!("ten"),
+            serde_json::json!(-3),
+            serde_json::json!(1.5),
+        ] {
+            let err = parse(serde_json::json!({"query": "q", "limit": bad}))
+                .err()
+                .expect("refused")
+                .to_string();
+            assert!(err.contains("non-negative whole number"), "{err}");
+        }
+        // Required integers and floats take the same path.
+        let e: super::ExpandHistoryArgs =
+            serde_json::from_value(serde_json::json!({"session": "s", "turn": "7", "window": "2"}))
+                .unwrap();
+        assert_eq!((e.turn, e.window), (7, Some(2)));
+        let l: super::LinkArgs = serde_json::from_value(serde_json::json!({
+            "from": "a", "to": "b", "type": "because", "confidence": "0.8"
+        }))
+        .unwrap();
+        assert_eq!(l.confidence, Some(0.8));
+    }
+
+    // The advertised schema is unchanged: models are still asked for numbers.
+    #[test]
+    fn numeric_arguments_still_advertise_integers() {
+        let schema = serde_json::to_value(schemars::schema_for!(super::SearchArgs)).unwrap();
+        let limit = &schema["properties"]["limit"];
+        assert!(limit.to_string().contains("integer"), "{limit}");
+    }
     use super::*;
 
     #[test]
