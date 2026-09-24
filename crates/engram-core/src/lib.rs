@@ -8,6 +8,7 @@ pub mod harvest;
 pub mod history;
 mod hub;
 pub mod id;
+pub mod laya;
 mod migrate;
 pub mod nli;
 #[cfg(feature = "fastembed")]

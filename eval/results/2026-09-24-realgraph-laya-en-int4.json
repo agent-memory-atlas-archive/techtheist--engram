@@ -1,0 +1,1442 @@
+{
+  "graph": "/private/tmp/claude-501/-Users-techtheist-IdeaProjects-engram/d657020c-9d17-4abc-bde9-d52655191c17/scratchpad/g-laya-en-int4.tepin",
+  "model": "laya-en-int4",
+  "nodes": 569,
+  "suspects": 134,
+  "pending": 0,
+  "judged": 135,
+  "contradiction_hinted": 73,
+  "pairs": [
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8586342483758926,
+      "label": "neutral",
+      "score": 0.7814926505088806,
+      "a_title": "Platform risk: native assistant memory could feel \"good enough\"",
+      "b_title": "Positioning: \"give your AI a memory you can see\" — a new primitive, free forever",
+      "linked": false,
+      "queued_hint": null
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8658561557531357,
+      "label": "neutral",
+      "score": 0.7405232787132263,
+      "a_title": "Multi-harness wiring: one embedded instruction block, per-CLI MCP config in install.sh --cli",
+      "b_title": "Phase 3: multi-harness memory — OpenCode, Codex CLI, Gemini CLI, Kilo CLI, Codex-VSCode, plus VS Code forks (Cursor, Windsurf)",
+      "linked": true,
+      "queued_hint": null
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8658620268106461,
+      "label": "neutral",
+      "score": 0.7347895503044128,
+      "a_title": "Phase 0 finished + JetBrains plugin (Phase 1) builds to an installable zip",
+      "b_title": "engram-alpha serve serves the built Vue pane as static files",
+      "linked": false,
+      "queued_hint": null
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.881494976580143,
+      "label": "neutral",
+      "score": 0.8668403029441833,
+      "a_title": "Competitive landscape snapshot (2026-07): 81+ memory tools; conflict surfacing is no longer unique — the editable IDE-embedded graph still is",
+      "b_title": "Engram Alpha submitted to two public AI-memory comparison lists (2026-07-09)",
+      "linked": true,
+      "queued_hint": null
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8682958632707596,
+      "label": "neutral",
+      "score": 0.41950446367263794,
+      "a_title": "Audit journal shipped (2026-07-10): per-mutation rows with binary context + pageable Settings → Audit log pane view",
+      "b_title": "Append-only audit journal for node/edge changes + pane history view",
+      "linked": true,
+      "queued_hint": null
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8710744231939316,
+      "label": "neutral",
+      "score": 0.8114243149757385,
+      "a_title": "Audit attribution fixed: a node's own session_id stamps only its \"created\" row; every later action journals the audit origin's session",
+      "b_title": "Audit rows for node update/approve/archive/delete attributed the node's creator session, not the acting session",
+      "linked": true,
+      "queued_hint": null
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8829395920038223,
+      "label": "neutral",
+      "score": 0.7568187713623047,
+      "a_title": "New pane drawers must go through SidePanel — a single-element scrolling drawer rubber-bands its content out of the frame on macOS",
+      "b_title": "Pane side drawers unified into SidePanel.vue: one drawer per side, drag-resizable session widths, overscroll contained inside the frame",
+      "linked": true,
+      "queued_hint": null
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8541189134120941,
+      "label": "neutral",
+      "score": 0.9680205583572388,
+      "a_title": "Verified code refs shipped (2026-07-10): drift scan over path-shaped refs, review-panel worklist, badges in NodeDetail and the health strip",
+      "b_title": "Verified code refs: check that a node's code_refs still resolve; badge drifted anchors (Kage pattern)",
+      "linked": true,
+      "queued_hint": null
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8556905686855316,
+      "label": "neutral",
+      "score": 0.8701698184013367,
+      "a_title": "Drift scans resolve code_refs against the repo root derived from the served DB path, not the daemon cwd",
+      "b_title": "Verified code refs shipped (2026-07-10): drift scan over path-shaped refs, review-panel worklist, badges in NodeDetail and the health strip",
+      "linked": false,
+      "queued_hint": null
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8594843447208405,
+      "label": "neutral",
+      "score": 0.9412662982940674,
+      "a_title": "Plugin skill/hook are verbatim copies — edit the canonical files and re-copy; never symlink; plugin.json version must match the workspace",
+      "b_title": "Claude Code plugin shipped (2026-07-10, v0.3.0): one install carries skill + brief hook + setup commands into every project",
+      "linked": false,
+      "queued_hint": null
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8743471652269363,
+      "label": "contradiction",
+      "score": 0.7856871485710144,
+      "a_title": "Binary renamed engram → engram-alpha (v0.4.0); every internal identity keeps the short name",
+      "b_title": "Product name locked: \"Engram Alpha\" (Alpha is part of the name, not a version); repo/JetBrains plugin keep plain \"engram\", VSCode extension = \"engram-alpha\"; binary renamed engram-alpha in v0.4.0",
+      "linked": true,
+      "queued_hint": null
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.855381429195404,
+      "label": "neutral",
+      "score": 0.9450863599777222,
+      "a_title": "Repo wiring lives in the binary: `engram-alpha setup` with embedded assets — installers only fetch",
+      "b_title": "Onboarding friction: too many manual steps between install and first memory",
+      "linked": true,
+      "queued_hint": null
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8573495894670486,
+      "label": "neutral",
+      "score": 0.891923725605011,
+      "a_title": "Engram Alpha announced publicly on r/mcp (2026-07-12) — observability-first framing",
+      "b_title": "Positioning: \"give your AI a memory you can see\" — a new primitive, free forever",
+      "linked": true,
+      "queued_hint": null
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.857945591211319,
+      "label": "neutral",
+      "score": 0.9317090511322021,
+      "a_title": "First Reddit feedback: time-based trust decay can bury rare-but-critical constraints",
+      "b_title": "Trust is computed at read time from three timestamps — sweeps and stored confidence are gone",
+      "linked": true,
+      "queued_hint": null
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8739200532436371,
+      "label": "neutral",
+      "score": 0.9063438177108765,
+      "a_title": "Durability is the right switch for decay mode: stable should demote on evidence, episodic/volatile on time",
+      "b_title": "First Reddit feedback: time-based trust decay can bury rare-but-critical constraints",
+      "linked": true,
+      "queued_hint": null
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8579061925411224,
+      "label": "neutral",
+      "score": 0.9305674433708191,
+      "a_title": "Durability is the right switch for decay mode: stable should demote on evidence, episodic/volatile on time",
+      "b_title": "Trust is computed at read time from three timestamps — sweeps and stored confidence are gone",
+      "linked": true,
+      "queued_hint": null
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.852599486708641,
+      "label": "neutral",
+      "score": 0.8972541093826294,
+      "a_title": "Durability is the right switch for decay mode: stable should demote on evidence, episodic/volatile on time",
+      "b_title": "Decay completed per durability class; search gets a bounded recency bonus",
+      "linked": false,
+      "queued_hint": null
+    },
+    {
+      "verdict": "replaces",
+      "similarity": 0.9164280816912652,
+      "label": "neutral",
+      "score": 0.8829814195632935,
+      "a_title": "Trust v2 decided: evidence-conditional decay, approve→re-approve ladder, pin as first-class override, explainable trust in UI",
+      "b_title": "Unified trust design: approve ladder, trust_override unifies pin and constant-%, type weights live in ranking not decay",
+      "linked": true,
+      "queued_hint": null
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.859089806675911,
+      "label": "neutral",
+      "score": 0.8087143301963806,
+      "a_title": "Sandbox-tester feedback: retrieval stamping last_seen lets exposure certify trust — the decay loop is self-reinforcing",
+      "b_title": "First Reddit feedback: time-based trust decay can bury rare-but-critical constraints",
+      "linked": true,
+      "queued_hint": null
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8532599806785583,
+      "label": "neutral",
+      "score": 0.8861682415008545,
+      "a_title": "Local cortex remaining phases: domain-calibrated NLI model → edge-verb suggestion → offline split/merge",
+      "b_title": "The judged suspects table is a free labeled NLI corpus — every verdict is ground truth for a contradiction classifier",
+      "linked": true,
+      "queued_hint": null
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8177935928106308,
+      "label": "neutral",
+      "score": 0.9047631621360779,
+      "a_title": "MNLI models presuppose co-reference: below ~0.85 similarity, unrelated same-shaped titles read as confident contradictions",
+      "b_title": "Local ML stack approved: four layers — bge-small recall, cross-encoder reranker, finecat-nli-m logic, SaT claim segmentation",
+      "linked": false,
+      "queued_hint": "entailment"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8063370585441589,
+      "label": "neutral",
+      "score": 0.9404406547546387,
+      "a_title": "Audit rows for node update/approve/archive/delete attributed the node's creator session, not the acting session",
+      "b_title": "Audit journal shipped (2026-07-10): per-mutation rows with binary context + pageable Settings → Audit log pane view",
+      "linked": false,
+      "queued_hint": "entailment"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8184169083833694,
+      "label": "neutral",
+      "score": 0.9713537693023682,
+      "a_title": "Audit attribution fixed: a node's own session_id stamps only its \"created\" row; every later action journals the audit origin's session",
+      "b_title": "Audit journal shipped (2026-07-10): per-mutation rows with binary context + pageable Settings → Audit log pane view",
+      "linked": false,
+      "queued_hint": "entailment"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8468534350395203,
+      "label": "neutral",
+      "score": 0.9718682169914246,
+      "a_title": "Dogfood observations from a real linking/judgment session (2026-07-07)",
+      "b_title": "Conflict-scan suspect threshold = 0.88 cosine (raised from 0.85 on 2026-07-13; originally 0.75) — tuned on the dogfood graph; brief caps at top-8 suspects",
+      "linked": false,
+      "queued_hint": "entailment"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8603148311376572,
+      "label": "neutral",
+      "score": 0.8807100057601929,
+      "a_title": "kael-bit/engram-rs is the closest-on-stack competitor and a fresh name collision: Rust, single SQLite binary, 17 MCP tools, HTTP API, built-in web dashboard, MIT, 28★, v0.17.1",
+      "b_title": "Competitive landscape snapshot (2026-07): 81+ memory tools; conflict surfacing is no longer unique — the editable IDE-embedded graph still is",
+      "linked": true,
+      "queued_hint": "neutral"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8576748073101044,
+      "label": "contradiction",
+      "score": 0.9358632564544678,
+      "a_title": "kael-bit/engram-rs is the closest-on-stack competitor and a fresh name collision: Rust, single SQLite binary, 17 MCP tools, HTTP API, built-in web dashboard, MIT, 28★, v0.17.1",
+      "b_title": "Gentleman-Programming/engram (4.9k stars): the most direct competitor AND proof of demand — same name+niche, but flat FTS5 observations, no graph ontology, no embeddings, no trust/decay, no IDE graph pane",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8741461932659149,
+      "label": "neutral",
+      "score": 0.2116825133562088,
+      "a_title": "Coding-agent memory sweep (2026-07-13): all four rivals — Memophant, curion, global-agent-memory, engram-rs — outsource judgment to an LLM exactly where we run local compute",
+      "b_title": "No agent-memory system ships a local consistency classifier — Mem0, Letta, and Zep all burn LLM calls to judge contradictions",
+      "linked": true,
+      "queued_hint": "neutral"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8839598372578621,
+      "label": "neutral",
+      "score": 0.7466250061988831,
+      "a_title": "Run the first live digest test — a Claude Opus session invoking /engram:digest (or the engram-digest skill) end to end",
+      "b_title": "Digestion implemented (2026-07-13): engram_core::digest::scan behind POST /digest/scan (tier 1) + the engram-digest skill with /engram:digest (tier 2)",
+      "linked": false,
+      "queued_hint": "neutral"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.9126540645956992,
+      "label": "neutral",
+      "score": 0.8571005463600159,
+      "a_title": "First multi-project milestone achieved: the engram session reached, searched, and wrote into the tepindb repo's graph through the live hub",
+      "b_title": "First multi-project milestone: from the engram repo, reach — and write into — the TepinDB repo's graph",
+      "linked": true,
+      "queued_hint": "entailment"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8937250375747681,
+      "label": "neutral",
+      "score": 0.8694636821746826,
+      "a_title": "Build the machine-level hub daemon — one daemon owns every registered store, per-project MCP targeting; the unlock for all-repos-on-tepin",
+      "b_title": "Hub daemon: one machine-level engram-alpha serve owns all project stores + home graph; thin lazy per-project clients; supersedes one-daemon-per-repo at TepinDB cutover",
+      "linked": true,
+      "queued_hint": "entailment"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8852429986000061,
+      "label": "neutral",
+      "score": 0.7905420660972595,
+      "a_title": "v0.6.2 implemented: convergent serve, home-current core, per-project /mcp, bridge watchdog, engram-alpha stop, tepin-born graphs",
+      "b_title": "v0.6.2 scope: the machine core — single pane on a single port, tepin for new graphs, serve-anywhere, satellites die with the core",
+      "linked": true,
+      "queued_hint": "entailment"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8961807489395142,
+      "label": "neutral",
+      "score": 0.7350490093231201,
+      "a_title": "tepindb 0.4.0 integrated: crates.io dep, reset_embedder for model swaps, native upserts, ServeMode::Host — npx tepindb reads the live store",
+      "b_title": "tepindb v0.4.0 RELEASED (2026-07-21) — the whole storage dossier shipped: migrate, multi-process reads, unpin, upsert, unique indexes, empty reads, open-retry",
+      "linked": true,
+      "queued_hint": "entailment"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8856067061424255,
+      "label": "contradiction",
+      "score": 0.9468349814414978,
+      "a_title": "Reranker (and embedding) defaults now curl-provisioned like the NLI model — the flaky hf_hub path demoted to last resort",
+      "b_title": "Reranker model isn't auto-provisioned like the NLI model — fresh v0.5.0 installs rely on fastembed's flaky hf_hub download, so the precision layer can silently degrade to hybrid order",
+      "linked": true,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8816407322883606,
+      "label": "contradiction",
+      "score": 0.771512508392334,
+      "a_title": "Downstream-use confirmation: a code_refs match that fired in a session that ended well should stamp confirmed_at on the matched node",
+      "b_title": "Ambient hooks: file-read match still to design — session-start brief push shipped 2026-07-10",
+      "linked": true,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8170514702796936,
+      "label": "neutral",
+      "score": 0.9072784185409546,
+      "a_title": "v0.6.2 released — the machine core + tepindb 0.4.0, with the pre-ship graph audit folded in",
+      "b_title": "v0.6.2 scope: the machine core — single pane on a single port, tepin for new graphs, serve-anywhere, satellites die with the core",
+      "linked": false,
+      "queued_hint": "entailment"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8050987720489502,
+      "label": "neutral",
+      "score": 0.8155466914176941,
+      "a_title": "v0.6.2 released — the machine core + tepindb 0.4.0, with the pre-ship graph audit folded in",
+      "b_title": "tepindb v0.4.0 RELEASED (2026-07-21) — the whole storage dossier shipped: migrate, multi-process reads, unpin, upsert, unique indexes, empty reads, open-retry",
+      "linked": false,
+      "queued_hint": "entailment"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8411112427711487,
+      "label": "neutral",
+      "score": 0.7569431662559509,
+      "a_title": "Tier-1 digest scan is self-referential on this repo — every FIXME/TODO candidate is the feature's own code, tests, or docs",
+      "b_title": "Digestion implemented (2026-07-13): engram_core::digest::scan behind POST /digest/scan (tier 1) + the engram-digest skill with /engram:digest (tier 2)",
+      "linked": false,
+      "queued_hint": "entailment"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8184844255447388,
+      "label": "neutral",
+      "score": 0.9215043783187866,
+      "a_title": "Tier-1 digest scan is self-referential on this repo — every FIXME/TODO candidate is the feature's own code, tests, or docs",
+      "b_title": "Digestion design locked (2026-07-13): tier-1 = gitignore-aware offline FIXME/TODO scan via an HTTP endpoint (no MCP tool); tier-2 = separate digest skill targeting the current-branch snapshot, taught by copy-paste-safe per-type examples, every insert running the usual checks",
+      "linked": false,
+      "queued_hint": "entailment"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8091381788253784,
+      "label": "neutral",
+      "score": 0.4103052318096161,
+      "a_title": "tepindb v0.4.0 RELEASED (2026-07-21) — the whole storage dossier shipped: migrate, multi-process reads, unpin, upsert, unique indexes, empty reads, open-retry",
+      "b_title": "TepinDB driver shipped on the primitives tier — git-rev-pinned dependency, default-features off, Engram brings its own embedder",
+      "linked": false,
+      "queued_hint": "entailment"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8374437689781189,
+      "label": "neutral",
+      "score": 0.8893021941184998,
+      "a_title": "First live digest ran (2026-07-13, Opus): the dogfood graph was already saturated — near-zero net new nodes",
+      "b_title": "Tier-1 digest scan is self-referential on this repo — every FIXME/TODO candidate is the feature's own code, tests, or docs",
+      "linked": false,
+      "queued_hint": "entailment"
+    },
+    {
+      "verdict": "replaces",
+      "similarity": 0.8900203704833984,
+      "label": "entailment",
+      "score": 0.9505078196525574,
+      "a_title": "Retrieval at 1000 nodes splits in two: name the thing and recall is 1.00, describe it without naming and recall is 0.11 — the semantic edge over grep erodes to parity",
+      "b_title": "Retrieval at 1000 nodes splits in two: name the thing and recall is 1.00, describe it without naming and recall is 0.11 — the semantic edge over grep erodes to parity",
+      "linked": true,
+      "queued_hint": "neutral"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.896902859210968,
+      "label": "neutral",
+      "score": 0.8639602065086365,
+      "a_title": "Spreading activation along edges wrecks ranking — the edges carry real signal, but letting a neighbour borrow score is the wrong way to spend it",
+      "b_title": "The graph layer works and is small: 1-hop neighbours lift oblique recall 0.13 to 0.17, answering 2% of questions no ranking reached",
+      "linked": true,
+      "queued_hint": "neutral"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8894858360290527,
+      "label": "contradiction",
+      "score": 0.9582489728927612,
+      "a_title": "Blending the reranker instead of letting it decide beats pure vector RAG on aggregate recall at a quarter of the tokens, and closes the oblique gap to parity",
+      "b_title": "Three mechanisms proposed for the oblique gap, three refuted — and the knobs turned out not to matter at all",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.9035283923149108,
+      "label": "neutral",
+      "score": 0.8335632085800171,
+      "a_title": "Where the NLI model still has juice: judge inside one node or along an existing edge (co-reference given), not across unlinked pairs",
+      "b_title": "MNLI models presuppose co-reference: below ~0.85 similarity, unrelated same-shaped titles read as confident contradictions",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "conflict",
+      "similarity": 0.9088165163993835,
+      "label": "contradiction",
+      "score": 0.9227473735809326,
+      "a_title": "Found it: the cross-encoder is what spends the oblique recall — it costs 0.12 and buys 0.03 of paraphrase, and the fix is to stop letting it decide",
+      "b_title": "Three mechanisms proposed for the oblique gap, three refuted — and the knobs turned out not to matter at all",
+      "linked": true,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8901424407958984,
+      "label": "contradiction",
+      "score": 0.6547842621803284,
+      "a_title": "Digestion implemented (2026-07-13): engram_core::digest::scan behind POST /digest/scan (tier 1) + the engram-digest skill with /engram:digest (tier 2)",
+      "b_title": "Digestion design locked (2026-07-13): tier-1 = gitignore-aware offline FIXME/TODO scan via an HTTP endpoint (no MCP tool); tier-2 = separate digest skill targeting the current-branch snapshot, taught by copy-paste-safe per-type examples, every insert running the usual checks",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.9082647562026978,
+      "label": "contradiction",
+      "score": 0.9379281997680664,
+      "a_title": "v0.6.2 released — the machine core + tepindb 0.4.0, with the pre-ship graph audit folded in",
+      "b_title": "v0.6.0 released: multi-project memory + TepinDB backend + user-selectable cortex models + daemon-hosted MCP, in one tag",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "conflict",
+      "similarity": 0.8929343223571777,
+      "label": "contradiction",
+      "score": 0.7028249502182007,
+      "a_title": "Search retuned: keyword weight 0.5→0.15 and the reranker now VOTES instead of deciding — +0.135 oblique recall at unchanged token cost",
+      "b_title": "Three mechanisms proposed for the oblique gap, three refuted — and the knobs turned out not to matter at all",
+      "linked": true,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.9243391752243042,
+      "label": "neutral",
+      "score": 0.9511263370513916,
+      "a_title": "A realistic 1000-node graph costs 251k tokens to read whole — past any context window, against a 3k brief",
+      "b_title": "Measured at last: the standing-cost curve is the design argument — 4x the facts quadrupled the file, moved the brief 10%",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8954450488090515,
+      "label": "contradiction",
+      "score": 0.9096409678459167,
+      "a_title": "Found it: the cross-encoder is what spends the oblique recall — it costs 0.12 and buys 0.03 of paraphrase, and the fix is to stop letting it decide",
+      "b_title": "The per-type rank_prior costs 0.05 oblique recall and buys nothing this harness can see — a measured cost against an unmeasurable benefit",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8977662324905396,
+      "label": "neutral",
+      "score": 0.8225461840629578,
+      "a_title": "NLI calibration lesson three: co-reference isn't enough — input register decides; only the claim-vs-claim sentence shape is trustworthy on this model",
+      "b_title": "Where the NLI model still has juice: judge inside one node or along an existing edge (co-reference given), not across unlinked pairs",
+      "linked": true,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8099120855331421,
+      "label": "neutral",
+      "score": 0.9156923294067383,
+      "a_title": "Directional conflict hints, link-aware answered nominations, and zoom-compensated selection outline shipped; graph and binary on v0.7.0",
+      "b_title": "0.7.0 follow-ups landed: write-time canon checks, session-boundary graph validation, audit chips sized to text",
+      "linked": false,
+      "queued_hint": "entailment"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8932861685752869,
+      "label": "neutral",
+      "score": 0.9430433511734009,
+      "a_title": "Independent replication: a competitor's benchmark falsified the cross-encoder reranker the same week ours did, on a different corpus and stack — it is default-OFF in their product too",
+      "b_title": "Found it: the cross-encoder is what spends the oblique recall — it costs 0.12 and buys 0.03 of paraphrase, and the fix is to stop letting it decide",
+      "linked": true,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.9323713779449464,
+      "label": "neutral",
+      "score": 0.8816975355148315,
+      "a_title": "Calibrated delivery shipped: a measured 0.22 tail-trim, a strong/weak/none search verdict, and judged-history auto-tune for graphs past 200 notes",
+      "b_title": "Calibrated delivery ships in two stages: a benchmark-calibrated floor for everyone, and per-graph auto-tune from judged history for graphs past 200 notes",
+      "linked": true,
+      "queued_hint": "neutral"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.9016531109809875,
+      "label": "neutral",
+      "score": 0.7416139245033264,
+      "a_title": "merge_nodes shipped: Engine::merge_nodes + MCP tool, edge rehoming with dedup, a new 'merged' audit action, four engine tests",
+      "b_title": "Build merge_nodes: an agent-callable atomic merge — union tags/code_refs, rehome live edges onto the survivor, carry trust anchors, replaces edges for the story",
+      "linked": true,
+      "queued_hint": "neutral"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.9426337480545044,
+      "label": "neutral",
+      "score": 0.97449791431427,
+      "a_title": "Default embedder pinned to fp32 bge-small — the shipped weights follow the measured ones, not the other way round",
+      "b_title": "This dev machine runs an fp32 bge-small while a fresh install gets the quantized export — every eval receipt was measured on the wrong one",
+      "linked": true,
+      "queued_hint": "neutral"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8958516716957092,
+      "label": "neutral",
+      "score": 0.9411568641662598,
+      "a_title": "The sibling history store made layer filtering unnecessary — isolation by construction beats a predicate threaded through fifteen sites",
+      "b_title": "History nodes live in a sibling store per project — .engram/history.tepin, not the curated graph file",
+      "linked": true,
+      "queued_hint": "neutral"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8904929757118225,
+      "label": "neutral",
+      "score": 0.9031214118003845,
+      "a_title": "0.8.8 process-model refactor implemented end-to-end by four agents in one day — all four open issues (#3–#6) answered, everything uncommitted pending live cutover",
+      "b_title": "Process-model core refactor implemented: core subcommand, serve/mcp as light clients, /clients census, /shutdown + orchestrated stop, status, doctor fixes — working tree only",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.9282809495925904,
+      "label": "neutral",
+      "score": 0.7469968199729919,
+      "a_title": "Both empty-brief bugs fixed: the session's binding now drives brief and list_projects, and the hook resolves the repo to a scoped route instead of dying twice over",
+      "b_title": "Unscoped brief reads hub.current — with the home-rooted core role that is ALWAYS the empty home graph, so every bound session briefs a cold start",
+      "linked": true,
+      "queued_hint": "neutral"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.910021185874939,
+      "label": "neutral",
+      "score": 0.4964838922023773,
+      "a_title": "Handshake-first bridge: BOTH mcp shapes (roots AND --db) serve stdio immediately and move ensure-core into the bind step — spawn failures answer initialize + error the first tool call via fail(), and a dead core child is detected instead of polled 180s",
+      "b_title": "run_mcp_roots blocks in spawn_core_and_wait (up to 180s) BEFORE serving stdio — when the core can't come up, the client's initialize gets no answer at all and impatient clients (mcp-go kills at ~60s) see a dead server",
+      "linked": true,
+      "queued_hint": "neutral"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8950257301330566,
+      "label": "neutral",
+      "score": 0.7962570786476135,
+      "a_title": "brief absorbs set_project (0.8.11): passing `project` to brief rebinds the session and returns that project's brief — one tool, one first-call instruction, 24 MCP tools",
+      "b_title": "Issue #4 field report: the MCP-injected 'call brief first' guidance overrules the user's set_project-first rule — the agent briefs the fallback graph before rebinding",
+      "linked": true,
+      "queued_hint": "neutral"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.923050045967102,
+      "label": "neutral",
+      "score": 0.6286819577217102,
+      "a_title": "Storage release roadmap, executed: 0.6.* dual-backend opt-in → 0.7.* TepinDB by default → 0.8.* tepin-only writes, SQLite kept read-only for legacy stores",
+      "b_title": "Local-first, user-owned memory",
+      "linked": false,
+      "queued_hint": "neutral"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8916026949882507,
+      "label": "contradiction",
+      "score": 0.5625837445259094,
+      "a_title": "Storage release roadmap, executed: 0.6.* dual-backend opt-in → 0.7.* TepinDB by default → 0.8.* tepin-only writes, SQLite kept read-only for legacy stores",
+      "b_title": "Engram adopted TepinDB; the graph stays Engram-side — nodes are primary, edges are a feature",
+      "linked": true,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8919296264648438,
+      "label": "neutral",
+      "score": 0.5053783059120178,
+      "a_title": "Engram adopted TepinDB; the graph stays Engram-side — nodes are primary, edges are a feature",
+      "b_title": "Local-first, user-owned memory",
+      "linked": false,
+      "queued_hint": "neutral"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8903346061706543,
+      "label": "neutral",
+      "score": 0.5503337979316711,
+      "a_title": "0.9.0 phase 1 landed: Tombstone as a TypeRole across four presets, delete-with-tombstone, MCP/skills/docs moved 8→9",
+      "b_title": "Tombstone is a TypeRole, not a hardcoded name — default ontology goes 8→9 with Tombstone; research gains Retraction; new fourth preset `general` for experimental use",
+      "linked": true,
+      "queued_hint": "neutral"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.91325443983078,
+      "label": "neutral",
+      "score": 0.6063266396522522,
+      "a_title": "0.9.0 phase 2 landed: custom fields end to end — FieldDef in GraphConfig, Node.fields map, engine-boundary teaching errors, blind spots (tidy/redaction) closed, indexed-field search wiring, full pane editor",
+      "b_title": "Custom fields: defs in GraphConfig, values in a new Node.fields map (NOT props), enforced at the engine write boundary, shallow-merge patch with null-delete, indexed fields tepin-only",
+      "linked": true,
+      "queued_hint": "neutral"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8854655027389526,
+      "label": "neutral",
+      "score": 0.4710104763507843,
+      "a_title": "Removed: grep_history — the literal-grep-over-session-history tool was abandoned before it shipped; don't resurrect it without a field case vector search demonstrably whiffs",
+      "b_title": "0.8.9 scope re-cut 2026-08-22: only the NLI-hint agreement report joins set_project — session-diverse ranking and delivery-floor dial three move to the next cycle, grep_history is abandoned for now",
+      "linked": true,
+      "queued_hint": "neutral"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8967862129211426,
+      "label": "neutral",
+      "score": 0.9284550547599792,
+      "a_title": "Hand-rolled config emission must never interpolate a path into a quoted string — encode it (JSON via serde, TOML via escape) or a Windows install writes a config the client refuses to parse",
+      "b_title": "Windows field bug fixed: every setup config writer and printed snippet now emits paths through real string encoders (json_str/toml_str) — raw C:\\Users\\… in a double-quoted TOML/JSON string is an invalid escape",
+      "linked": false,
+      "queued_hint": "neutral"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8883416652679443,
+      "label": "neutral",
+      "score": 0.7789021134376526,
+      "a_title": "Windsurf field test closed the loop: default-agent-project binding works live; the 'empty brief' was a pre-setting session, and 'home is still SQL' was a display bug",
+      "b_title": "Default agent project shipped: a machine-level ~/.engram/settings.json setting (GET/POST /settings, core-only) is the pre-home rung of the db-less binding ladder, and census leases carry the MCP client's name",
+      "linked": false,
+      "queued_hint": "neutral"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8884758353233337,
+      "label": "contradiction",
+      "score": 0.8590990900993347,
+      "a_title": "Pre-history notes get a time-window session link — approximate landing, tightly slacked, never a wrong-looking guess",
+      "b_title": "NodeDetail's Session field links into the history view — via born-in, because mcp- session ids and harness session ids are disjoint namespaces",
+      "linked": false,
+      "queued_hint": "neutral"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8836100697517395,
+      "label": "neutral",
+      "score": 0.9464313983917236,
+      "a_title": "0.8.4 task 8 landed: history layer sealed at rest — zstd→XChaCha20, keystore key, backlog re-seal, honest threat model",
+      "b_title": "0.8.4 builds encryption LAST — the whole history pipeline runs on plaintext bodies until the closing task seals the layer",
+      "linked": false,
+      "queued_hint": "neutral"
+    },
+    {
+      "verdict": "replaces",
+      "similarity": 0.8824092149734497,
+      "label": "contradiction",
+      "score": 0.9010282754898071,
+      "a_title": "The fixed delivery floor (0.22) cuts real oblique answers on prose-register graphs — dial three candidate: calibrate delivery_floor per graph from phantom probes",
+      "b_title": "Calibrated delivery ships in two stages: a benchmark-calibrated floor for everyone, and per-graph auto-tune from judged history for graphs past 200 notes",
+      "linked": true,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8886034488677979,
+      "label": "contradiction",
+      "score": 0.5345548987388611,
+      "a_title": "Tombstones guard the write path (0.9.2): a role-based, cross-type `tombstoned` write warning that never blocks — superseded means \"a successor exists, follow it\", tombstoned means \"killed without one, re-adding is the error\"",
+      "b_title": "The write path is blind to Tombstones — a note that re-derives deliberately removed knowledge gets no match, no warning, and no suspect, so a tombstone protects less than a superseded node does",
+      "linked": true,
+      "queued_hint": "neutral"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8800926804542542,
+      "label": "contradiction",
+      "score": 0.8199061751365662,
+      "a_title": "The tombstone cycle shipped as v0.9.2 on 2026-09-04 (0d81c40): tombstoned write warning, content-carrying delete mint, retracted claim bucket, demo + screenshots + VS Code Marketplace README — draft-release and Release both green",
+      "b_title": "v0.9.0 released 2026-08-30 at 4cad6cc — tombstones, custom fields + bitemporal search, at-rest encryption; all five Release jobs green, nine assets",
+      "linked": true,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8847635388374329,
+      "label": "contradiction",
+      "score": 0.9087015986442566,
+      "a_title": "Search hits carry the tombstone ROLE as a `tombstone: true` flag on every surface (REST included) — stamped by the engine from the ontology, serialized only when true; MCP's tombstone_note count reads the flag",
+      "b_title": "check_claim files tombstone-role hits under a `retracted` bucket sorted by role BEFORE the NLI runs, search replies carry a `tombstone_note`, and the write-time canon check skips tombstones — one channel per fact",
+      "linked": true,
+      "queued_hint": "neutral"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8421747088432312,
+      "label": "contradiction",
+      "score": 0.9438561797142029,
+      "a_title": "v0.9.3 shipped 2026-09-09 (93bd8a7): the pane fits any width, swipe-to-close, the Graph settings crash, README rewrite — Release green with nine assets after one draft-release rerun",
+      "b_title": "v0.8.7 released — search learns time, and the window turned out to buy recall rather than spend it",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8397132158279419,
+      "label": "contradiction",
+      "score": 0.8018209338188171,
+      "a_title": "v0.9.3 shipped 2026-09-09 (93bd8a7): the pane fits any width, swipe-to-close, the Graph settings crash, README rewrite — Release green with nine assets after one draft-release rerun",
+      "b_title": "v0.9.0 released 2026-08-30 at 4cad6cc — tombstones, custom fields + bitemporal search, at-rest encryption; all five Release jobs green, nine assets",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8358750939369202,
+      "label": "contradiction",
+      "score": 0.7856038212776184,
+      "a_title": "v0.9.3 shipped 2026-09-09 (93bd8a7): the pane fits any width, swipe-to-close, the Graph settings crash, README rewrite — Release green with nine assets after one draft-release rerun",
+      "b_title": "v0.9.1 released 2026-09-02 at f13d45a — SelectMenu, Bob's brief hook, and self-generating documentation screenshots; all five Release jobs green, nine assets",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8109421730041504,
+      "label": "contradiction",
+      "score": 0.6283466815948486,
+      "a_title": "The tombstone cycle shipped as v0.9.2 on 2026-09-04 (0d81c40): tombstoned write warning, content-carrying delete mint, retracted claim bucket, demo + screenshots + VS Code Marketplace README — draft-release and Release both green",
+      "b_title": "v0.7.0 released (2026-07-23): the customization release — published, all artifacts green, darwin checksum verified",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.7980179190635681,
+      "label": "contradiction",
+      "score": 0.8168817758560181,
+      "a_title": "v0.9.3 shipped 2026-09-09 (93bd8a7): the pane fits any width, swipe-to-close, the Graph settings crash, README rewrite — Release green with nine assets after one draft-release rerun",
+      "b_title": "The tombstone cycle shipped as v0.9.2 on 2026-09-04 (0d81c40): tombstoned write warning, content-carrying delete mint, retracted claim bucket, demo + screenshots + VS Code Marketplace README — draft-release and Release both green",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8479361534118652,
+      "label": "contradiction",
+      "score": 0.9368007779121399,
+      "a_title": "v0.9.1 released 2026-09-02 at f13d45a — SelectMenu, Bob's brief hook, and self-generating documentation screenshots; all five Release jobs green, nine assets",
+      "b_title": "v0.9.0 released 2026-08-30 at 4cad6cc — tombstones, custom fields + bitemporal search, at-rest encryption; all five Release jobs green, nine assets",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8068507313728333,
+      "label": "contradiction",
+      "score": 0.9219009876251221,
+      "a_title": "v0.8.13 released 2026-08-29 at 55f3387 — identity-checked engine cache + honest stop + version handshake (issue #8), inlined write schemas + instructions cut + keyword-JSON skills (issue #9); all nine assets",
+      "b_title": "v0.6.2 released — the machine core + tepindb 0.4.0, with the pre-ship graph audit folded in",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8257883787155151,
+      "label": "contradiction",
+      "score": 0.8125607371330261,
+      "a_title": "v0.8.12 released 2026-08-27 at 580baea — serve eager store open + honest wiring footer, Codex skills + trust-gated brief hook; all nine assets; the flaked push Backend run greened on rerun and the harness fix landed at c8e1efe",
+      "b_title": "v0.6.2 released — the machine core + tepindb 0.4.0, with the pre-ship graph audit folded in",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8210547566413879,
+      "label": "contradiction",
+      "score": 0.7774049639701843,
+      "a_title": "v0.8.12 released 2026-08-27 at 580baea — serve eager store open + honest wiring footer, Codex skills + trust-gated brief hook; all nine assets; the flaked push Backend run greened on rerun and the harness fix landed at c8e1efe",
+      "b_title": "v0.8.3 released 2026-08-10 — the daemon-memory cycle, cut and shipped in one day",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8421170115470886,
+      "label": "contradiction",
+      "score": 0.9353231191635132,
+      "a_title": "v0.8.11 released 2026-08-26 at f713aa0 — brief absorbs set_project, Windsurf rule + skills, Devin CLI adapter; all nine assets attached",
+      "b_title": "v0.8.3 released 2026-08-10 — the daemon-memory cycle, cut and shipped in one day",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8667175769805908,
+      "label": "contradiction",
+      "score": 0.9400728344917297,
+      "a_title": "v0.8.9 released 2026-08-22 — the agent-binds-itself release: set_project, session census, contract-tight tool descriptions, registry resolution fix, NLI scoreboard",
+      "b_title": "v0.8.3 released 2026-08-10 — the daemon-memory cycle, cut and shipped in one day",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8293220400810242,
+      "label": "contradiction",
+      "score": 0.9049522876739502,
+      "a_title": "v0.8.9 released 2026-08-22 — the agent-binds-itself release: set_project, session census, contract-tight tool descriptions, registry resolution fix, NLI scoreboard",
+      "b_title": "v0.7.0 released (2026-07-23): the customization release — published, all artifacts green, darwin checksum verified",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8536505103111267,
+      "label": "contradiction",
+      "score": 0.9427790641784668,
+      "a_title": "v0.8.8 released 2026-08-21 — the process-model release shipped with all nine assets, both signed JetBrains zips published, marked Latest",
+      "b_title": "v0.8.3 released 2026-08-10 — the daemon-memory cycle, cut and shipped in one day",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.7641018629074097,
+      "label": "neutral",
+      "score": 0.941227376461029,
+      "a_title": "Windsurf/Cascade transcripts are ENCRYPTED at rest — no harvest adapter is buildable (deferred; worse than fixture-only since the plaintext format is unobservable)",
+      "b_title": "Every major harness persists full chat history locally — an adapter per format is enough to read them all",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8422994613647461,
+      "label": "contradiction",
+      "score": 0.9466145634651184,
+      "a_title": "v0.9.0 released 2026-08-30 at 4cad6cc — tombstones, custom fields + bitemporal search, at-rest encryption; all five Release jobs green, nine assets",
+      "b_title": "v0.8.7 released — search learns time, and the window turned out to buy recall rather than spend it",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8352841138839722,
+      "label": "contradiction",
+      "score": 0.9301712512969971,
+      "a_title": "v0.8.7 released — search learns time, and the window turned out to buy recall rather than spend it",
+      "b_title": "v0.2.0 released (2026-07-06): Phase 1 complete — conflict scan + suspects queue, decay pass, review/judgment UX, node editing, health strip, Memory Lens, provenance",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8206620216369629,
+      "label": "contradiction",
+      "score": 0.9466457366943359,
+      "a_title": "v0.8.7 released — search learns time, and the window turned out to buy recall rather than spend it",
+      "b_title": "v0.8.3 released 2026-08-10 — the daemon-memory cycle, cut and shipped in one day",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.7484567165374756,
+      "label": "neutral",
+      "score": 0.7404314279556274,
+      "a_title": "History freshness: fs-notify accelerates the harvest, the timed sweep stays the guarantee — and every watcher failure degrades to the old behaviour",
+      "b_title": "History ingestion is a daemon-side file watcher tailing harness transcripts — not lifecycle hooks",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.84279865026474,
+      "label": "contradiction",
+      "score": 0.9112430810928345,
+      "a_title": "v0.8.6 released — the issue-#1 fix ships as dual JetBrains artifacts, plus update awareness",
+      "b_title": "v0.8.3 released 2026-08-10 — the daemon-memory cycle, cut and shipped in one day",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8194419145584106,
+      "label": "contradiction",
+      "score": 0.5177489519119263,
+      "a_title": "v0.8.4 released — the history layer ships, after two CI stumbles worth remembering",
+      "b_title": "v0.8.3 released 2026-08-10 — the daemon-memory cycle, cut and shipped in one day",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8162086009979248,
+      "label": "neutral",
+      "score": 0.5354558825492859,
+      "a_title": "Provenance survives daemon restarts: repark_recent_provenance rebuilds the in-memory lot from the store on the harvester's first touch",
+      "b_title": "born-in provenance resolves entirely through the parking lot — no session matching at write time, and the edge is the one half-resident edge",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8420922160148621,
+      "label": "contradiction",
+      "score": 0.9203482270240784,
+      "a_title": "NodeDetail's Session field links into the history view — via born-in, because mcp- session ids and harness session ids are disjoint namespaces",
+      "b_title": "born-in provenance resolves entirely through the parking lot — no session matching at write time, and the edge is the one half-resident edge",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8101598620414734,
+      "label": "neutral",
+      "score": 0.4718133509159088,
+      "a_title": "0.8.4 task 6 landed: the pane's history view — session lanes, zigzag conversation, born-in chip, per-session delete",
+      "b_title": "0.8.4 tasks 4+5 landed: verdict-routed sectioned search over MCP, expand_history, born-in provenance lines, and the pane's full history knob set",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.7840612530708313,
+      "label": "neutral",
+      "score": 0.8931324481964111,
+      "a_title": "History ingestion is optional and fully controllable from the pane — the complete knob inventory for 0.8.4",
+      "b_title": "History ingestion is a daemon-side file watcher tailing harness transcripts — not lifecycle hooks",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.7743275761604309,
+      "label": "neutral",
+      "score": 0.8975272178649902,
+      "a_title": "History ingestion is optional and fully controllable from the pane — the complete knob inventory for 0.8.4",
+      "b_title": "History is worth its space: keep archived and superseded nodes — the graph should grow, filtering and future views carry the load",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.7695984840393066,
+      "label": "neutral",
+      "score": 0.8527007699012756,
+      "a_title": "History ingestion is optional and fully controllable from the pane — the complete knob inventory for 0.8.4",
+      "b_title": "History search is sectioned, never score-blended — the 'likely not in memory' verdict routes fall-through, hits are snippets plus expand handles",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8566438555717468,
+      "label": "contradiction",
+      "score": 0.9589329361915588,
+      "a_title": "v0.8.3 released 2026-08-10 — the daemon-memory cycle, cut and shipped in one day",
+      "b_title": "v0.6.3 released (2026-07-22): conflict push + claim-level search + detail tiers + connectivity sort + CORS allowlist + docs/ split",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8363915681838989,
+      "label": "contradiction",
+      "score": 0.9452137351036072,
+      "a_title": "v0.8.3 released 2026-08-10 — the daemon-memory cycle, cut and shipped in one day",
+      "b_title": "v0.7.0 released (2026-07-23): the customization release — published, all artifacts green, darwin checksum verified",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8279191255569458,
+      "label": "contradiction",
+      "score": 0.9450639486312866,
+      "a_title": "v0.8.3 released 2026-08-10 — the daemon-memory cycle, cut and shipped in one day",
+      "b_title": "v0.6.0 released: multi-project memory + TepinDB backend + user-selectable cortex models + daemon-hosted MCP, in one tag",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8062127232551575,
+      "label": "contradiction",
+      "score": 0.9193362593650818,
+      "a_title": "v0.8.2 released — merge_nodes, the external-corpus eval cycle (LongMemEval + chains + enrichment), 42rem drawers, favicon fix",
+      "b_title": "v0.6.2 released — the machine core + tepindb 0.4.0, with the pre-ship graph audit folded in",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.7930819392204285,
+      "label": "contradiction",
+      "score": 0.7913851141929626,
+      "a_title": "v0.7.1 released — the timeline release: feed view + UI track + set_version auto-enable; CHANGELOG.md convention born",
+      "b_title": "0.7.0 release: only the draft-release workflow + timeline-cards remain — code + docs committed and pushed",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.7767459154129028,
+      "label": "neutral",
+      "score": 0.7928993105888367,
+      "a_title": "v0.7.1 released — the timeline release: feed view + UI track + set_version auto-enable; CHANGELOG.md convention born",
+      "b_title": "v0.7.0 released (2026-07-23): the customization release — published, all artifacts green, darwin checksum verified",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8006173968315125,
+      "label": "contradiction",
+      "score": 0.9304957985877991,
+      "a_title": "v0.8.11 released 2026-08-26 at f713aa0 — brief absorbs set_project, Windsurf rule + skills, Devin CLI adapter; all nine assets attached",
+      "b_title": "0.7.0 release: only the draft-release workflow + timeline-cards remain — code + docs committed and pushed",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.792751133441925,
+      "label": "contradiction",
+      "score": 0.8692291975021362,
+      "a_title": "0.7.0 workstream 5 completed + UI polish: ontology-generated skills installable from the pane, drawers close on project switch, styled checkboxes app-wide",
+      "b_title": "0.7.0 workstream 3 landed: engine on live config — string-backed ontology, role-flag behaviors, tunable policy, config-composed brief — live-verified hot-reload",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8442477583885193,
+      "label": "contradiction",
+      "score": 0.8623960614204407,
+      "a_title": "v0.7.0 released (2026-07-23): the customization release — published, all artifacts green, darwin checksum verified",
+      "b_title": "v0.6.3 released (2026-07-22): conflict push + claim-level search + detail tiers + connectivity sort + CORS allowlist + docs/ split",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8048470616340637,
+      "label": "contradiction",
+      "score": 0.91732257604599,
+      "a_title": "v0.7.0 released (2026-07-23): the customization release — published, all artifacts green, darwin checksum verified",
+      "b_title": "v0.6.0 released — and its first field bug (tepin vector pin poisoned by same-dim model swap) fixed as v0.6.1 within the hour",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8123651742935181,
+      "label": "contradiction",
+      "score": 0.8605120182037354,
+      "a_title": "v0.8.7 released — search learns time, and the window turned out to buy recall rather than spend it",
+      "b_title": "0.7.0 release: only the draft-release workflow + timeline-cards remain — code + docs committed and pushed",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8118704557418823,
+      "label": "contradiction",
+      "score": 0.7872399091720581,
+      "a_title": "0.7.0 release: only the draft-release workflow + timeline-cards remain — code + docs committed and pushed",
+      "b_title": "v0.6.3 released (2026-07-22): conflict push + claim-level search + detail tiers + connectivity sort + CORS allowlist + docs/ split",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8051134347915649,
+      "label": "contradiction",
+      "score": 0.7191506028175354,
+      "a_title": "v0.8.9 released 2026-08-22 — the agent-binds-itself release: set_project, session census, contract-tight tool descriptions, registry resolution fix, NLI scoreboard",
+      "b_title": "0.7.0 release: only the draft-release workflow + timeline-cards remain — code + docs committed and pushed",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8020575046539307,
+      "label": "contradiction",
+      "score": 0.8850024938583374,
+      "a_title": "v0.6.3 released (2026-07-22): conflict push + claim-level search + detail tiers + connectivity sort + CORS allowlist + docs/ split",
+      "b_title": "v0.6.2 released — the machine core + tepindb 0.4.0, with the pre-ship graph audit folded in",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8541366457939148,
+      "label": "neutral",
+      "score": 0.911316454410553,
+      "a_title": "Landscape refresh (2026-07-22): the field split into auto-resolve SaaS vs UI-less local servers — Engram's combination got deeper, but visibility is now the binding constraint",
+      "b_title": "Engram Alpha submitted to two public AI-memory comparison lists (2026-07-09)",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.866847574710846,
+      "label": "contradiction",
+      "score": 0.902689516544342,
+      "a_title": "v0.6.2 released — the machine core + tepindb 0.4.0, with the pre-ship graph audit folded in",
+      "b_title": "v0.6.0 released — and its first field bug (tepin vector pin poisoned by same-dim model swap) fixed as v0.6.1 within the hour",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8155134916305542,
+      "label": "neutral",
+      "score": 0.8161371350288391,
+      "a_title": "A continuously-dogfooded project has no digest gap — digestion's real value is cold or legacy repos",
+      "b_title": "Digestion: two-tier project ingestion — offline FIXME/TODO code scan (foundation) + a separate explicit LLM digest skill that teaches the ontology by example",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8146159648895264,
+      "label": "neutral",
+      "score": 0.9197603464126587,
+      "a_title": "A continuously-dogfooded project has no digest gap — digestion's real value is cold or legacy repos",
+      "b_title": "Digestion design locked (2026-07-13): tier-1 = gitignore-aware offline FIXME/TODO scan via an HTTP endpoint (no MCP tool); tier-2 = separate digest skill targeting the current-branch snapshot, taught by copy-paste-safe per-type examples, every insert running the usual checks",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8074610829353333,
+      "label": "neutral",
+      "score": 0.9071038961410522,
+      "a_title": "engram-alpha doctor shipped (v0.4.0): store integrity + daemon-vs-repo match + per-assistant wiring checks",
+      "b_title": "v0.2.0 released (2026-07-06): Phase 1 complete — conflict scan + suspects queue, decay pass, review/judgment UX, node editing, health strip, Memory Lens, provenance",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.7608832120895386,
+      "label": "neutral",
+      "score": 0.9005612134933472,
+      "a_title": "Skills pass done: all four skill files (+ agents variants and plugin README) teach plain `serve` and the machine-core model",
+      "b_title": "Skills read as tool manuals — they under-communicate why the memory is valuable and show no example flows",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.7849466800689697,
+      "label": "neutral",
+      "score": 0.9595478177070618,
+      "a_title": "Full pane CRUD: user parity with MCP, including edge creation by dragging in Vue Flow",
+      "b_title": "MCP has no way to correct a mislinked edge",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.7736082077026367,
+      "label": "neutral",
+      "score": 0.861266016960144,
+      "a_title": "JetBrains plugin ships dual artifacts per release: \"X.Y.Z-261\" (2026.1, no JCEF module dep) and \"X.Y.Z\" (2026.2+, with it), selected by -PplatformLine",
+      "b_title": "JetBrains plugin registers no file types; discovery via description text",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.7678033709526062,
+      "label": "neutral",
+      "score": 0.8686385750770569,
+      "a_title": "JetBrains plugin registers no file types; discovery via description text",
+      "b_title": "Phase 0 finished + JetBrains plugin (Phase 1) builds to an installable zip",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.7149178981781006,
+      "label": "neutral",
+      "score": 0.9336856603622437,
+      "a_title": "Canvas navigation: minimap is click-to-center, zoom range 0.05–1.0",
+      "b_title": "Canvas filter is pure client-side, with option lists gathered from the loaded graph",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.7390799522399902,
+      "label": "neutral",
+      "score": 0.9368416666984558,
+      "a_title": "The empty-graph card is one shared component, points at /engram:digest, and is where the ontology gets picked",
+      "b_title": "Canvas filter is pure client-side, with option lists gathered from the loaded graph",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.7548452019691467,
+      "label": "contradiction",
+      "score": 0.8612844347953796,
+      "a_title": "Edge repair shipped: unlink + update_edge (MCP) and PATCH/DELETE /edges (HTTP)",
+      "b_title": "MCP exposes no delete_node — hard delete is user-only",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.7684452533721924,
+      "label": "neutral",
+      "score": 0.8388277888298035,
+      "a_title": "merge_nodes shipped: Engine::merge_nodes + MCP tool, edge rehoming with dedup, a new 'merged' audit action, four engine tests",
+      "b_title": "MCP has no way to correct a mislinked edge",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.7660863399505615,
+      "label": "neutral",
+      "score": 0.8221755027770996,
+      "a_title": "0.9.0 seam-test sweep: ~20 new tests where the new machinery meets the old — sealed-store verdicts/suspects/brief/merge/timeline/redaction, blind-index fields + bitemporal clock, desired-encryption reconcile + keyless reads, pre-0.9 shapes, and the handshake's unsuccessful branches",
+      "b_title": "Never store secrets or PII",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.7533518671989441,
+      "label": "neutral",
+      "score": 0.8175610303878784,
+      "a_title": "MCP surface expanded (2026-07-10): timeline, list_drift and audit tools + the engram://node/{id} resource",
+      "b_title": "MCP exposes no delete_node — hard delete is user-only",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.7494152784347534,
+      "label": "neutral",
+      "score": 0.9603923559188843,
+      "a_title": ".mcp.json is git-ignored — it hard-codes machine-absolute paths",
+      "b_title": "MCP exposes no delete_node — hard delete is user-only",
+      "linked": false,
+      "queued_hint": "contradiction"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.8920483589172363,
+      "label": "neutral",
+      "score": 0.6989665627479553,
+      "a_title": "The suspect scan gained a second way in (0.9.4): below the similarity floor, a pair whose bare TITLES the NLI reads as contradicting at ≥ policy.conflict_nli_gate (default 0.80, null = off) queues too — but only when both titles name a subject and share one (strict guard), and share at least one content word beyond the subject phrase (the claim's own words) — because similarity cannot tell a contradiction from an agreeing restatement, the first body sentence dilutes what the titles say, and an MNLI model calls two unrelated facts about one subject a contradiction",
+      "b_title": "MNLI models presuppose co-reference: below ~0.85 similarity, unrelated same-shaped titles read as confident contradictions",
+      "linked": true,
+      "queued_hint": "neutral"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.890055775642395,
+      "label": "contradiction",
+      "score": 0.8570411801338196,
+      "a_title": "A pinned note survives its own supersession: retire_superseded exempts trust_override nodes from archiving, so a `replaces` edge onto a pinned note leaves it live and delivered beside its successor — KnowledgeDrift's pin_then_supersede scenario scores 0/8 with the retired twin delivered 86% of the time (2026-09-14)",
+      "b_title": "Supersession retires the node it replaces wherever the edge comes from — and the pane hides archived by default",
+      "linked": true,
+      "queued_hint": "neutral"
+    },
+    {
+      "verdict": "dismiss",
+      "similarity": 0.9101900458335876,
+      "label": "neutral",
+      "score": 0.7072616219520569,
+      "a_title": "v0.9.7 released 2026-09-18 at 1a42747 — the icon-arrives release; nine assets, published by the user",
+      "b_title": "The IDE plugins wear the icon and call themselves Engram Alpha (0.9.7): monochrome E+A mark for the JetBrains tool window (×4) and the VS Code view, marketplace icons rendered from engram-1024.png, every user-visible name \"Engram Alpha\" — the JetBrains tool-window id changed with it",
+      "linked": false,
+      "queued_hint": "neutral"
+    },
+    {
+      "verdict": "conflict",
+      "similarity": null,
+      "label": "neutral",
+      "score": 0.9454994797706604,
+      "a_title": "Adoption correlates with ambient hooks capture, not memory quality — claude-mem has 86k stars with 27% feature coverage",
+      "b_title": "Capture is cooperative (MCP-guided) first — write-side ambient hooks wait for a librarian",
+      "linked": true,
+      "queued_hint": null
+    }
+  ],
+  "gates": [
+    {
+      "min_confidence": 0.0,
+      "dismissed_flagged": 48,
+      "dismissed": 129,
+      "unbiased_flagged": 5,
+      "unbiased": 59,
+      "as_queued_flagged": 1,
+      "as_queued": 24,
+      "conflicts_flagged": 2,
+      "conflicts": 3
+    },
+    {
+      "min_confidence": 0.5,
+      "dismissed_flagged": 48,
+      "dismissed": 129,
+      "unbiased_flagged": 5,
+      "unbiased": 59,
+      "as_queued_flagged": 1,
+      "as_queued": 24,
+      "conflicts_flagged": 2,
+      "conflicts": 3
+    },
+    {
+      "min_confidence": 0.7,
+      "dismissed_flagged": 43,
+      "dismissed": 129,
+      "unbiased_flagged": 4,
+      "unbiased": 59,
+      "as_queued_flagged": 1,
+      "as_queued": 24,
+      "conflicts_flagged": 2,
+      "conflicts": 3
+    },
+    {
+      "min_confidence": 0.8,
+      "dismissed_flagged": 36,
+      "dismissed": 129,
+      "unbiased_flagged": 3,
+      "unbiased": 59,
+      "as_queued_flagged": 1,
+      "as_queued": 24,
+      "conflicts_flagged": 1,
+      "conflicts": 3
+    },
+    {
+      "min_confidence": 0.9,
+      "dismissed_flagged": 25,
+      "dismissed": 129,
+      "unbiased_flagged": 1,
+      "unbiased": 59,
+      "as_queued_flagged": 0,
+      "as_queued": 24,
+      "conflicts_flagged": 1,
+      "conflicts": 3
+    },
+    {
+      "min_confidence": 0.95,
+      "dismissed_flagged": 2,
+      "dismissed": 129,
+      "unbiased_flagged": 0,
+      "unbiased": 59,
+      "as_queued_flagged": 0,
+      "as_queued": 24,
+      "conflicts_flagged": 0,
+      "conflicts": 3
+    },
+    {
+      "min_confidence": 0.99,
+      "dismissed_flagged": 0,
+      "dismissed": 129,
+      "unbiased_flagged": 0,
+      "unbiased": 59,
+      "as_queued_flagged": 0,
+      "as_queued": 24,
+      "conflicts_flagged": 0,
+      "conflicts": 3
+    }
+  ],
+  "shipped_gate": 0.800000011920929,
+  "similarity_floor": 0.88
+}

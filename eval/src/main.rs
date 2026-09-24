@@ -203,6 +203,7 @@ fn cli() -> anyhow::Result<()> {
     let mut sweep_mode = false;
     let mut bench_mode = false;
     let mut contradiction_mode = false;
+    let mut shapes_mode = false;
     let mut ladder_mode = false;
     let mut series_mode = false;
     let mut real_graph: Option<String> = None;
@@ -268,6 +269,7 @@ fn cli() -> anyhow::Result<()> {
             "--sweep" => sweep_mode = true,
             "--bench" => bench_mode = true,
             "--contradictions" => contradiction_mode = true,
+            "--shapes" => shapes_mode = true,
             "--real-graph" => real_graph = Some(value()?),
             "--sweep-replay" => sweep_replay = Some(value()?),
             "--no-rerank" => cfg.no_rerank = true,
@@ -453,6 +455,29 @@ fn cli() -> anyhow::Result<()> {
     if let Some(path) = real_graph {
         let report = engram_eval::run::real_graph(&path)?;
         print_real_graph(&report);
+        if let Some(path) = json_out {
+            std::fs::write(&path, serde_json::to_string_pretty(&report)?)?;
+            println!("\nwrote {path}");
+        }
+        return Ok(());
+    }
+    if shapes_mode {
+        // One case per tested fact; distractors only widen the edge graph the
+        // context arms read.
+        let tested = cfg.sizes.first().copied().unwrap_or(300);
+        let corpus = engram_eval::generate::corpus(tested, tested / 2, cfg.seed);
+        let cases = engram_eval::shapes::plant(&corpus);
+        #[cfg(feature = "fastembed")]
+        let (judge, model) = engram_eval::shapes::load_judge()?;
+        #[cfg(not(feature = "fastembed"))]
+        let (judge, model): (Box<dyn engram_eval::shapes::Judge>, String) = (
+            Box::new(engram_eval::shapes::NliJudge(Box::new(
+                engram_core::FakeNli,
+            ))),
+            "fake".to_string(),
+        );
+        let report = engram_eval::shapes::run(&cases, judge.as_ref(), model, cfg.seed)?;
+        engram_eval::shapes::print(&report);
         if let Some(path) = json_out {
             std::fs::write(&path, serde_json::to_string_pretty(&report)?)?;
             println!("\nwrote {path}");

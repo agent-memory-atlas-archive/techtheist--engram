@@ -3,14 +3,17 @@
 The retrieval half of this harness is written up in `README.md`; this is the
 other half.
 
-**This work changed the product, twice.**
+**This work changed the product, three times.**
 
 - **0.7.2** — model `mobilebert-uncased-mnli` (27 MB) replaced
   `nli-deberta-v3-small` (172 MB), and `check_claim` gained a confidence
   gate at **0.80**. That work is the historical half at the bottom of this
   file; its method and warnings still govern.
-- **0.8.1 — current** — model `deberta-v3-small-tasksource-nli` (172 MB)
-  replaced MobileBERT, on the section right below. The gate stays at 0.80.
+- **0.8.1 — current default** — model `deberta-v3-small-tasksource-nli`
+  (172 MB) replaced MobileBERT. The gate stays at 0.80.
+- **0.9.9** — contradictions propagate along `builds-on` / `needs` /
+  `because` edges, and Laya (int4 English, int8 multilingual) became a
+  selectable judge; tasksource stays the default. The section right below.
 
 ```sh
 cargo run -p engram-eval --features fastembed -- --contradictions --sizes 500
@@ -23,6 +26,63 @@ ENGRAM_NLI_DIR=~/.cache/engram/mobilebert-uncased-mnli \
 # a running daemon owns the original)
 cargo run -p engram-eval --features fastembed -- --real-graph /tmp/graph-copy.tepin
 ```
+
+## 0.9.9 — shapes, a second judge, and contradictions that travel
+
+```sh
+# KnowledgeDrift v2's fourteen contradiction shapes + bridge and chain shapes,
+# judged three ways (titles / title + body + ≤7 related notes / title + 1-hop)
+# plus the shipped subject guard and the propagation rule
+ENGRAM_NLI_DIR=~/.cache/engram/laya-en-int4 \
+  cargo run --release -p engram-eval --features fastembed -- --shapes --sizes 500 --seed 3
+```
+
+`--shapes` (`src/shapes.rs`) re-implements the bench repository's shape
+generators over this harness's own corpus — nothing there changed. Two
+additions: `transitive` is bridged by an **edge** (the truth `builds-on` the
+flipped note; the text pair is exactly the `coreference` trap's), and the
+chain shapes plant an upstream note about G that the truth builds on, then a
+note that flips G's value (`transitive_chain`, positive), states an unrelated
+fact about G (`chain_collider`) or restates it (`chain_paraphrase`).
+
+**Laya** (github.com/NandhaKishorM/laya) is a typed-decision model, not an NLI
+cross-encoder; it is asked its own XNLI question over a
+`{"premise","hypothesis"}` state. Our exports
+([huggingface.co/techtheist/laya-onnx](https://huggingface.co/techtheist/laya-onnx))
+have a truly dynamic sequence length — the community export traced a fixed
+512 — and the Rust port matches the Python reference token for token.
+
+Three seeds × 500 cases (`results/2026-09-24-shapes-500-seed{3,4,5}-*`), AUROC
+contradiction-vs-trap, mean (range):
+
+| arm | tasksource | Laya int4 |
+|---|---|---|
+| titles only | 0.71 (0.69–0.72) | 0.75 (0.73–0.76) |
+| + the shipped subject guard | 0.75 (0.74–0.76) | 0.79 (0.79–0.79) |
+| + propagation | **0.81** (0.81–0.82) | **0.86** (0.86–0.86) |
+| false alarms at 0.5, with propagation | 0.17 | 0.10 |
+| ms per call (titles) | 8.3 | 120.8 |
+
+- **No judge reads an edge.** With the bridge in context the `transitive`
+  pair scores *lower* than the identical-text `coreference` trap for every
+  model and arm. Transitive contradictions are caught by **propagation**
+  instead: a confident contradiction (or a judged `replaces` /
+  `conflicts-with`) of U queues every note that inherits from U, hinted
+  `inherited`; the judge only ever reads the same-subject pair. It adds
+  recall at zero false-alarm cost: `transitive_chain` 100% (tasksource) /
+  88% (Laya), chain traps 96–100% clean.
+- **Titles stay the input.** Under the guard, title + body + related notes
+  halves recall at the 0.8 gate (tasksource 0.45 → 0.24) to cut false alarms
+  from 8% to 2%; the mean of both reads sits between.
+- **Laya wins the hard shapes and loses the easy ones**: compound 0.39 vs
+  0.09, historical trap 0.62 vs 0.20, clause 0.20 vs 0.00; value flips 0.90
+  vs 1.00. int4 tracks fp32 (0.77 vs 0.79 with context, seed 1); dynamic
+  int8 loses more (0.68); multilingual int8 ships without fitted
+  temperatures and flags 55–66% of traps.
+- **The real graph still favours tasksource** (`results/2026-09-24-realgraph-*`,
+  569 dogfood notes): dismissed pairs flagged at the 0.80 gate 19% vs 28%,
+  and a sweep replay queues 0 vs 13 new suspects, at 8.8 s vs 58.8 s. With
+  propagation on, tasksource's replay still queues 0.
 
 ## 0.9.5 — the queue learns to read titles
 

@@ -21,8 +21,9 @@
 //! Rust" vs "TepinDB is on crates.io" scored c=0.99). The tasksource model
 //! judges those neutral, halves false alarms at the shipped gate on generated
 //! prose, and zeroes the unbiased queue noise on this repo's real graph while
-//! catching every generated contradiction. Predecessors stay selectable in
-//! `cortex::presets`.
+//! catching every generated contradiction. Since 0.9.9 the alternatives in
+//! `cortex::presets` are Laya typed-decision models ([`crate::laya`], loaded
+//! through [`load_dir`]); MobileBERT and nli-deberta-v3-small left the list.
 //!
 //! Swap the model with `ENGRAM_NLI_DIR` pointing at a directory holding
 //! `model.onnx`, `tokenizer.json` and a `config.json` whose `id2label` covers
@@ -359,6 +360,18 @@ mod fast {
 
 #[cfg(feature = "fastembed")]
 pub use fast::FastNli;
+
+/// Load whatever judge `dir` holds: a Laya typed-decision model (marked by
+/// `rl_agent_config.json`, see [`crate::laya`]) or a three-label NLI export.
+/// The engine only ever sees the [`Nli`] contract, so the swap is a directory.
+#[cfg(feature = "fastembed")]
+pub fn load_dir(dir: &std::path::Path) -> Result<Box<dyn Nli>> {
+    if crate::laya::is_laya_dir(dir) {
+        Ok(Box::new(crate::laya::LayaNli::from_dir(dir)?))
+    } else {
+        Ok(Box::new(FastNli::from_dir(dir)?))
+    }
+}
 
 /// The three files FastNli loads. `model.onnx` is the repo's
 /// `model_quantized.onnx` saved under the plain name.

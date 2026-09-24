@@ -1,0 +1,3153 @@
+{
+  "model": "laya-multilingual-int8",
+  "cases": 300,
+  "seed": 1,
+  "arms": [
+    {
+      "arm": "title",
+      "shapes": [
+        {
+          "shape": "value",
+          "tier": 1,
+          "positive": true,
+          "n": 22,
+          "mean": 0.9470212730494413,
+          "pass_50": 0.9545454545454546,
+          "pass_80": 0.9545454545454546
+        },
+        {
+          "shape": "reworded",
+          "tier": 1,
+          "positive": true,
+          "n": 21,
+          "mean": 0.9258979984692165,
+          "pass_50": 0.9523809523809523,
+          "pass_80": 0.9047619047619048
+        },
+        {
+          "shape": "negation",
+          "tier": 2,
+          "positive": true,
+          "n": 21,
+          "mean": 0.5492878361117273,
+          "pass_50": 0.5238095238095238,
+          "pass_80": 0.23809523809523808
+        },
+        {
+          "shape": "paraphrase",
+          "tier": 2,
+          "positive": false,
+          "n": 21,
+          "mean": 0.1040262537121418,
+          "pass_50": 0.9523809523809523,
+          "pass_80": 1.0
+        },
+        {
+          "shape": "synonym",
+          "tier": 2,
+          "positive": false,
+          "n": 21,
+          "mean": 0.047796950520326696,
+          "pass_50": 1.0,
+          "pass_80": 1.0
+        },
+        {
+          "shape": "unit",
+          "tier": 2,
+          "positive": true,
+          "n": 12,
+          "mean": 0.9982289175192515,
+          "pass_50": 1.0,
+          "pass_80": 1.0
+        },
+        {
+          "shape": "clause",
+          "tier": 2,
+          "positive": true,
+          "n": 21,
+          "mean": 0.14527526943545258,
+          "pass_50": 0.09523809523809523,
+          "pass_80": 0.047619047619047616
+        },
+        {
+          "shape": "coreference",
+          "tier": 2,
+          "positive": false,
+          "n": 21,
+          "mean": 0.9938473105430603,
+          "pass_50": 0.0,
+          "pass_80": 0.0
+        },
+        {
+          "shape": "transitive",
+          "tier": 3,
+          "positive": true,
+          "n": 21,
+          "mean": 0.9950669890358335,
+          "pass_50": 1.0,
+          "pass_80": 1.0
+        },
+        {
+          "shape": "quantifier",
+          "tier": 2,
+          "positive": true,
+          "n": 21,
+          "mean": 0.950238884914489,
+          "pass_50": 0.9523809523809523,
+          "pass_80": 0.9523809523809523
+        },
+        {
+          "shape": "collider",
+          "tier": 2,
+          "positive": false,
+          "n": 21,
+          "mean": 0.3285520256280766,
+          "pass_50": 0.6666666666666666,
+          "pass_80": 0.9047619047619048
+        },
+        {
+          "shape": "compound",
+          "tier": 3,
+          "positive": true,
+          "n": 22,
+          "mean": 0.739644265897699,
+          "pass_50": 0.7727272727272727,
+          "pass_80": 0.6363636363636364
+        },
+        {
+          "shape": "unit_agree",
+          "tier": 2,
+          "positive": false,
+          "n": 11,
+          "mean": 0.8288108706474304,
+          "pass_50": 0.18181818181818182,
+          "pass_80": 0.18181818181818182
+        },
+        {
+          "shape": "historical",
+          "tier": 3,
+          "positive": false,
+          "n": 22,
+          "mean": 0.7886607283726335,
+          "pass_50": 0.22727272727272727,
+          "pass_80": 0.2727272727272727
+        },
+        {
+          "shape": "bridge_collider",
+          "tier": 3,
+          "positive": false,
+          "n": 22,
+          "mean": 0.9333490891890093,
+          "pass_50": 0.045454545454545456,
+          "pass_80": 0.09090909090909091
+        }
+      ],
+      "recall_50": 0.7701863354037267,
+      "false_alarm_50": 0.5467625899280576,
+      "recall_80": 0.7018633540372671,
+      "false_alarm_80": 0.4892086330935252,
+      "auroc": 0.6255418025827785,
+      "tier3_recall_50": 0.8837209302325582,
+      "ms_per_call": 40.243777568333336,
+      "mean_state_chars": 226.03333333333333
+    },
+    {
+      "arm": "full",
+      "shapes": [
+        {
+          "shape": "value",
+          "tier": 1,
+          "positive": true,
+          "n": 22,
+          "mean": 0.9133655808188699,
+          "pass_50": 0.9545454545454546,
+          "pass_80": 0.8181818181818182
+        },
+        {
+          "shape": "reworded",
+          "tier": 1,
+          "positive": true,
+          "n": 21,
+          "mean": 0.8434102024350848,
+          "pass_50": 0.8571428571428571,
+          "pass_80": 0.7142857142857143
+        },
+        {
+          "shape": "negation",
+          "tier": 2,
+          "positive": true,
+          "n": 21,
+          "mean": 0.6416068139175574,
+          "pass_50": 0.6666666666666666,
+          "pass_80": 0.42857142857142855
+        },
+        {
+          "shape": "paraphrase",
+          "tier": 2,
+          "positive": false,
+          "n": 21,
+          "mean": 0.30880288318509147,
+          "pass_50": 0.7619047619047619,
+          "pass_80": 0.9047619047619048
+        },
+        {
+          "shape": "synonym",
+          "tier": 2,
+          "positive": false,
+          "n": 21,
+          "mean": 0.26614836656621527,
+          "pass_50": 0.8571428571428571,
+          "pass_80": 0.9523809523809523
+        },
+        {
+          "shape": "unit",
+          "tier": 2,
+          "positive": true,
+          "n": 12,
+          "mean": 0.8918204853932062,
+          "pass_50": 0.9166666666666666,
+          "pass_80": 0.75
+        },
+        {
+          "shape": "clause",
+          "tier": 2,
+          "positive": true,
+          "n": 21,
+          "mean": 0.6999205021808544,
+          "pass_50": 0.7142857142857143,
+          "pass_80": 0.5714285714285714
+        },
+        {
+          "shape": "coreference",
+          "tier": 2,
+          "positive": false,
+          "n": 21,
+          "mean": 0.9975206341062274,
+          "pass_50": 0.0,
+          "pass_80": 0.0
+        },
+        {
+          "shape": "transitive",
+          "tier": 3,
+          "positive": true,
+          "n": 21,
+          "mean": 0.9891742269198099,
+          "pass_50": 1.0,
+          "pass_80": 1.0
+        },
+        {
+          "shape": "quantifier",
+          "tier": 2,
+          "positive": true,
+          "n": 21,
+          "mean": 0.7561586030891964,
+          "pass_50": 0.9047619047619048,
+          "pass_80": 0.47619047619047616
+        },
+        {
+          "shape": "collider",
+          "tier": 2,
+          "positive": false,
+          "n": 21,
+          "mean": 0.6369832218402908,
+          "pass_50": 0.3333333333333333,
+          "pass_80": 0.6666666666666666
+        },
+        {
+          "shape": "compound",
+          "tier": 3,
+          "positive": true,
+          "n": 22,
+          "mean": 0.7433538215065544,
+          "pass_50": 0.7272727272727273,
+          "pass_80": 0.6363636363636364
+        },
+        {
+          "shape": "unit_agree",
+          "tier": 2,
+          "positive": false,
+          "n": 11,
+          "mean": 0.5809909149327062,
+          "pass_50": 0.36363636363636365,
+          "pass_80": 0.6363636363636364
+        },
+        {
+          "shape": "historical",
+          "tier": 3,
+          "positive": false,
+          "n": 22,
+          "mean": 0.9842703369530764,
+          "pass_50": 0.0,
+          "pass_80": 0.045454545454545456
+        },
+        {
+          "shape": "bridge_collider",
+          "tier": 3,
+          "positive": false,
+          "n": 22,
+          "mean": 0.7940541343255476,
+          "pass_50": 0.09090909090909091,
+          "pass_80": 0.45454545454545453
+        }
+      ],
+      "recall_50": 0.8385093167701864,
+      "false_alarm_50": 0.6618705035971223,
+      "recall_80": 0.6708074534161491,
+      "false_alarm_80": 0.4892086330935252,
+      "auroc": 0.5749139818579919,
+      "tier3_recall_50": 0.8604651162790697,
+      "ms_per_call": 121.59720145833334,
+      "mean_state_chars": 987.1733333333333
+    },
+    {
+      "arm": "links",
+      "shapes": [
+        {
+          "shape": "value",
+          "tier": 1,
+          "positive": true,
+          "n": 22,
+          "mean": 0.9776759906248613,
+          "pass_50": 1.0,
+          "pass_80": 1.0
+        },
+        {
+          "shape": "reworded",
+          "tier": 1,
+          "positive": true,
+          "n": 21,
+          "mean": 0.8209818140381858,
+          "pass_50": 0.8095238095238095,
+          "pass_80": 0.7142857142857143
+        },
+        {
+          "shape": "negation",
+          "tier": 2,
+          "positive": true,
+          "n": 21,
+          "mean": 0.7329114959353492,
+          "pass_50": 0.7142857142857143,
+          "pass_80": 0.5238095238095238
+        },
+        {
+          "shape": "paraphrase",
+          "tier": 2,
+          "positive": false,
+          "n": 21,
+          "mean": 0.1524977035421346,
+          "pass_50": 0.9047619047619048,
+          "pass_80": 1.0
+        },
+        {
+          "shape": "synonym",
+          "tier": 2,
+          "positive": false,
+          "n": 21,
+          "mean": 0.09417570080231166,
+          "pass_50": 0.9523809523809523,
+          "pass_80": 0.9523809523809523
+        },
+        {
+          "shape": "unit",
+          "tier": 2,
+          "positive": true,
+          "n": 12,
+          "mean": 0.851937917371591,
+          "pass_50": 0.9166666666666666,
+          "pass_80": 0.6666666666666666
+        },
+        {
+          "shape": "clause",
+          "tier": 2,
+          "positive": true,
+          "n": 21,
+          "mean": 0.6314606022621904,
+          "pass_50": 0.7142857142857143,
+          "pass_80": 0.5238095238095238
+        },
+        {
+          "shape": "coreference",
+          "tier": 2,
+          "positive": false,
+          "n": 21,
+          "mean": 0.9943265829767499,
+          "pass_50": 0.0,
+          "pass_80": 0.0
+        },
+        {
+          "shape": "transitive",
+          "tier": 3,
+          "positive": true,
+          "n": 21,
+          "mean": 0.994460525966826,
+          "pass_50": 1.0,
+          "pass_80": 1.0
+        },
+        {
+          "shape": "quantifier",
+          "tier": 2,
+          "positive": true,
+          "n": 21,
+          "mean": 0.8185170761176518,
+          "pass_50": 0.8095238095238095,
+          "pass_80": 0.7619047619047619
+        },
+        {
+          "shape": "collider",
+          "tier": 2,
+          "positive": false,
+          "n": 21,
+          "mean": 0.7355676264989943,
+          "pass_50": 0.23809523809523808,
+          "pass_80": 0.47619047619047616
+        },
+        {
+          "shape": "compound",
+          "tier": 3,
+          "positive": true,
+          "n": 22,
+          "mean": 0.7246077266437086,
+          "pass_50": 0.7272727272727273,
+          "pass_80": 0.6363636363636364
+        },
+        {
+          "shape": "unit_agree",
+          "tier": 2,
+          "positive": false,
+          "n": 11,
+          "mean": 0.8664360683072697,
+          "pass_50": 0.18181818181818182,
+          "pass_80": 0.18181818181818182
+        },
+        {
+          "shape": "historical",
+          "tier": 3,
+          "positive": false,
+          "n": 22,
+          "mean": 0.8803400636904619,
+          "pass_50": 0.09090909090909091,
+          "pass_80": 0.13636363636363635
+        },
+        {
+          "shape": "bridge_collider",
+          "tier": 3,
+          "positive": false,
+          "n": 22,
+          "mean": 0.8930281454866583,
+          "pass_50": 0.045454545454545456,
+          "pass_80": 0.18181818181818182
+        }
+      ],
+      "recall_50": 0.8322981366459627,
+      "false_alarm_50": 0.6474820143884892,
+      "recall_80": 0.7329192546583851,
+      "false_alarm_80": 0.5683453237410072,
+      "auroc": 0.6143706153089951,
+      "tier3_recall_50": 0.8604651162790697,
+      "ms_per_call": 60.533138681666664,
+      "mean_state_chars": 417.26
+    }
+  ],
+  "scores": [
+    {
+      "shape": "value",
+      "positive": true,
+      "truth": "Kelulvor sweep worker uses a drain deadline of 3 seconds — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "Kelulvor sweep worker is configured with 21 seconds",
+      "title": 0.9880135,
+      "full": 0.9970805,
+      "links": 0.9880135
+    },
+    {
+      "shape": "reworded",
+      "positive": true,
+      "truth": "Firorthi sweep worker expires its own grants when the shard rebalances, and it only shows up under sustained production traffic",
+      "planted": "Nobody has ever seen the Firorthi sweep worker expires its own grants; it has been stable in every environment",
+      "title": 0.999235,
+      "full": 0.9938509,
+      "links": 0.999235
+    },
+    {
+      "shape": "negation",
+      "positive": true,
+      "truth": "Quenowyn sweep worker must never outrun the replication horizon, and no surrounding layer makes up for it",
+      "planted": "It is not the case that the Quenowyn sweep worker must never outrun the replication horizon.",
+      "title": 0.30831784,
+      "full": 0.061832946,
+      "links": 0.30831784
+    },
+    {
+      "shape": "paraphrase",
+      "positive": false,
+      "truth": "Melarvis sweep worker stutters its stream during a cold replay, so the engineer who follows is spared the same expense",
+      "planted": "There is an open issue where the Melarvis sweep worker stutters its stream.",
+      "title": 0.7936034,
+      "full": 0.8926882,
+      "links": 0.7936034
+    },
+    {
+      "shape": "synonym",
+      "positive": false,
+      "truth": "Yssenwyn sweep worker trims from the head because the budget is computed before the drain, not after — the workaround proved costlier than simply honouring the rule",
+      "planted": "Yssenwyn sweep worker trims from the head since the budget is computed before the drain, not after — the workaround proved costlier than simply honouring the rule",
+      "title": 0.00618553,
+      "full": 0.058339838,
+      "links": 0.00618553
+    },
+    {
+      "shape": "unit",
+      "positive": true,
+      "truth": "Vanenbek replay buffer uses a decay half-life of 16 hours — corroborated independently by two separate investigations",
+      "planted": "Vanenbek replay buffer is set to a decay half-life of 2340 minutes",
+      "title": 0.99950397,
+      "full": 0.9991412,
+      "links": 0.99950397
+    },
+    {
+      "shape": "clause",
+      "positive": true,
+      "truth": "Garnulbek replay buffer mislabels its vials when a poison message recirculates — reproduced in staging by somebody who did not believe it",
+      "planted": "Contrary to the runbook, it is wrong that the Garnulbek replay buffer mislabels its vials; the earlier note was mistaken",
+      "title": 0.069421016,
+      "full": 0.9425831,
+      "links": 0.069421016
+    },
+    {
+      "shape": "coreference",
+      "positive": false,
+      "truth": "Kelulqui replay buffer must never recalibrate against a live specimen, which is why it is recorded rather than quietly patched around",
+      "planted": "Vanenbek replay buffer may freely recalibrate against a live specimen",
+      "title": 0.9995365,
+      "full": 0.99967843,
+      "links": 0.9995365
+    },
+    {
+      "shape": "transitive",
+      "positive": true,
+      "truth": "Lorirqui replay buffer saturates its detector across a region failover — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "Vanenbek replay buffer no longer saturates its detector",
+      "title": 0.9880558,
+      "full": 0.99947476,
+      "links": 0.99324983
+    },
+    {
+      "shape": "quantifier",
+      "positive": true,
+      "truth": "Breaisen replay buffer rounds toward the anchor because the timeout is measured from queueing, not execution, and it only shows up under sustained production traffic",
+      "planted": "Breaisen replay buffer rounds toward the anchor for reasons that have nothing to do with the timeout is measured from queueing, not execution",
+      "title": 0.9597183,
+      "full": 0.5714135,
+      "links": 0.9597183
+    },
+    {
+      "shape": "collider",
+      "positive": false,
+      "truth": "Zaneitek ingest job uses a grace period of 29 seconds, and no surrounding layer makes up for it",
+      "planted": "Zaneitek ingest job expires its own grants",
+      "title": 0.9976259,
+      "full": 0.66449624,
+      "links": 0.9976259
+    },
+    {
+      "shape": "compound",
+      "positive": true,
+      "truth": "Haraequi ingest job starves its consumers when the coolant loop cavitates, so the engineer who follows is spared the same expense",
+      "planted": "Haraequi ingest job starves its consumers; separately, operators report that it never starves its consumers, whatever happens",
+      "title": 0.9981049,
+      "full": 0.9993925,
+      "links": 0.9981049
+    },
+    {
+      "shape": "historical",
+      "positive": false,
+      "truth": "Silarmar ingest job must never mutate a sealed segment — the workaround proved costlier than simply honouring the rule",
+      "planted": "Until the 3.1 rollout, Silarmar ingest job may freely mutate a sealed segment; the rollout changed that, and the current note stands",
+      "title": 0.9967401,
+      "full": 0.99735355,
+      "links": 0.9967401
+    },
+    {
+      "shape": "bridge_collider",
+      "positive": false,
+      "truth": "Vanumfen ingest job flaps its liveness during lens calibration — corroborated independently by two separate investigations",
+      "planted": "Zaneitek ingest job uses a drain deadline of 3 seconds",
+      "title": 0.98305726,
+      "full": 0.77908623,
+      "links": 0.946406
+    },
+    {
+      "shape": "bridge_collider",
+      "positive": false,
+      "truth": "Keluldal ingest job undercounts its retries because the quota counts retired entries — reproduced in staging by somebody who did not believe it",
+      "planted": "Zaneitek ingest job uses a drain deadline of 3 seconds",
+      "title": 0.30186623,
+      "full": 0.44417495,
+      "links": 0.36480314
+    },
+    {
+      "shape": "value",
+      "positive": true,
+      "truth": "Yssynlun sweep worker uses a sampling stride of 42 readings, which is why it is recorded rather than quietly patched around",
+      "planted": "Yssynlun sweep worker is configured with 75 readings",
+      "title": 0.9990198,
+      "full": 0.97464895,
+      "links": 0.9990198
+    },
+    {
+      "shape": "reworded",
+      "positive": true,
+      "truth": "Torirtos sweep worker inverts its polarity when the failover rehearsal runs — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "Nobody has ever seen the Torirtos sweep worker inverts its polarity; it has been stable in every environment",
+      "title": 0.99968565,
+      "full": 0.9731695,
+      "links": 0.99968565
+    },
+    {
+      "shape": "negation",
+      "positive": true,
+      "truth": "Lorarvor sweep worker must never splice two lineages, and it only shows up under sustained production traffic",
+      "planted": "It is not the case that the Lorarvor sweep worker must never splice two lineages.",
+      "title": 0.40952694,
+      "full": 0.0057357624,
+      "links": 0.40952694
+    },
+    {
+      "shape": "paraphrase",
+      "positive": false,
+      "truth": "Vanavis sweep worker skews its baseline at quota exhaustion, and no surrounding layer makes up for it",
+      "planted": "There is an open issue where the Vanavis sweep worker skews its baseline.",
+      "title": 0.0069817374,
+      "full": 0.13271527,
+      "links": 0.012660833
+    },
+    {
+      "shape": "synonym",
+      "positive": false,
+      "truth": "Vanenthi sweep worker hoards its calibration slots because the health probe tests the proxy, not the service, so the engineer who follows is spared the same expense",
+      "planted": "Vanenthi sweep worker hoards its calibration slots since the health probe tests the proxy, not the service, so the engineer who follows is spared the same expense",
+      "title": 0.0052465606,
+      "full": 0.040296134,
+      "links": 0.008466539
+    },
+    {
+      "shape": "clause",
+      "positive": true,
+      "truth": "Silyrfen assay station uses a confidence floor of 55 percent — the workaround proved costlier than simply honouring the rule",
+      "planted": "Contrary to the runbook, it is wrong that the Silyrfen assay station uses a confidence floor of 55 percent; the earlier note was mistaken",
+      "title": 0.10841521,
+      "full": 0.72511685,
+      "links": 0.9698539
+    },
+    {
+      "shape": "coreference",
+      "positive": false,
+      "truth": "Kelulrin assay station overruns its dwell when the daylight saving shift lands — corroborated independently by two separate investigations",
+      "planted": "Silyrfen assay station never overruns its dwell, whatever happens",
+      "title": 0.9985614,
+      "full": 0.99615145,
+      "links": 0.9985614
+    },
+    {
+      "shape": "transitive",
+      "positive": true,
+      "truth": "Firounor assay station must never skip the blank control — reproduced in staging by somebody who did not believe it",
+      "planted": "Silyrfen assay station may freely skip the blank control",
+      "title": 0.9967393,
+      "full": 0.99883246,
+      "links": 0.99956363
+    },
+    {
+      "shape": "quantifier",
+      "positive": true,
+      "truth": "Druardal assay station orphans its batches during a rolling upgrade, which is why it is recorded rather than quietly patched around",
+      "planted": "In every environment tried so far the Druardal assay station runs clean: orphans its batches has not happened once",
+      "title": 0.99431884,
+      "full": 0.98319525,
+      "links": 0.99678695
+    },
+    {
+      "shape": "collider",
+      "positive": false,
+      "truth": "Garnellun assay station ages its stock first because the retry queue and the dead-letter queue share a disk — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "Garnellun assay station uses a drain deadline of 3 seconds",
+      "title": 0.09385227,
+      "full": 0.5677647,
+      "links": 0.8700913
+    },
+    {
+      "shape": "unit_agree",
+      "positive": false,
+      "truth": "Drueirin index writer uses a grace period of 68 seconds, and it only shows up under sustained production traffic",
+      "planted": "Drueirin index writer keeps its grace period at 68000 milliseconds",
+      "title": 0.9564159,
+      "full": 0.53709453,
+      "links": 0.9959599
+    },
+    {
+      "shape": "compound",
+      "positive": true,
+      "truth": "Melelrin index writer starves its consumers when the dedupe window slides, and no surrounding layer makes up for it",
+      "planted": "Melelrin index writer starves its consumers; separately, operators report that it never starves its consumers, whatever happens",
+      "title": 0.9089937,
+      "full": 0.8561807,
+      "links": 0.9089937
+    },
+    {
+      "shape": "historical",
+      "positive": false,
+      "truth": "Breenfen index writer must never mutate a sealed segment, so the engineer who follows is spared the same expense",
+      "planted": "Until the 3.1 rollout, Breenfen index writer may freely mutate a sealed segment; the rollout changed that, and the current note stands",
+      "title": 0.16360517,
+      "full": 0.99901175,
+      "links": 0.8818341
+    },
+    {
+      "shape": "historical",
+      "positive": false,
+      "truth": "Kelulbek index writer flaps its liveness within the grace period — the workaround proved costlier than simply honouring the rule",
+      "planted": "Until the 3.1 rollout, Kelulbek index writer no longer flaps its liveness; the rollout changed that, and the current note stands",
+      "title": 0.21109772,
+      "full": 0.97505426,
+      "links": 0.49090517
+    },
+    {
+      "shape": "bridge_collider",
+      "positive": false,
+      "truth": "Torabek index writer undercounts its retries because the estimator never saw a leap year — corroborated independently by two separate investigations",
+      "planted": "Drueirin index writer uses a drain deadline of 3 seconds",
+      "title": 0.9062278,
+      "full": 0.87266165,
+      "links": 0.7250714
+    },
+    {
+      "shape": "value",
+      "positive": true,
+      "truth": "Breenmar lease broker uses a batch size of 81 records — reproduced in staging by somebody who did not believe it",
+      "planted": "Breenmar lease broker is configured with 89 records",
+      "title": 0.99289286,
+      "full": 0.9909975,
+      "links": 0.9254687
+    },
+    {
+      "shape": "reworded",
+      "positive": true,
+      "truth": "Ulmynvor lease broker re-emits duplicates when a retry lands out of order, which is why it is recorded rather than quietly patched around",
+      "planted": "Nobody has ever seen the Ulmynvor lease broker re-emits duplicates; it has been stable in every environment",
+      "title": 0.99949753,
+      "full": 0.99819857,
+      "links": 0.99949753
+    },
+    {
+      "shape": "negation",
+      "positive": true,
+      "truth": "Druivor lease broker must never widen the fence without a drain — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "It is not the case that the Druivor lease broker must never widen the fence without a drain.",
+      "title": 0.29136753,
+      "full": 0.99574906,
+      "links": 0.94002175
+    },
+    {
+      "shape": "paraphrase",
+      "positive": false,
+      "truth": "Silelvor lease broker thrashes the cache while a follower catches up, and it only shows up under sustained production traffic",
+      "planted": "There is an open issue where the Silelvor lease broker thrashes the cache.",
+      "title": 0.0125193065,
+      "full": 0.022286784,
+      "links": 0.0125193065
+    },
+    {
+      "shape": "synonym",
+      "positive": false,
+      "truth": "Druoulun lease broker rounds the window down because integer division truncates the interval, and no surrounding layer makes up for it",
+      "planted": "Druoulun lease broker rounds the window down since integer division truncates the interval, and no surrounding layer makes up for it",
+      "title": 0.030560885,
+      "full": 0.18824328,
+      "links": 0.05083554
+    },
+    {
+      "shape": "unit",
+      "positive": true,
+      "truth": "Kelultos lease broker uses a backoff ceiling of 94 seconds, so the engineer who follows is spared the same expense",
+      "planted": "Kelultos lease broker is set to a backoff ceiling of 107000 milliseconds",
+      "title": 0.99036235,
+      "full": 0.90677625,
+      "links": 0.6350188
+    },
+    {
+      "shape": "clause",
+      "positive": true,
+      "truth": "Harouvor lease broker corrupts its checkpoint when the mains power browns out — the workaround proved costlier than simply honouring the rule",
+      "planted": "Contrary to the runbook, it is wrong that the Harouvor lease broker corrupts its checkpoint; the earlier note was mistaken",
+      "title": 0.044497605,
+      "full": 0.9629659,
+      "links": 0.8511437
+    },
+    {
+      "shape": "coreference",
+      "positive": false,
+      "truth": "Queneitos lease broker must never cache the lease token — corroborated independently by two separate investigations",
+      "planted": "Breenmar lease broker may freely cache the lease token",
+      "title": 0.99990404,
+      "full": 0.9995163,
+      "links": 0.9987089
+    },
+    {
+      "shape": "transitive",
+      "positive": true,
+      "truth": "Loreldex lease broker drifts its watermark beneath peak load — reproduced in staging by somebody who did not believe it",
+      "planted": "Breenmar lease broker no longer drifts its watermark",
+      "title": 0.99439734,
+      "full": 0.8881456,
+      "links": 0.9982343
+    },
+    {
+      "shape": "quantifier",
+      "positive": true,
+      "truth": "Firaedex lease broker serialises its probes because the batch size was tuned for the old hardware, which is why it is recorded rather than quietly patched around",
+      "planted": "Firaedex lease broker serialises its probes for reasons that have nothing to do with the batch size was tuned for the old hardware",
+      "title": 0.9765616,
+      "full": 0.5847595,
+      "links": 0.99549025
+    },
+    {
+      "shape": "unit_agree",
+      "positive": false,
+      "truth": "Queneldex edge cache uses a quota refresh of 107 hours — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "Queneldex edge cache keeps its quota refresh at 6420 minutes",
+      "title": 0.9990884,
+      "full": 0.9644026,
+      "links": 0.999643
+    },
+    {
+      "shape": "compound",
+      "positive": true,
+      "truth": "Zanathi edge cache blackholes its retries when two drains overlap, and it only shows up under sustained production traffic",
+      "planted": "Zanathi edge cache blackholes its retries; separately, operators report that it never blackholes its retries, whatever happens",
+      "title": 0.9969849,
+      "full": 0.89629626,
+      "links": 0.96043783
+    },
+    {
+      "shape": "collider",
+      "positive": false,
+      "truth": "Kelulfen edge cache must never trust a client-supplied timestamp, and no surrounding layer makes up for it",
+      "planted": "Kelulfen edge cache uses a drain deadline of 3 seconds",
+      "title": 0.41215068,
+      "full": 0.6819531,
+      "links": 0.41215068
+    },
+    {
+      "shape": "historical",
+      "positive": false,
+      "truth": "Torowyn edge cache churns its connections under sustained backpressure, so the engineer who follows is spared the same expense",
+      "planted": "Until the 3.1 rollout, Torowyn edge cache no longer churns its connections; the rollout changed that, and the current note stands",
+      "title": 0.8964892,
+      "full": 0.98094153,
+      "links": 0.91004235
+    },
+    {
+      "shape": "bridge_collider",
+      "positive": false,
+      "truth": "Druenvis edge cache chases its own tail because the sensor sums shadow and signal alike — the workaround proved costlier than simply honouring the rule",
+      "planted": "Queneldex edge cache uses a drain deadline of 3 seconds",
+      "title": 0.9840359,
+      "full": 0.54807323,
+      "links": 0.9979725
+    },
+    {
+      "shape": "value",
+      "positive": true,
+      "truth": "Ysseltos telemetry mast uses a retry budget of 120 attempts — corroborated independently by two separate investigations",
+      "planted": "Ysseltos telemetry mast is configured with 143 attempts",
+      "title": 0.99978083,
+      "full": 0.550606,
+      "links": 0.9791072
+    },
+    {
+      "shape": "reworded",
+      "positive": true,
+      "truth": "Lorynwyn telemetry mast drops writes when the coolant loop cavitates — reproduced in staging by somebody who did not believe it",
+      "planted": "Nobody has ever seen the Lorynwyn telemetry mast drops writes; it has been stable in every environment",
+      "title": 0.98547196,
+      "full": 0.63509405,
+      "links": 0.4040771
+    },
+    {
+      "shape": "negation",
+      "positive": true,
+      "truth": "Kelardal telemetry mast must never share a cursor between shards, which is why it is recorded rather than quietly patched around",
+      "planted": "It is not the case that the Kelardal telemetry mast must never share a cursor between shards.",
+      "title": 0.07341534,
+      "full": 0.8510154,
+      "links": 0.4648703
+    },
+    {
+      "shape": "paraphrase",
+      "positive": false,
+      "truth": "Ulmonor telemetry mast stalls during lens calibration — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "There is an open issue where the Ulmonor telemetry mast stalls.",
+      "title": 0.03976663,
+      "full": 0.5092863,
+      "links": 0.4884892
+    },
+    {
+      "shape": "synonym",
+      "positive": false,
+      "truth": "Kelulwyn telemetry mast prefers the older replica because the quota counts retired entries, and it only shows up under sustained production traffic",
+      "planted": "Kelulwyn telemetry mast prefers the older replica since the quota counts retired entries, and it only shows up under sustained production traffic",
+      "title": 0.0054812576,
+      "full": 0.112282276,
+      "links": 0.011754662
+    },
+    {
+      "shape": "clause",
+      "positive": true,
+      "truth": "Lorouqui assay station uses a flush interval of 133 milliseconds, and no surrounding layer makes up for it",
+      "planted": "Contrary to the runbook, it is wrong that the Lorouqui assay station uses a flush interval of 133 milliseconds; the earlier note was mistaken",
+      "title": 0.019954836,
+      "full": 0.72400546,
+      "links": 0.65372205
+    },
+    {
+      "shape": "coreference",
+      "positive": false,
+      "truth": "Zanaefen assay station loses its cursor when a tenant exceeds its envelope, so the engineer who follows is spared the same expense",
+      "planted": "Silyrfen assay station never loses its cursor, whatever happens",
+      "title": 0.98185474,
+      "full": 0.9993376,
+      "links": 0.98185474
+    },
+    {
+      "shape": "transitive",
+      "positive": true,
+      "truth": "Yssumtos assay station must never trust the replica clock — the workaround proved costlier than simply honouring the rule",
+      "planted": "Silyrfen assay station may freely trust the replica clock",
+      "title": 0.9997366,
+      "full": 0.9997917,
+      "links": 0.9998286
+    },
+    {
+      "shape": "quantifier",
+      "positive": true,
+      "truth": "Firenwyn assay station reorders acks under clock skew — corroborated independently by two separate investigations",
+      "planted": "In every environment tried so far the Firenwyn assay station runs clean: reorders acks has not happened once",
+      "title": 0.97154874,
+      "full": 0.9660286,
+      "links": 0.97058624
+    },
+    {
+      "shape": "collider",
+      "positive": false,
+      "truth": "Novumbek assay station re-reads the manifest because the config loader keeps its first answer forever — reproduced in staging by somebody who did not believe it",
+      "planted": "Novumbek assay station uses a drain deadline of 3 seconds",
+      "title": 0.6762256,
+      "full": 0.7705569,
+      "links": 0.9601819
+    },
+    {
+      "shape": "unit_agree",
+      "positive": false,
+      "truth": "Garnyrvor telemetry mast uses a grace period of 146 seconds, which is why it is recorded rather than quietly patched around",
+      "planted": "Garnyrvor telemetry mast keeps its grace period at 146000 milliseconds",
+      "title": 0.96734613,
+      "full": 0.75426537,
+      "links": 0.9674686
+    },
+    {
+      "shape": "compound",
+      "positive": true,
+      "truth": "Kelulnor telemetry mast starves its consumers when the dedupe window slides — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "Kelulnor telemetry mast starves its consumers; separately, operators report that it never starves its consumers, whatever happens",
+      "title": 0.92639977,
+      "full": 0.9995359,
+      "links": 0.98455626
+    },
+    {
+      "shape": "historical",
+      "positive": false,
+      "truth": "Harovis telemetry mast must never mutate a sealed segment, and it only shows up under sustained production traffic",
+      "planted": "Until the 3.1 rollout, Harovis telemetry mast may freely mutate a sealed segment; the rollout changed that, and the current note stands",
+      "title": 0.9986447,
+      "full": 0.9992236,
+      "links": 0.9986447
+    },
+    {
+      "shape": "bridge_collider",
+      "positive": false,
+      "truth": "Hariwyn telemetry mast flaps its liveness within the grace period, and no surrounding layer makes up for it",
+      "planted": "Ysseltos telemetry mast uses a drain deadline of 3 seconds",
+      "title": 0.99159265,
+      "full": 0.9842971,
+      "links": 0.88835114
+    },
+    {
+      "shape": "value",
+      "positive": true,
+      "truth": "Vanordal telemetry mast undercounts its retries because the estimator never saw a leap year, so the engineer who follows is spared the same expense",
+      "planted": "It is not true that Vanordal telemetry mast undercounts its retries because the estimator never saw a leap year",
+      "title": 0.98230046,
+      "full": 0.94471425,
+      "links": 0.9914459
+    },
+    {
+      "shape": "reworded",
+      "positive": true,
+      "truth": "Quenyrvor provenance ledger uses a gossip interval of 159 milliseconds — the workaround proved costlier than simply honouring the rule",
+      "planted": "Operators pinned the Quenyrvor provenance ledger to 197 milliseconds for its gossip interval, and the dashboard agrees",
+      "title": 0.97626674,
+      "full": 0.95617074,
+      "links": 0.8611897
+    },
+    {
+      "shape": "negation",
+      "positive": true,
+      "truth": "Quenidex provenance ledger fragments its heap when the standby promotes itself — corroborated independently by two separate investigations",
+      "planted": "It is not the case that the Quenidex provenance ledger fragments its heap.",
+      "title": 0.95879996,
+      "full": 0.91434354,
+      "links": 0.9748285
+    },
+    {
+      "shape": "paraphrase",
+      "positive": false,
+      "truth": "Haraewyn provenance ledger must never suppress a failing healthcheck — reproduced in staging by somebody who did not believe it",
+      "planted": "It is forbidden for the Haraewyn provenance ledger to suppress a failing healthcheck.",
+      "title": 0.007460044,
+      "full": 0.05983524,
+      "links": 0.007460044
+    },
+    {
+      "shape": "synonym",
+      "positive": false,
+      "truth": "Kelulvis provenance ledger shadows its primary during certificate rotation, which is why it is recorded rather than quietly patched around",
+      "planted": "Confirmed: Kelulvis provenance ledger shadows its primary during certificate rotation, which is why it is recorded rather than quietly patched around",
+      "title": 0.026762841,
+      "full": 0.22965345,
+      "links": 0.026762841
+    },
+    {
+      "shape": "clause",
+      "positive": true,
+      "truth": "Haryrtos provenance ledger saves its work twice because the feature flag defaults on in exactly one environment — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "Contrary to the runbook, it is wrong that the Haryrtos provenance ledger saves its work twice; the earlier note was mistaken",
+      "title": 0.22727154,
+      "full": 0.86939013,
+      "links": 0.13076665
+    },
+    {
+      "shape": "unit",
+      "positive": true,
+      "truth": "Yssarsen sweep worker uses a drain deadline of 172 seconds, and it only shows up under sustained production traffic",
+      "planted": "Yssarsen sweep worker is set to a drain deadline of 175000 milliseconds",
+      "title": 0.9952952,
+      "full": 0.7076428,
+      "links": 0.6049544
+    },
+    {
+      "shape": "coreference",
+      "positive": false,
+      "truth": "Torulqui sweep worker expires its own grants when the coolant loop cavitates, and no surrounding layer makes up for it",
+      "planted": "Kelulvor sweep worker never expires its own grants, whatever happens",
+      "title": 0.999918,
+      "full": 0.9999783,
+      "links": 0.9999091
+    },
+    {
+      "shape": "transitive",
+      "positive": true,
+      "truth": "Silairin sweep worker must never outrun the replication horizon, so the engineer who follows is spared the same expense",
+      "planted": "Kelulvor sweep worker may freely outrun the replication horizon",
+      "title": 0.99483633,
+      "full": 0.99851894,
+      "links": 0.9969492
+    },
+    {
+      "shape": "quantifier",
+      "positive": true,
+      "truth": "Garnilun sweep worker stutters its stream during lens calibration — the workaround proved costlier than simply honouring the rule",
+      "planted": "In every environment tried so far the Garnilun sweep worker runs clean: stutters its stream has not happened once",
+      "title": 0.99609876,
+      "full": 0.726218,
+      "links": 0.10613766
+    },
+    {
+      "shape": "collider",
+      "positive": false,
+      "truth": "Vanynvor sweep worker trims from the head because the quota counts retired entries — corroborated independently by two separate investigations",
+      "planted": "Vanynvor sweep worker uses a decay half-life of 16 hours",
+      "title": 0.00067535654,
+      "full": 0.42345852,
+      "links": 0.43924174
+    },
+    {
+      "shape": "compound",
+      "positive": true,
+      "truth": "Kelulthi shard router uses a confidence floor of 185 percent — reproduced in staging by somebody who did not believe it",
+      "planted": "Kelulthi shard router uses a confidence floor of 185 percent; separately, operators report that it is configured with 193 percent",
+      "title": 0.0012430482,
+      "full": 0.38375214,
+      "links": 0.7959728
+    },
+    {
+      "shape": "compound",
+      "positive": true,
+      "truth": "Quenarnor shard router overruns its dwell when the lease expires mid-flush, which is why it is recorded rather than quietly patched around",
+      "planted": "Quenarnor shard router overruns its dwell; separately, operators report that it never overruns its dwell, whatever happens",
+      "title": 0.95676804,
+      "full": 0.91927177,
+      "links": 0.87006766
+    },
+    {
+      "shape": "historical",
+      "positive": false,
+      "truth": "Druirnor shard router must never skip the blank control — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "Until the 3.1 rollout, Druirnor shard router may freely skip the blank control; the rollout changed that, and the current note stands",
+      "title": 0.91045564,
+      "full": 0.9979279,
+      "links": 0.91045564
+    },
+    {
+      "shape": "bridge_collider",
+      "positive": false,
+      "truth": "Vanaidex shard router orphans its batches under shard rebalance, and it only shows up under sustained production traffic",
+      "planted": "Kelulthi shard router uses a drain deadline of 3 seconds",
+      "title": 0.98611337,
+      "full": 0.99224937,
+      "links": 0.8797878
+    },
+    {
+      "shape": "value",
+      "positive": true,
+      "truth": "Silithi shard router ages its stock first because the ranker keys on arrival order rather than freshness, and no surrounding layer makes up for it",
+      "planted": "It is not true that Silithi shard router ages its stock first because the ranker keys on arrival order rather than freshness",
+      "title": 0.9478011,
+      "full": 0.9677035,
+      "links": 0.995717
+    },
+    {
+      "shape": "reworded",
+      "positive": true,
+      "truth": "Melenqui escrow chamber uses a fan-out limit of 198 branches, so the engineer who follows is spared the same expense",
+      "planted": "Operators pinned the Melenqui escrow chamber to 211 branches for its fan-out limit, and the dashboard agrees",
+      "title": 0.8965165,
+      "full": 0.98900443,
+      "links": 0.62902874
+    },
+    {
+      "shape": "negation",
+      "positive": true,
+      "truth": "Silirthi escrow chamber stalls the queue when the license check phones home — the workaround proved costlier than simply honouring the rule",
+      "planted": "It is not the case that the Silirthi escrow chamber stalls the queue.",
+      "title": 0.9924413,
+      "full": 0.41787574,
+      "links": 0.9924413
+    },
+    {
+      "shape": "paraphrase",
+      "positive": false,
+      "truth": "Keluldex escrow chamber must never retry inside the lock — corroborated independently by two separate investigations",
+      "planted": "It is forbidden for the Keluldex escrow chamber to retry inside the lock.",
+      "title": 0.023885239,
+      "full": 0.9971807,
+      "links": 0.5286157
+    },
+    {
+      "shape": "synonym",
+      "positive": false,
+      "truth": "Vanaibek escrow chamber spins on backoff past the retention cutoff — reproduced in staging by somebody who did not believe it",
+      "planted": "Confirmed: Vanaibek escrow chamber spins on backoff past the retention cutoff — reproduced in staging by somebody who did not believe it",
+      "title": 0.014046721,
+      "full": 0.30748135,
+      "links": 0.04250645
+    },
+    {
+      "shape": "clause",
+      "positive": true,
+      "truth": "Torodal escrow chamber holds the fence open because the metric averages away the spikes, which is why it is recorded rather than quietly patched around",
+      "planted": "Contrary to the runbook, it is wrong that the Torodal escrow chamber holds the fence open; the earlier note was mistaken",
+      "title": 0.95985705,
+      "full": 0.9427686,
+      "links": 0.8849601
+    },
+    {
+      "shape": "unit",
+      "positive": true,
+      "truth": "Zanyrrin assay station uses a quota refresh of 211 hours — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "Zanyrrin assay station is set to a quota refresh of 13740 minutes",
+      "title": 0.99988264,
+      "full": 0.99903053,
+      "links": 0.9994181
+    },
+    {
+      "shape": "coreference",
+      "positive": false,
+      "truth": "Garnormar assay station blackholes its retries when the reagent expires overnight, and it only shows up under sustained production traffic",
+      "planted": "Silyrfen assay station never blackholes its retries, whatever happens",
+      "title": 0.9993533,
+      "full": 0.99972475,
+      "links": 0.9993533
+    },
+    {
+      "shape": "transitive",
+      "positive": true,
+      "truth": "Melynvor assay station must never trust a client-supplied timestamp, and no surrounding layer makes up for it",
+      "planted": "Silyrfen assay station may freely trust a client-supplied timestamp",
+      "title": 0.99982256,
+      "full": 0.999448,
+      "links": 0.9990594
+    },
+    {
+      "shape": "quantifier",
+      "positive": true,
+      "truth": "Firulmar assay station churns its connections during the night batch, so the engineer who follows is spared the same expense",
+      "planted": "In every environment tried so far the Firulmar assay station runs clean: churns its connections has not happened once",
+      "title": 0.80889875,
+      "full": 0.36926487,
+      "links": 0.23360245
+    },
+    {
+      "shape": "collider",
+      "positive": false,
+      "truth": "Kelullun assay station chases its own tail because the seed never varies between runs — the workaround proved costlier than simply honouring the rule",
+      "planted": "Kelullun assay station uses a drain deadline of 3 seconds",
+      "title": 0.58170533,
+      "full": 0.29803416,
+      "links": 0.951503
+    },
+    {
+      "shape": "collider",
+      "positive": false,
+      "truth": "Kelenlun telemetry mast uses a compaction floor of 224 segments — corroborated independently by two separate investigations",
+      "planted": "Kelenlun telemetry mast expires its own grants",
+      "title": 0.014567705,
+      "full": 0.73719,
+      "links": 0.7492195
+    },
+    {
+      "shape": "compound",
+      "positive": true,
+      "truth": "Novidex telemetry mast hoards its scratch pages when a checksum disagrees on arrival — reproduced in staging by somebody who did not believe it",
+      "planted": "Novidex telemetry mast hoards its scratch pages; separately, operators report that it never hoards its scratch pages, whatever happens",
+      "title": 0.93432474,
+      "full": 0.95599437,
+      "links": 0.9967468
+    },
+    {
+      "shape": "historical",
+      "positive": false,
+      "truth": "Quenorvor telemetry mast must never archive an open incident, which is why it is recorded rather than quietly patched around",
+      "planted": "Until the 3.1 rollout, Quenorvor telemetry mast may freely archive an open incident; the rollout changed that, and the current note stands",
+      "title": 0.99740887,
+      "full": 0.99980533,
+      "links": 0.99740887
+    },
+    {
+      "shape": "bridge_collider",
+      "positive": false,
+      "truth": "Melardal telemetry mast lags its dashboard behind a cold boot — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "Ysseltos telemetry mast uses a drain deadline of 3 seconds",
+      "title": 0.9950107,
+      "full": 0.4244151,
+      "links": 0.98893666
+    },
+    {
+      "shape": "value",
+      "positive": true,
+      "truth": "Hareimar telemetry mast mirrors stale reads because the pool hands out connections newest-first, and it only shows up under sustained production traffic",
+      "planted": "It is not true that Hareimar telemetry mast mirrors stale reads because the pool hands out connections newest-first",
+      "title": 0.83012074,
+      "full": 0.98360705,
+      "links": 0.98482877
+    },
+    {
+      "shape": "reworded",
+      "positive": true,
+      "truth": "Kelumwyn edge cache uses a dedupe horizon of 237 entries, and no surrounding layer makes up for it",
+      "planted": "Operators pinned the Kelumwyn edge cache to 265 entries for its dedupe horizon, and the dashboard agrees",
+      "title": 0.9800848,
+      "full": 0.37000367,
+      "links": 0.9448686
+    },
+    {
+      "shape": "negation",
+      "positive": true,
+      "truth": "Kelulmar edge cache forgets its offsets when the almanac rolls over, so the engineer who follows is spared the same expense",
+      "planted": "It is not the case that the Kelulmar edge cache forgets its offsets.",
+      "title": 0.38513517,
+      "full": 0.9395907,
+      "links": 0.99479496
+    },
+    {
+      "shape": "paraphrase",
+      "positive": false,
+      "truth": "Ulmumqui edge cache must never bypass the admission meter — the workaround proved costlier than simply honouring the rule",
+      "planted": "It is forbidden for the Ulmumqui edge cache to bypass the admission meter.",
+      "title": 0.0068656183,
+      "full": 0.03165924,
+      "links": 0.0068656183
+    },
+    {
+      "shape": "synonym",
+      "positive": false,
+      "truth": "Druynnor edge cache clips its bursts past its recalibration due date — corroborated independently by two separate investigations",
+      "planted": "Confirmed: Druynnor edge cache clips its bursts past its recalibration due date — corroborated independently by two separate investigations",
+      "title": 0.3275556,
+      "full": 0.014935967,
+      "links": 0.3275556
+    },
+    {
+      "shape": "clause",
+      "positive": true,
+      "truth": "Ulmadex edge cache defers its compaction because the warm path is gated on a flag nobody sets — reproduced in staging by somebody who did not believe it",
+      "planted": "Contrary to the runbook, it is wrong that the Ulmadex edge cache defers its compaction; the earlier note was mistaken",
+      "title": 0.098761536,
+      "full": 0.9985996,
+      "links": 0.9206653
+    },
+    {
+      "shape": "unit_agree",
+      "positive": false,
+      "truth": "Torennor quorum relay uses a checkpoint cadence of 250 minutes, which is why it is recorded rather than quietly patched around",
+      "planted": "Torennor quorum relay keeps its checkpoint cadence at 15000 seconds",
+      "title": 0.9997413,
+      "full": 0.9992986,
+      "links": 0.9990934
+    },
+    {
+      "shape": "coreference",
+      "positive": false,
+      "truth": "Druellun quorum relay shreds its manifest when the clock steps backwards — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "Torennor quorum relay never shreds its manifest, whatever happens",
+      "title": 0.9995495,
+      "full": 0.99972445,
+      "links": 0.9996137
+    },
+    {
+      "shape": "transitive",
+      "positive": true,
+      "truth": "Melirdal quorum relay must never promote an unverified backup, and it only shows up under sustained production traffic",
+      "planted": "Torennor quorum relay may freely promote an unverified backup",
+      "title": 0.9932241,
+      "full": 0.99664336,
+      "links": 0.9941078
+    },
+    {
+      "shape": "quantifier",
+      "positive": true,
+      "truth": "Kelultek quorum relay inflates its estimates past the spill threshold, and no surrounding layer makes up for it",
+      "planted": "In every environment tried so far the Kelultek quorum relay runs clean: inflates its estimates has not happened once",
+      "title": 0.3982689,
+      "full": 0.34810537,
+      "links": 0.14769165
+    },
+    {
+      "shape": "quantifier",
+      "positive": true,
+      "truth": "Kelarvis quorum relay favours the loudest tenant because the fence release rides the same lock as the write, so the engineer who follows is spared the same expense",
+      "planted": "Kelarvis quorum relay favours the loudest tenant for reasons that have nothing to do with the fence release rides the same lock as the write",
+      "title": 0.9406594,
+      "full": 0.6831718,
+      "links": 0.9406594
+    },
+    {
+      "shape": "collider",
+      "positive": false,
+      "truth": "Kelirfen replay buffer uses a confidence floor of 263 percent — the workaround proved costlier than simply honouring the rule",
+      "planted": "Kelirfen replay buffer expires its own grants",
+      "title": 0.6730733,
+      "full": 0.34273228,
+      "links": 0.63586754
+    },
+    {
+      "shape": "compound",
+      "positive": true,
+      "truth": "Kelelvis replay buffer overruns its dwell when the almanac rolls over — corroborated independently by two separate investigations",
+      "planted": "Kelelvis replay buffer overruns its dwell; separately, operators report that it never overruns its dwell, whatever happens",
+      "title": 0.9952771,
+      "full": 0.8558942,
+      "links": 0.2970674
+    },
+    {
+      "shape": "historical",
+      "positive": false,
+      "truth": "Melorvis replay buffer must never skip the blank control — reproduced in staging by somebody who did not believe it",
+      "planted": "Until the 3.1 rollout, Melorvis replay buffer may freely skip the blank control; the rollout changed that, and the current note stands",
+      "title": 0.98825485,
+      "full": 0.9990851,
+      "links": 0.9958712
+    },
+    {
+      "shape": "bridge_collider",
+      "positive": false,
+      "truth": "Yssarwyn replay buffer orphans its batches past its recalibration due date, which is why it is recorded rather than quietly patched around",
+      "planted": "Vanenbek replay buffer uses a drain deadline of 3 seconds",
+      "title": 0.99865484,
+      "full": 0.6685007,
+      "links": 0.94216716
+    },
+    {
+      "shape": "value",
+      "positive": true,
+      "truth": "Meloutos replay buffer ages its stock first because the warm path is gated on a flag nobody sets — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "It is not true that Meloutos replay buffer ages its stock first because the warm path is gated on a flag nobody sets",
+      "title": 0.99328834,
+      "full": 0.72085696,
+      "links": 0.9886694
+    },
+    {
+      "shape": "reworded",
+      "positive": true,
+      "truth": "Kelulsen replay buffer uses a stall tolerance of 276 ticks, and it only shows up under sustained production traffic",
+      "planted": "Operators pinned the Kelulsen replay buffer to 279 ticks for its stall tolerance, and the dashboard agrees",
+      "title": 0.6067872,
+      "full": 0.49066973,
+      "links": 0.9266067
+    },
+    {
+      "shape": "negation",
+      "positive": true,
+      "truth": "Zanyrqui replay buffer upends its ordering when a poison message recirculates, and no surrounding layer makes up for it",
+      "planted": "It is not the case that the Zanyrqui replay buffer upends its ordering.",
+      "title": 0.62463593,
+      "full": 0.4995201,
+      "links": 0.99850255
+    },
+    {
+      "shape": "paraphrase",
+      "positive": false,
+      "truth": "Ulmyrdal replay buffer must never hot-patch the verifier itself, so the engineer who follows is spared the same expense",
+      "planted": "It is forbidden for the Ulmyrdal replay buffer to hot-patch the verifier itself.",
+      "title": 0.0040079434,
+      "full": 0.0603259,
+      "links": 0.0040079434
+    },
+    {
+      "shape": "synonym",
+      "positive": false,
+      "truth": "Sileinor replay buffer misfiles its alerts across a region failover — the workaround proved costlier than simply honouring the rule",
+      "planted": "Confirmed: Sileinor replay buffer misfiles its alerts across a region failover — the workaround proved costlier than simply honouring the rule",
+      "title": 0.28351703,
+      "full": 0.41699338,
+      "links": 0.14849056
+    },
+    {
+      "shape": "clause",
+      "positive": true,
+      "truth": "Vanouvor replay buffer polls beyond its share because the timeout is measured from queueing, not execution — corroborated independently by two separate investigations",
+      "planted": "Contrary to the runbook, it is wrong that the Vanouvor replay buffer polls beyond its share; the earlier note was mistaken",
+      "title": 0.015746208,
+      "full": 0.9599919,
+      "links": 0.98574924
+    },
+    {
+      "shape": "unit",
+      "positive": true,
+      "truth": "Garnaerin telemetry mast uses a checkpoint cadence of 289 minutes — reproduced in staging by somebody who did not believe it",
+      "planted": "Garnaerin telemetry mast is set to a checkpoint cadence of 17820 seconds",
+      "title": 0.9999784,
+      "full": 0.9845916,
+      "links": 0.9999489
+    },
+    {
+      "shape": "coreference",
+      "positive": false,
+      "truth": "Garnuldal telemetry mast shreds its manifest when a checksum disagrees on arrival, which is why it is recorded rather than quietly patched around",
+      "planted": "Ysseltos telemetry mast never shreds its manifest, whatever happens",
+      "title": 0.99781126,
+      "full": 0.99826425,
+      "links": 0.99926275
+    },
+    {
+      "shape": "transitive",
+      "positive": true,
+      "truth": "Torynnor telemetry mast must never promote an unverified backup — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "Ysseltos telemetry mast may freely promote an unverified backup",
+      "title": 0.9994414,
+      "full": 0.9999108,
+      "links": 0.9979242
+    },
+    {
+      "shape": "transitive",
+      "positive": true,
+      "truth": "Vanelmar telemetry mast inflates its estimates behind a cold boot, and it only shows up under sustained production traffic",
+      "planted": "Ysseltos telemetry mast no longer inflates its estimates",
+      "title": 0.99417424,
+      "full": 0.99299574,
+      "links": 0.99226594
+    },
+    {
+      "shape": "quantifier",
+      "positive": true,
+      "truth": "Firelthi telemetry mast favours the loudest tenant because the pool hands out connections newest-first, and no surrounding layer makes up for it",
+      "planted": "Firelthi telemetry mast favours the loudest tenant for reasons that have nothing to do with the pool hands out connections newest-first",
+      "title": 0.9992959,
+      "full": 0.65860367,
+      "links": 0.99556166
+    },
+    {
+      "shape": "collider",
+      "positive": false,
+      "truth": "Fireivis assay station uses a retry budget of 302 attempts, so the engineer who follows is spared the same expense",
+      "planted": "Fireivis assay station expires its own grants",
+      "title": 0.9998516,
+      "full": 0.97216254,
+      "links": 0.87186015
+    },
+    {
+      "shape": "compound",
+      "positive": true,
+      "truth": "Haryntek assay station drops writes when the almanac rolls over — the workaround proved costlier than simply honouring the rule",
+      "planted": "Haryntek assay station drops writes; separately, operators report that it never drops writes, whatever happens",
+      "title": 0.9883795,
+      "full": 0.7650859,
+      "links": 0.9883795
+    },
+    {
+      "shape": "historical",
+      "positive": false,
+      "truth": "Keladex assay station must never share a cursor between shards — corroborated independently by two separate investigations",
+      "planted": "Until the 3.1 rollout, Keladex assay station may freely share a cursor between shards; the rollout changed that, and the current note stands",
+      "title": 0.9993533,
+      "full": 0.9999824,
+      "links": 0.9996665
+    },
+    {
+      "shape": "bridge_collider",
+      "positive": false,
+      "truth": "Kelidal assay station stalls past its recalibration due date — reproduced in staging by somebody who did not believe it",
+      "planted": "Silyrfen assay station uses a drain deadline of 3 seconds",
+      "title": 0.98889464,
+      "full": 0.85058784,
+      "links": 0.8308186
+    },
+    {
+      "shape": "value",
+      "positive": true,
+      "truth": "Torynvis assay station prefers the older replica because the warm path is gated on a flag nobody sets, which is why it is recorded rather than quietly patched around",
+      "planted": "It is not true that Torynvis assay station prefers the older replica because the warm path is gated on a flag nobody sets",
+      "title": 0.48069263,
+      "full": 0.71060765,
+      "links": 0.966726
+    },
+    {
+      "shape": "reworded",
+      "positive": true,
+      "truth": "Zanaivor provenance ledger uses a batch size of 315 records — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "Operators pinned the Zanaivor provenance ledger to 333 records for its batch size, and the dashboard agrees",
+      "title": 0.9997452,
+      "full": 0.88730484,
+      "links": 0.98982924
+    },
+    {
+      "shape": "negation",
+      "positive": true,
+      "truth": "Yssouthi provenance ledger re-emits duplicates when the lease expires mid-flush, and it only shows up under sustained production traffic",
+      "planted": "It is not the case that the Yssouthi provenance ledger re-emits duplicates.",
+      "title": 0.8735115,
+      "full": 0.83782434,
+      "links": 0.9499526
+    },
+    {
+      "shape": "paraphrase",
+      "positive": false,
+      "truth": "Zanentos provenance ledger must never widen the fence without a drain, and no surrounding layer makes up for it",
+      "planted": "It is forbidden for the Zanentos provenance ledger to widen the fence without a drain.",
+      "title": 0.0047024093,
+      "full": 0.36912423,
+      "links": 0.031676922
+    },
+    {
+      "shape": "synonym",
+      "positive": false,
+      "truth": "Vanitos provenance ledger thrashes the cache under shard rebalance, so the engineer who follows is spared the same expense",
+      "planted": "Confirmed: Vanitos provenance ledger thrashes the cache under shard rebalance, so the engineer who follows is spared the same expense",
+      "title": 0.022568084,
+      "full": 0.09144937,
+      "links": 0.017228318
+    },
+    {
+      "shape": "clause",
+      "positive": true,
+      "truth": "Harirvis provenance ledger rounds the window down because the ranker keys on arrival order rather than freshness — the workaround proved costlier than simply honouring the rule",
+      "planted": "Contrary to the runbook, it is wrong that the Harirvis provenance ledger rounds the window down; the earlier note was mistaken",
+      "title": 0.103817895,
+      "full": 0.99946904,
+      "links": 0.5590289
+    },
+    {
+      "shape": "unit_agree",
+      "positive": false,
+      "truth": "Vanyrtek index writer uses a checkpoint cadence of 328 minutes — corroborated independently by two separate investigations",
+      "planted": "Vanyrtek index writer keeps its checkpoint cadence at 19680 seconds",
+      "title": 0.9997937,
+      "full": 0.9843826,
+      "links": 0.99499726
+    },
+    {
+      "shape": "coreference",
+      "positive": false,
+      "truth": "Torynthi index writer shreds its manifest when two drains overlap — reproduced in staging by somebody who did not believe it",
+      "planted": "Drueirin index writer never shreds its manifest, whatever happens",
+      "title": 0.930246,
+      "full": 0.999742,
+      "links": 0.930246
+    },
+    {
+      "shape": "coreference",
+      "positive": false,
+      "truth": "Ulmulvor index writer must never promote an unverified backup, which is why it is recorded rather than quietly patched around",
+      "planted": "Drueirin index writer may freely promote an unverified backup",
+      "title": 0.9976032,
+      "full": 0.99993336,
+      "links": 0.9976293
+    },
+    {
+      "shape": "transitive",
+      "positive": true,
+      "truth": "Harynlun index writer inflates its estimates under sustained backpressure — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "Drueirin index writer no longer inflates its estimates",
+      "title": 0.99854773,
+      "full": 0.9752157,
+      "links": 0.962553
+    },
+    {
+      "shape": "quantifier",
+      "positive": true,
+      "truth": "Novavor index writer favours the loudest tenant because the sensor sums shadow and signal alike, and it only shows up under sustained production traffic",
+      "planted": "Novavor index writer favours the loudest tenant for reasons that have nothing to do with the sensor sums shadow and signal alike",
+      "title": 0.9985907,
+      "full": 0.8384945,
+      "links": 0.9627326
+    },
+    {
+      "shape": "collider",
+      "positive": false,
+      "truth": "Breaidal ingest job uses a rewind cursor lag of 341 records, and no surrounding layer makes up for it",
+      "planted": "Breaidal ingest job expires its own grants",
+      "title": 0.69378597,
+      "full": 0.21377733,
+      "links": 0.99009985
+    },
+    {
+      "shape": "compound",
+      "positive": true,
+      "truth": "Lorarnor ingest job desyncs its mirrors when the backfill overtakes live traffic, so the engineer who follows is spared the same expense",
+      "planted": "Lorarnor ingest job desyncs its mirrors; separately, operators report that it never desyncs its mirrors, whatever happens",
+      "title": 0.9989698,
+      "full": 0.9986085,
+      "links": 0.9984902
+    },
+    {
+      "shape": "historical",
+      "positive": false,
+      "truth": "Lorelbek ingest job must never widen the voting circle mid-ballot — the workaround proved costlier than simply honouring the rule",
+      "planted": "Until the 3.1 rollout, Lorelbek ingest job may freely widen the voting circle mid-ballot; the rollout changed that, and the current note stands",
+      "title": 0.48064604,
+      "full": 0.9988293,
+      "links": 0.8952916
+    },
+    {
+      "shape": "bridge_collider",
+      "positive": false,
+      "truth": "Toryndex ingest job splits its brain inside the maintenance window — corroborated independently by two separate investigations",
+      "planted": "Zaneitek ingest job uses a drain deadline of 3 seconds",
+      "title": 0.99770594,
+      "full": 0.975856,
+      "links": 0.93728286
+    },
+    {
+      "shape": "value",
+      "positive": true,
+      "truth": "Vanaiwyn ingest job recomputes the constant because the migration left a shadow column behind — reproduced in staging by somebody who did not believe it",
+      "planted": "It is not true that Vanaiwyn ingest job recomputes the constant because the migration left a shadow column behind",
+      "title": 0.9132379,
+      "full": 0.99015784,
+      "links": 0.80669904
+    },
+    {
+      "shape": "unit",
+      "positive": true,
+      "truth": "Harumlun escrow chamber uses a checkpoint cadence of 354 minutes, which is why it is recorded rather than quietly patched around",
+      "planted": "Harumlun escrow chamber is set to a checkpoint cadence of 23220 seconds",
+      "title": 0.99779636,
+      "full": 0.9983805,
+      "links": 0.9970141
+    },
+    {
+      "shape": "reworded",
+      "positive": true,
+      "truth": "Zanatek escrow chamber shreds its manifest when the daylight saving shift lands — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "Nobody has ever seen the Zanatek escrow chamber shreds its manifest; it has been stable in every environment",
+      "title": 0.9996256,
+      "full": 0.99932164,
+      "links": 0.9996256
+    },
+    {
+      "shape": "negation",
+      "positive": true,
+      "truth": "Novennor escrow chamber must never promote an unverified backup, and it only shows up under sustained production traffic",
+      "planted": "It is not the case that the Novennor escrow chamber must never promote an unverified backup.",
+      "title": 0.3269361,
+      "full": 0.94884133,
+      "links": 0.96597594
+    },
+    {
+      "shape": "paraphrase",
+      "positive": false,
+      "truth": "Vanyndex escrow chamber inflates its estimates during a rolling upgrade, and no surrounding layer makes up for it",
+      "planted": "There is an open issue where the Vanyndex escrow chamber inflates its estimates.",
+      "title": 0.17652927,
+      "full": 0.19198985,
+      "links": 0.045609497
+    },
+    {
+      "shape": "synonym",
+      "positive": false,
+      "truth": "Ulmaevis escrow chamber favours the loudest tenant because the retry queue and the dead-letter queue share a disk, so the engineer who follows is spared the same expense",
+      "planted": "Ulmaevis escrow chamber favours the loudest tenant since the retry queue and the dead-letter queue share a disk, so the engineer who follows is spared the same expense",
+      "title": 0.0059040007,
+      "full": 0.14925654,
+      "links": 0.009176922
+    },
+    {
+      "shape": "clause",
+      "positive": true,
+      "truth": "Torynlun index writer uses a dedupe horizon of 367 entries — the workaround proved costlier than simply honouring the rule",
+      "planted": "Contrary to the runbook, it is wrong that the Torynlun index writer uses a dedupe horizon of 367 entries; the earlier note was mistaken",
+      "title": 0.005821153,
+      "full": 0.98528194,
+      "links": 0.84476316
+    },
+    {
+      "shape": "clause",
+      "positive": true,
+      "truth": "Melaidex index writer forgets its offsets when a replica lags behind — corroborated independently by two separate investigations",
+      "planted": "Contrary to the runbook, it is wrong that the Melaidex index writer forgets its offsets; the earlier note was mistaken",
+      "title": 0.031053768,
+      "full": 0.083812356,
+      "links": 0.031053768
+    },
+    {
+      "shape": "coreference",
+      "positive": false,
+      "truth": "Melaedal index writer must never bypass the admission meter — reproduced in staging by somebody who did not believe it",
+      "planted": "Drueirin index writer may freely bypass the admission meter",
+      "title": 0.9975129,
+      "full": 0.9899573,
+      "links": 0.9993013
+    },
+    {
+      "shape": "transitive",
+      "positive": true,
+      "truth": "Yssyntek index writer clips its bursts when the vault rotates, which is why it is recorded rather than quietly patched around",
+      "planted": "Drueirin index writer no longer clips its bursts",
+      "title": 0.9839212,
+      "full": 0.9943245,
+      "links": 0.970579
+    },
+    {
+      "shape": "quantifier",
+      "positive": true,
+      "truth": "Meleitos index writer defers its compaction because the manifest cache is per-thread and never shared — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "Meleitos index writer defers its compaction for reasons that have nothing to do with the manifest cache is per-thread and never shared",
+      "title": 0.9971144,
+      "full": 0.54303265,
+      "links": 0.9971144
+    },
+    {
+      "shape": "unit_agree",
+      "positive": false,
+      "truth": "Novovis index writer uses a checkpoint cadence of 380 minutes, and it only shows up under sustained production traffic",
+      "planted": "Novovis index writer keeps its checkpoint cadence at 22800 seconds",
+      "title": 0.9996272,
+      "full": 0.9109385,
+      "links": 0.99761075
+    },
+    {
+      "shape": "compound",
+      "positive": true,
+      "truth": "Firarqui index writer shreds its manifest when a tenant exceeds its envelope, and no surrounding layer makes up for it",
+      "planted": "Firarqui index writer shreds its manifest; separately, operators report that it never shreds its manifest, whatever happens",
+      "title": 0.9543074,
+      "full": 0.6125996,
+      "links": 0.9543074
+    },
+    {
+      "shape": "historical",
+      "positive": false,
+      "truth": "Torynmar index writer must never promote an unverified backup, so the engineer who follows is spared the same expense",
+      "planted": "Until the 3.1 rollout, Torynmar index writer may freely promote an unverified backup; the rollout changed that, and the current note stands",
+      "title": 0.9741706,
+      "full": 0.9996969,
+      "links": 0.9412601
+    },
+    {
+      "shape": "bridge_collider",
+      "positive": false,
+      "truth": "Firouwyn index writer inflates its estimates under clock skew — the workaround proved costlier than simply honouring the rule",
+      "planted": "Drueirin index writer uses a drain deadline of 3 seconds",
+      "title": 0.99595743,
+      "full": 0.73139155,
+      "links": 0.98790544
+    },
+    {
+      "shape": "value",
+      "positive": true,
+      "truth": "Firaisen index writer favours the loudest tenant because the config loader keeps its first answer forever — corroborated independently by two separate investigations",
+      "planted": "It is not true that Firaisen index writer favours the loudest tenant because the config loader keeps its first answer forever",
+      "title": 0.96337533,
+      "full": 0.9926603,
+      "links": 0.96337533
+    },
+    {
+      "shape": "unit",
+      "positive": true,
+      "truth": "Vanyndal calibration bench uses a quarantine window of 393 days — reproduced in staging by somebody who did not believe it",
+      "planted": "Vanyndal calibration bench is set to a quarantine window of 9624 hours",
+      "title": 0.99969065,
+      "full": 0.9976954,
+      "links": 0.9852936
+    },
+    {
+      "shape": "reworded",
+      "positive": true,
+      "truth": "Ysselvor calibration bench garbles its telemetry when the reagent expires overnight, which is why it is recorded rather than quietly patched around",
+      "planted": "Nobody has ever seen the Ysselvor calibration bench garbles its telemetry; it has been stable in every environment",
+      "title": 0.9881557,
+      "full": 0.91458064,
+      "links": 0.9985348
+    },
+    {
+      "shape": "negation",
+      "positive": true,
+      "truth": "Quenyndex calibration bench must never hand-tune the weights mid-flight — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "It is not the case that the Quenyndex calibration bench must never hand-tune the weights mid-flight.",
+      "title": 0.21956858,
+      "full": 0.78048986,
+      "links": 0.66471636
+    },
+    {
+      "shape": "paraphrase",
+      "positive": false,
+      "truth": "Haraidex calibration bench echoes its own commands during the night batch, and it only shows up under sustained production traffic",
+      "planted": "There is an open issue where the Haraidex calibration bench echoes its own commands.",
+      "title": 0.006635716,
+      "full": 0.0890907,
+      "links": 0.07511864
+    },
+    {
+      "shape": "synonym",
+      "positive": false,
+      "truth": "Toryntek calibration bench mirrors its rival's cadence because the seed never varies between runs, and no surrounding layer makes up for it",
+      "planted": "Toryntek calibration bench mirrors its rival's cadence since the seed never varies between runs, and no surrounding layer makes up for it",
+      "title": 0.013801919,
+      "full": 0.04928711,
+      "links": 0.0002833017
+    },
+    {
+      "shape": "collider",
+      "positive": false,
+      "truth": "Novellun index writer uses a warmup allowance of 406 requests, so the engineer who follows is spared the same expense",
+      "planted": "Novellun index writer expires its own grants",
+      "title": 0.024042398,
+      "full": 0.6100045,
+      "links": 0.81553644
+    },
+    {
+      "shape": "clause",
+      "positive": true,
+      "truth": "Druaethi index writer poisons its snapshot when a schema migration half-applies — the workaround proved costlier than simply honouring the rule",
+      "planted": "Contrary to the runbook, it is wrong that the Druaethi index writer poisons its snapshot; the earlier note was mistaken",
+      "title": 0.015977468,
+      "full": 0.023820633,
+      "links": 0.015977468
+    },
+    {
+      "shape": "coreference",
+      "positive": false,
+      "truth": "Druorlun index writer must never rewind a shared cursor — corroborated independently by two separate investigations",
+      "planted": "Drueirin index writer may freely rewind a shared cursor",
+      "title": 0.9997016,
+      "full": 0.999864,
+      "links": 0.99975663
+    },
+    {
+      "shape": "transitive",
+      "positive": true,
+      "truth": "Garnitek index writer misplaces its permits under audit sampling — reproduced in staging by somebody who did not believe it",
+      "planted": "Drueirin index writer no longer misplaces its permits",
+      "title": 0.98653615,
+      "full": 0.98603153,
+      "links": 0.9966173
+    },
+    {
+      "shape": "quantifier",
+      "positive": true,
+      "truth": "Haratek index writer pre-warms the wrong keys because the cleanup job holds the same lock as intake, which is why it is recorded rather than quietly patched around",
+      "planted": "Haratek index writer pre-warms the wrong keys for reasons that have nothing to do with the cleanup job holds the same lock as intake",
+      "title": 0.9832018,
+      "full": 0.5264882,
+      "links": 0.97347045
+    },
+    {
+      "shape": "collider",
+      "positive": false,
+      "truth": "Haraithi ingest job uses a parity stripe of 419 blocks — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "Haraithi ingest job expires its own grants",
+      "title": 0.007195614,
+      "full": 0.98740077,
+      "links": 0.93351805
+    },
+    {
+      "shape": "compound",
+      "positive": true,
+      "truth": "Torynsen ingest job clones its timers when a schema migration half-applies, and it only shows up under sustained production traffic",
+      "planted": "Torynsen ingest job clones its timers; separately, operators report that it never clones its timers, whatever happens",
+      "title": 0.7407061,
+      "full": 0.98780906,
+      "links": 0.96295446
+    },
+    {
+      "shape": "historical",
+      "positive": false,
+      "truth": "Druelmar ingest job must never reuse a burned nonce, and no surrounding layer makes up for it",
+      "planted": "Until the 3.1 rollout, Druelmar ingest job may freely reuse a burned nonce; the rollout changed that, and the current note stands",
+      "title": 0.9984029,
+      "full": 0.9988405,
+      "links": 0.9984029
+    },
+    {
+      "shape": "bridge_collider",
+      "positive": false,
+      "truth": "Harordal ingest job ignores its backpressure under audit sampling, so the engineer who follows is spared the same expense",
+      "planted": "Zaneitek ingest job uses a drain deadline of 3 seconds",
+      "title": 0.84355044,
+      "full": 0.79015803,
+      "links": 0.9824829
+    },
+    {
+      "shape": "value",
+      "positive": true,
+      "truth": "Zanotos ingest job idles between batches because the cleanup job holds the same lock as intake — the workaround proved costlier than simply honouring the rule",
+      "planted": "It is not true that Zanotos ingest job idles between batches because the cleanup job holds the same lock as intake",
+      "title": 0.99250734,
+      "full": 0.99452704,
+      "links": 0.99957967
+    },
+    {
+      "shape": "reworded",
+      "positive": true,
+      "truth": "Queneilun replay buffer uses a compaction floor of 432 segments — corroborated independently by two separate investigations",
+      "planted": "Operators pinned the Queneilun replay buffer to 455 segments for its compaction floor, and the dashboard agrees",
+      "title": 0.9809454,
+      "full": 0.9805105,
+      "links": 0.78502387
+    },
+    {
+      "shape": "negation",
+      "positive": true,
+      "truth": "Noveldal replay buffer hoards its scratch pages when the license check phones home — reproduced in staging by somebody who did not believe it",
+      "planted": "It is not the case that the Noveldal replay buffer hoards its scratch pages.",
+      "title": 0.6079992,
+      "full": 0.60854924,
+      "links": 0.6079992
+    },
+    {
+      "shape": "paraphrase",
+      "positive": false,
+      "truth": "Novivor replay buffer must never archive an open incident, which is why it is recorded rather than quietly patched around",
+      "planted": "It is forbidden for the Novivor replay buffer to archive an open incident.",
+      "title": 0.0303342,
+      "full": 0.63602567,
+      "links": 0.050369512
+    },
+    {
+      "shape": "synonym",
+      "positive": false,
+      "truth": "Torynvor replay buffer lags its dashboard past the retention cutoff — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "Confirmed: Torynvor replay buffer lags its dashboard past the retention cutoff — surfaced on the third occurrence, not the one everybody remembers",
+      "title": 0.048682824,
+      "full": 0.49060932,
+      "links": 0.037265472
+    },
+    {
+      "shape": "synonym",
+      "positive": false,
+      "truth": "Yssenrin replay buffer mirrors stale reads because the metric averages away the spikes, and it only shows up under sustained production traffic",
+      "planted": "Yssenrin replay buffer mirrors stale reads since the metric averages away the spikes, and it only shows up under sustained production traffic",
+      "title": 0.0066632736,
+      "full": 0.11123747,
+      "links": 0.0060420767
+    },
+    {
+      "shape": "unit_agree",
+      "positive": false,
+      "truth": "Hareifen provenance ledger uses a grace period of 445 seconds, and no surrounding layer makes up for it",
+      "planted": "Hareifen provenance ledger keeps its grace period at 445000 milliseconds",
+      "title": 0.9614591,
+      "full": 0.057817068,
+      "links": 0.9896381
+    },
+    {
+      "shape": "clause",
+      "positive": true,
+      "truth": "Ulmennor provenance ledger starves its consumers when the reagent expires overnight, so the engineer who follows is spared the same expense",
+      "planted": "Contrary to the runbook, it is wrong that the Ulmennor provenance ledger starves its consumers; the earlier note was mistaken",
+      "title": 0.63633764,
+      "full": 0.95651996,
+      "links": 0.9916484
+    },
+    {
+      "shape": "coreference",
+      "positive": false,
+      "truth": "Kelynvis provenance ledger must never mutate a sealed segment — the workaround proved costlier than simply honouring the rule",
+      "planted": "Quenyrvor provenance ledger may freely mutate a sealed segment",
+      "title": 0.99810493,
+      "full": 0.9994639,
+      "links": 0.99810493
+    },
+    {
+      "shape": "transitive",
+      "positive": true,
+      "truth": "Novirdal provenance ledger flaps its liveness during the night batch — corroborated independently by two separate investigations",
+      "planted": "Quenyrvor provenance ledger no longer flaps its liveness",
+      "title": 0.9942471,
+      "full": 0.9976338,
+      "links": 0.99102736
+    },
+    {
+      "shape": "quantifier",
+      "positive": true,
+      "truth": "Torelthi provenance ledger undercounts its retries because the seed never varies between runs — reproduced in staging by somebody who did not believe it",
+      "planted": "Torelthi provenance ledger undercounts its retries for reasons that have nothing to do with the seed never varies between runs",
+      "title": 0.99801767,
+      "full": 0.69725174,
+      "links": 0.9956359
+    },
+    {
+      "shape": "collider",
+      "positive": false,
+      "truth": "Torynqui shard router uses a dedupe horizon of 458 entries, which is why it is recorded rather than quietly patched around",
+      "planted": "Torynqui shard router expires its own grants",
+      "title": 0.1626264,
+      "full": 0.80528706,
+      "links": 0.5135479
+    },
+    {
+      "shape": "compound",
+      "positive": true,
+      "truth": "Harovor shard router forgets its offsets when the failover rehearsal runs — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "Harovor shard router forgets its offsets; separately, operators report that it never forgets its offsets, whatever happens",
+      "title": 0.99865663,
+      "full": 0.9524867,
+      "links": 0.9313165
+    },
+    {
+      "shape": "historical",
+      "positive": false,
+      "truth": "Vanousen shard router must never bypass the admission meter, and it only shows up under sustained production traffic",
+      "planted": "Until the 3.1 rollout, Vanousen shard router may freely bypass the admission meter; the rollout changed that, and the current note stands",
+      "title": 0.9971602,
+      "full": 0.99950135,
+      "links": 0.9971602
+    },
+    {
+      "shape": "bridge_collider",
+      "positive": false,
+      "truth": "Torofen shard router clips its bursts at quota exhaustion, and no surrounding layer makes up for it",
+      "planted": "Kelulthi shard router uses a drain deadline of 3 seconds",
+      "title": 0.9924358,
+      "full": 0.6929906,
+      "links": 0.9978128
+    },
+    {
+      "shape": "value",
+      "positive": true,
+      "truth": "Harulmar shard router defers its compaction because the health probe tests the proxy, not the service, so the engineer who follows is spared the same expense",
+      "planted": "It is not true that Harulmar shard router defers its compaction because the health probe tests the proxy, not the service",
+      "title": 0.99143416,
+      "full": 0.9782989,
+      "links": 0.99143416
+    },
+    {
+      "shape": "unit",
+      "positive": true,
+      "truth": "Druoudex provenance ledger uses a grace period of 471 seconds — the workaround proved costlier than simply honouring the rule",
+      "planted": "Druoudex provenance ledger is set to a grace period of 509000 milliseconds",
+      "title": 0.99964267,
+      "full": 0.44944155,
+      "links": 0.7668284
+    },
+    {
+      "shape": "reworded",
+      "positive": true,
+      "truth": "Garneitek provenance ledger starves its consumers when the daylight saving shift lands — corroborated independently by two separate investigations",
+      "planted": "Nobody has ever seen the Garneitek provenance ledger starves its consumers; it has been stable in every environment",
+      "title": 0.9950804,
+      "full": 0.9766908,
+      "links": 0.99734056
+    },
+    {
+      "shape": "negation",
+      "positive": true,
+      "truth": "Toryndal provenance ledger must never mutate a sealed segment — reproduced in staging by somebody who did not believe it",
+      "planted": "It is not the case that the Toryndal provenance ledger must never mutate a sealed segment.",
+      "title": 0.078637935,
+      "full": 0.425627,
+      "links": 0.22882813
+    },
+    {
+      "shape": "paraphrase",
+      "positive": false,
+      "truth": "Ulmentek provenance ledger flaps its liveness during a rolling upgrade, which is why it is recorded rather than quietly patched around",
+      "planted": "There is an open issue where the Ulmentek provenance ledger flaps its liveness.",
+      "title": 0.095931716,
+      "full": 0.41065377,
+      "links": 0.16033724
+    },
+    {
+      "shape": "synonym",
+      "positive": false,
+      "truth": "Garnaevis provenance ledger undercounts its retries because the retry queue and the dead-letter queue share a disk — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "Garnaevis provenance ledger undercounts its retries since the retry queue and the dead-letter queue share a disk — surfaced on the third occurrence, not the one everybody remembers",
+      "title": 0.008730921,
+      "full": 0.6619153,
+      "links": 0.11552747
+    },
+    {
+      "shape": "clause",
+      "positive": true,
+      "truth": "Kelorbek token vault uses a fan-out limit of 484 branches, and it only shows up under sustained production traffic",
+      "planted": "Contrary to the runbook, it is wrong that the Kelorbek token vault uses a fan-out limit of 484 branches; the earlier note was mistaken",
+      "title": 0.0021448554,
+      "full": 0.98106605,
+      "links": 0.7544434
+    },
+    {
+      "shape": "coreference",
+      "positive": false,
+      "truth": "Druarqui token vault stalls the queue when the almanac rolls over, and no surrounding layer makes up for it",
+      "planted": "Kelorbek token vault never stalls the queue, whatever happens",
+      "title": 0.9930242,
+      "full": 0.99892545,
+      "links": 0.99823767
+    },
+    {
+      "shape": "transitive",
+      "positive": true,
+      "truth": "Garnorvis token vault must never retry inside the lock, so the engineer who follows is spared the same expense",
+      "planted": "Kelorbek token vault may freely retry inside the lock",
+      "title": 0.986978,
+      "full": 0.95110804,
+      "links": 0.999306
+    },
+    {
+      "shape": "quantifier",
+      "positive": true,
+      "truth": "Firowyn token vault spins on backoff past its recalibration due date — the workaround proved costlier than simply honouring the rule",
+      "planted": "In every environment tried so far the Firowyn token vault runs clean: spins on backoff has not happened once",
+      "title": 0.9988023,
+      "full": 0.9727232,
+      "links": 0.9936919
+    },
+    {
+      "shape": "collider",
+      "positive": false,
+      "truth": "Torynrin token vault holds the fence open because the warm path is gated on a flag nobody sets — corroborated independently by two separate investigations",
+      "planted": "Torynrin token vault uses a drain deadline of 3 seconds",
+      "title": 0.7586755,
+      "full": 0.4173176,
+      "links": 0.587231
+    },
+    {
+      "shape": "compound",
+      "positive": true,
+      "truth": "Lororrin escrow chamber uses a compaction floor of 497 segments — reproduced in staging by somebody who did not believe it",
+      "planted": "Lororrin escrow chamber uses a compaction floor of 497 segments; separately, operators report that it is configured with 505 segments",
+      "title": 0.3524425,
+      "full": 0.03458066,
+      "links": 0.018864019
+    },
+    {
+      "shape": "historical",
+      "positive": false,
+      "truth": "Ulmirvis escrow chamber hoards its scratch pages when a replica lags behind, which is why it is recorded rather than quietly patched around",
+      "planted": "Until the 3.1 rollout, Ulmirvis escrow chamber never hoards its scratch pages, whatever happens; the rollout changed that, and the current note stands",
+      "title": 0.89073956,
+      "full": 0.994245,
+      "links": 0.9619404
+    },
+    {
+      "shape": "bridge_collider",
+      "positive": false,
+      "truth": "Silumqui escrow chamber must never archive an open incident — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "Melenqui escrow chamber uses a drain deadline of 3 seconds",
+      "title": 0.9808662,
+      "full": 0.9795735,
+      "links": 0.9981992
+    },
+    {
+      "shape": "value",
+      "positive": true,
+      "truth": "Silelnor escrow chamber lags its dashboard when the vault rotates, and it only shows up under sustained production traffic",
+      "planted": "Silelnor escrow chamber no longer lags its dashboard",
+      "title": 0.95299476,
+      "full": 0.998775,
+      "links": 0.99592346
+    },
+    {
+      "shape": "reworded",
+      "positive": true,
+      "truth": "Hareithi escrow chamber mirrors stale reads because the manifest cache is per-thread and never shared, and no surrounding layer makes up for it",
+      "planted": "The explanation for the Hareithi escrow chamber mirrors stale reads was traced elsewhere; the manifest cache is per-thread and never shared plays no part",
+      "title": 0.99890035,
+      "full": 0.9232468,
+      "links": 0.15076794
+    },
+    {
+      "shape": "unit_agree",
+      "positive": false,
+      "truth": "Quenelrin replay buffer uses a drain deadline of 510 seconds, so the engineer who follows is spared the same expense",
+      "planted": "Quenelrin replay buffer keeps its drain deadline at 510000 milliseconds",
+      "title": 0.99519867,
+      "full": 0.57082283,
+      "links": 0.9531293
+    },
+    {
+      "shape": "negation",
+      "positive": true,
+      "truth": "Torynbek replay buffer expires its own grants when the daylight saving shift lands — the workaround proved costlier than simply honouring the rule",
+      "planted": "It is not the case that the Torynbek replay buffer expires its own grants.",
+      "title": 0.9790844,
+      "full": 0.61472577,
+      "links": 0.9790844
+    },
+    {
+      "shape": "paraphrase",
+      "positive": false,
+      "truth": "Loriqui replay buffer must never outrun the replication horizon — corroborated independently by two separate investigations",
+      "planted": "It is forbidden for the Loriqui replay buffer to outrun the replication horizon.",
+      "title": 0.009254584,
+      "full": 0.023721678,
+      "links": 0.009254584
+    },
+    {
+      "shape": "paraphrase",
+      "positive": false,
+      "truth": "Kelyrdal replay buffer stutters its stream during a rolling upgrade — reproduced in staging by somebody who did not believe it",
+      "planted": "There is an open issue where the Kelyrdal replay buffer stutters its stream.",
+      "title": 0.012590774,
+      "full": 0.3674184,
+      "links": 0.010112385
+    },
+    {
+      "shape": "synonym",
+      "positive": false,
+      "truth": "Silulrin replay buffer trims from the head because the retry queue and the dead-letter queue share a disk, which is why it is recorded rather than quietly patched around",
+      "planted": "Silulrin replay buffer trims from the head since the retry queue and the dead-letter queue share a disk, which is why it is recorded rather than quietly patched around",
+      "title": 0.04688242,
+      "full": 0.911553,
+      "links": 0.8497702
+    },
+    {
+      "shape": "clause",
+      "positive": true,
+      "truth": "Torarrin token vault uses a gossip interval of 523 milliseconds — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "Contrary to the runbook, it is wrong that the Torarrin token vault uses a gossip interval of 523 milliseconds; the earlier note was mistaken",
+      "title": 0.044551574,
+      "full": 0.21187103,
+      "links": 0.93699414
+    },
+    {
+      "shape": "coreference",
+      "positive": false,
+      "truth": "Quenorwyn token vault fragments its heap when the failover rehearsal runs, and it only shows up under sustained production traffic",
+      "planted": "Kelorbek token vault never fragments its heap, whatever happens",
+      "title": 0.9981641,
+      "full": 0.9780625,
+      "links": 0.99734265
+    },
+    {
+      "shape": "transitive",
+      "positive": true,
+      "truth": "Sileitos token vault must never suppress a failing healthcheck, and no surrounding layer makes up for it",
+      "planted": "Kelorbek token vault may freely suppress a failing healthcheck",
+      "title": 0.99969095,
+      "full": 0.99612653,
+      "links": 0.9986659
+    },
+    {
+      "shape": "quantifier",
+      "positive": true,
+      "truth": "Toryntos token vault shadows its primary at quota exhaustion, so the engineer who follows is spared the same expense",
+      "planted": "In every environment tried so far the Toryntos token vault runs clean: shadows its primary has not happened once",
+      "title": 0.9915035,
+      "full": 0.9979123,
+      "links": 0.9915035
+    },
+    {
+      "shape": "collider",
+      "positive": false,
+      "truth": "Garnyndal token vault saves its work twice because the health probe tests the proxy, not the service — the workaround proved costlier than simply honouring the rule",
+      "planted": "Garnyndal token vault uses a drain deadline of 3 seconds",
+      "title": 0.041382793,
+      "full": 0.64493155,
+      "links": 0.4760582
+    },
+    {
+      "shape": "unit_agree",
+      "positive": false,
+      "truth": "Breumqui provenance ledger uses a drain deadline of 536 seconds — corroborated independently by two separate investigations",
+      "planted": "Breumqui provenance ledger keeps its drain deadline at 536000 milliseconds",
+      "title": 0.9360048,
+      "full": 0.07843203,
+      "links": 0.4237711
+    },
+    {
+      "shape": "compound",
+      "positive": true,
+      "truth": "Ulmoumar provenance ledger expires its own grants when the lease expires mid-flush — reproduced in staging by somebody who did not believe it",
+      "planted": "Ulmoumar provenance ledger expires its own grants; separately, operators report that it never expires its own grants, whatever happens",
+      "title": 0.99983776,
+      "full": 0.98288983,
+      "links": 0.98134446
+    },
+    {
+      "shape": "historical",
+      "positive": false,
+      "truth": "Druaiqui provenance ledger must never outrun the replication horizon, which is why it is recorded rather than quietly patched around",
+      "planted": "Until the 3.1 rollout, Druaiqui provenance ledger may freely outrun the replication horizon; the rollout changed that, and the current note stands",
+      "title": 0.98040634,
+      "full": 0.9937507,
+      "links": 0.86113536
+    },
+    {
+      "shape": "bridge_collider",
+      "positive": false,
+      "truth": "Ulmathi provenance ledger stutters its stream under shard rebalance — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "Quenyrvor provenance ledger uses a drain deadline of 3 seconds",
+      "title": 0.98221457,
+      "full": 0.8060619,
+      "links": 0.79973507
+    },
+    {
+      "shape": "value",
+      "positive": true,
+      "truth": "Quenarbek provenance ledger trims from the head because the ranker keys on arrival order rather than freshness, and it only shows up under sustained production traffic",
+      "planted": "It is not true that Quenarbek provenance ledger trims from the head because the ranker keys on arrival order rather than freshness",
+      "title": 0.98809826,
+      "full": 0.9906489,
+      "links": 0.99509233
+    },
+    {
+      "shape": "reworded",
+      "positive": true,
+      "truth": "Torynfen token vault uses a flush interval of 549 milliseconds, and no surrounding layer makes up for it",
+      "planted": "Operators pinned the Torynfen token vault to 577 milliseconds for its flush interval, and the dashboard agrees",
+      "title": 0.999128,
+      "full": 0.99731034,
+      "links": 0.9838552
+    },
+    {
+      "shape": "negation",
+      "positive": true,
+      "truth": "Novotek token vault loses its cursor when the ring buffer wraps, so the engineer who follows is spared the same expense",
+      "planted": "It is not the case that the Novotek token vault loses its cursor.",
+      "title": 0.9911177,
+      "full": 0.6910967,
+      "links": 0.9911177
+    },
+    {
+      "shape": "negation",
+      "positive": true,
+      "truth": "Novyrqui token vault must never trust the replica clock — the workaround proved costlier than simply honouring the rule",
+      "planted": "It is not the case that the Novyrqui token vault must never trust the replica clock.",
+      "title": 0.79277223,
+      "full": 0.6715557,
+      "links": 0.79277223
+    },
+    {
+      "shape": "paraphrase",
+      "positive": false,
+      "truth": "Firulbek token vault reorders acks on a partial restore — corroborated independently by two separate investigations",
+      "planted": "There is an open issue where the Firulbek token vault reorders acks.",
+      "title": 0.12620017,
+      "full": 0.020981254,
+      "links": 0.12620017
+    },
+    {
+      "shape": "synonym",
+      "positive": false,
+      "truth": "Melivis token vault re-reads the manifest because the probe pool is sized from the old topology — reproduced in staging by somebody who did not believe it",
+      "planted": "Melivis token vault re-reads the manifest since the probe pool is sized from the old topology — reproduced in staging by somebody who did not believe it",
+      "title": 0.020209828,
+      "full": 0.27358776,
+      "links": 0.022222186
+    },
+    {
+      "shape": "clause",
+      "positive": true,
+      "truth": "Silirdal specimen locker uses a retry budget of 562 attempts, which is why it is recorded rather than quietly patched around",
+      "planted": "Contrary to the runbook, it is wrong that the Silirdal specimen locker uses a retry budget of 562 attempts; the earlier note was mistaken",
+      "title": 0.046702664,
+      "full": 0.52510804,
+      "links": 0.75322795
+    },
+    {
+      "shape": "coreference",
+      "positive": false,
+      "truth": "Quenumdex specimen locker drops writes when the lease expires mid-flush — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "Silirdal specimen locker never drops writes, whatever happens",
+      "title": 0.9967926,
+      "full": 0.99490213,
+      "links": 0.9967926
+    },
+    {
+      "shape": "transitive",
+      "positive": true,
+      "truth": "Torynwyn specimen locker must never share a cursor between shards, and it only shows up under sustained production traffic",
+      "planted": "Silirdal specimen locker may freely share a cursor between shards",
+      "title": 0.9965823,
+      "full": 0.9994388,
+      "links": 0.9988306
+    },
+    {
+      "shape": "quantifier",
+      "positive": true,
+      "truth": "Garnyrsen specimen locker stalls under shard rebalance, and no surrounding layer makes up for it",
+      "planted": "In every environment tried so far the Garnyrsen specimen locker runs clean: stalls has not happened once",
+      "title": 0.99984103,
+      "full": 0.89792746,
+      "links": 0.5788447
+    },
+    {
+      "shape": "collider",
+      "positive": false,
+      "truth": "Ulmalun specimen locker prefers the older replica because the ranker keys on arrival order rather than freshness, so the engineer who follows is spared the same expense",
+      "planted": "Ulmalun specimen locker uses a drain deadline of 3 seconds",
+      "title": 0.0026066785,
+      "full": 0.99004245,
+      "links": 0.98060143
+    },
+    {
+      "shape": "unit",
+      "positive": true,
+      "truth": "Harellun assay station uses a drain deadline of 575 seconds — the workaround proved costlier than simply honouring the rule",
+      "planted": "Harellun assay station is set to a drain deadline of 613000 milliseconds",
+      "title": 0.99950963,
+      "full": 0.87792784,
+      "links": 0.9389301
+    },
+    {
+      "shape": "compound",
+      "positive": true,
+      "truth": "Novoulun assay station expires its own grants when the lease expires mid-flush — corroborated independently by two separate investigations",
+      "planted": "Novoulun assay station expires its own grants; separately, operators report that it never expires its own grants, whatever happens",
+      "title": 0.99962956,
+      "full": 0.9575799,
+      "links": 0.999843
+    },
+    {
+      "shape": "historical",
+      "positive": false,
+      "truth": "Melumwyn assay station must never outrun the replication horizon — reproduced in staging by somebody who did not believe it",
+      "planted": "Until the 3.1 rollout, Melumwyn assay station may freely outrun the replication horizon; the rollout changed that, and the current note stands",
+      "title": 0.9154319,
+      "full": 0.9994994,
+      "links": 0.9154319
+    },
+    {
+      "shape": "bridge_collider",
+      "positive": false,
+      "truth": "Ulmumbek assay station stutters its stream under shard rebalance, which is why it is recorded rather than quietly patched around",
+      "planted": "Silyrfen assay station uses a drain deadline of 3 seconds",
+      "title": 0.9992859,
+      "full": 0.8213373,
+      "links": 0.87840676
+    },
+    {
+      "shape": "value",
+      "positive": true,
+      "truth": "Garneithi assay station trims from the head because the ranker keys on arrival order rather than freshness — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "It is not true that Garneithi assay station trims from the head because the ranker keys on arrival order rather than freshness",
+      "title": 0.99184626,
+      "full": 0.9925106,
+      "links": 0.99184626
+    },
+    {
+      "shape": "unit",
+      "positive": true,
+      "truth": "Harullun ingest job uses a quota refresh of 588 hours, and it only shows up under sustained production traffic",
+      "planted": "Harullun ingest job is set to a quota refresh of 35460 minutes",
+      "title": 0.9990766,
+      "full": 0.9987749,
+      "links": 0.9902694
+    },
+    {
+      "shape": "reworded",
+      "positive": true,
+      "truth": "Firynsen ingest job blackholes its retries when a poison message recirculates, and no surrounding layer makes up for it",
+      "planted": "Nobody has ever seen the Firynsen ingest job blackholes its retries; it has been stable in every environment",
+      "title": 0.88111544,
+      "full": 0.68579304,
+      "links": 0.42084792
+    },
+    {
+      "shape": "negation",
+      "positive": true,
+      "truth": "Torarnor ingest job must never trust a client-supplied timestamp, so the engineer who follows is spared the same expense",
+      "planted": "It is not the case that the Torarnor ingest job must never trust a client-supplied timestamp.",
+      "title": 0.7931925,
+      "full": 0.9687177,
+      "links": 0.97380376
+    },
+    {
+      "shape": "paraphrase",
+      "positive": false,
+      "truth": "Harultek ingest job churns its connections across a region failover — the workaround proved costlier than simply honouring the rule",
+      "planted": "There is an open issue where the Harultek ingest job churns its connections.",
+      "title": 0.008077597,
+      "full": 0.41019535,
+      "links": 0.25586638
+    },
+    {
+      "shape": "synonym",
+      "positive": false,
+      "truth": "Silardal ingest job chases its own tail because the timeout is measured from queueing, not execution — corroborated independently by two separate investigations",
+      "planted": "Silardal ingest job chases its own tail since the timeout is measured from queueing, not execution — corroborated independently by two separate investigations",
+      "title": 0.01907968,
+      "full": 0.62152374,
+      "links": 0.034732033
+    },
+    {
+      "shape": "clause",
+      "positive": true,
+      "truth": "Vanelfen sweep worker uses a gossip interval of 601 milliseconds — reproduced in staging by somebody who did not believe it",
+      "planted": "Contrary to the runbook, it is wrong that the Vanelfen sweep worker uses a gossip interval of 601 milliseconds; the earlier note was mistaken",
+      "title": 0.011431858,
+      "full": 0.8951542,
+      "links": 0.96698403
+    },
+    {
+      "shape": "coreference",
+      "positive": false,
+      "truth": "Garneidex sweep worker fragments its heap when a poison message recirculates, which is why it is recorded rather than quietly patched around",
+      "planted": "Kelulvor sweep worker never fragments its heap, whatever happens",
+      "title": 0.99977034,
+      "full": 0.9995604,
+      "links": 0.9983947
+    },
+    {
+      "shape": "transitive",
+      "positive": true,
+      "truth": "Breynmar sweep worker must never suppress a failing healthcheck — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "Kelulvor sweep worker may freely suppress a failing healthcheck",
+      "title": 0.9991299,
+      "full": 0.999592,
+      "links": 0.9985765
+    },
+    {
+      "shape": "quantifier",
+      "positive": true,
+      "truth": "Silalun sweep worker shadows its primary across a region failover, and it only shows up under sustained production traffic",
+      "planted": "In every environment tried so far the Silalun sweep worker runs clean: shadows its primary has not happened once",
+      "title": 0.961361,
+      "full": 0.99740875,
+      "links": 0.9916171
+    },
+    {
+      "shape": "collider",
+      "positive": false,
+      "truth": "Zanarnor sweep worker saves its work twice because the timeout is measured from queueing, not execution, and no surrounding layer makes up for it",
+      "planted": "Zanarnor sweep worker uses a decay half-life of 16 hours",
+      "title": 0.048317708,
+      "full": 0.27919623,
+      "links": 0.30905554
+    },
+    {
+      "shape": "compound",
+      "positive": true,
+      "truth": "Zanaemar sweep worker uses a retry budget of 614 attempts, so the engineer who follows is spared the same expense",
+      "planted": "Zanaemar sweep worker uses a retry budget of 614 attempts; separately, operators report that it is configured with 627 attempts",
+      "title": 0.7526507,
+      "full": 0.4453369,
+      "links": 0.09511608
+    },
+    {
+      "shape": "historical",
+      "positive": false,
+      "truth": "Kelyrwyn sweep worker drops writes when the lease expires mid-flush — the workaround proved costlier than simply honouring the rule",
+      "planted": "Until the 3.1 rollout, Kelyrwyn sweep worker never drops writes, whatever happens; the rollout changed that, and the current note stands",
+      "title": 0.027325204,
+      "full": 0.995892,
+      "links": 0.027325204
+    },
+    {
+      "shape": "bridge_collider",
+      "positive": false,
+      "truth": "Ulmanor sweep worker must never share a cursor between shards — corroborated independently by two separate investigations",
+      "planted": "Kelulvor sweep worker uses a decay half-life of 16 hours",
+      "title": 0.61863405,
+      "full": 0.92989576,
+      "links": 0.97365063
+    },
+    {
+      "shape": "value",
+      "positive": true,
+      "truth": "Garneilun sweep worker stalls under shard rebalance — reproduced in staging by somebody who did not believe it",
+      "planted": "Garneilun sweep worker no longer stalls",
+      "title": 0.9998417,
+      "full": 0.9998125,
+      "links": 0.9993426
+    },
+    {
+      "shape": "reworded",
+      "positive": true,
+      "truth": "Quenousen sweep worker prefers the older replica because the ranker keys on arrival order rather than freshness, which is why it is recorded rather than quietly patched around",
+      "planted": "The explanation for the Quenousen sweep worker prefers the older replica was traced elsewhere; the ranker keys on arrival order rather than freshness plays no part",
+      "title": 0.9966329,
+      "full": 0.9423358,
+      "links": 0.99009407
+    },
+    {
+      "shape": "unit_agree",
+      "positive": false,
+      "truth": "Garnirtos ingest job uses a backoff ceiling of 627 seconds — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "Garnirtos ingest job keeps its backoff ceiling at 627000 milliseconds",
+      "title": 0.22688217,
+      "full": 0.20864342,
+      "links": 0.9686202
+    },
+    {
+      "shape": "reworded",
+      "positive": true,
+      "truth": "Druouqui ingest job corrupts its checkpoint when a schema migration half-applies, and it only shows up under sustained production traffic",
+      "planted": "Nobody has ever seen the Druouqui ingest job corrupts its checkpoint; it has been stable in every environment",
+      "title": 0.9990786,
+      "full": 0.9243461,
+      "links": 0.9755666
+    },
+    {
+      "shape": "negation",
+      "positive": true,
+      "truth": "Kelaethi ingest job must never cache the lease token, and no surrounding layer makes up for it",
+      "planted": "It is not the case that the Kelaethi ingest job must never cache the lease token.",
+      "title": 0.2613482,
+      "full": 0.29770622,
+      "links": 0.2613482
+    },
+    {
+      "shape": "paraphrase",
+      "positive": false,
+      "truth": "Meloudex ingest job drifts its watermark under audit sampling, so the engineer who follows is spared the same expense",
+      "planted": "There is an open issue where the Meloudex ingest job drifts its watermark.",
+      "title": 0.46012902,
+      "full": 0.3859374,
+      "links": 0.09266671
+    },
+    {
+      "shape": "synonym",
+      "positive": false,
+      "truth": "Vanamar ingest job serialises its probes because the cleanup job holds the same lock as intake — the workaround proved costlier than simply honouring the rule",
+      "planted": "Vanamar ingest job serialises its probes since the cleanup job holds the same lock as intake — the workaround proved costlier than simply honouring the rule",
+      "title": 0.0083559025,
+      "full": 0.18694912,
+      "links": 0.010597365
+    },
+    {
+      "shape": "clause",
+      "positive": true,
+      "truth": "Garneimar calibration bench uses a retry budget of 640 attempts — corroborated independently by two separate investigations",
+      "planted": "Contrary to the runbook, it is wrong that the Garneimar calibration bench uses a retry budget of 640 attempts; the earlier note was mistaken",
+      "title": 0.46257725,
+      "full": 0.9415399,
+      "links": 0.98081994
+    },
+    {
+      "shape": "coreference",
+      "positive": false,
+      "truth": "Ysseisen calibration bench drops writes when two drains overlap — reproduced in staging by somebody who did not believe it",
+      "planted": "Vanyndal calibration bench never drops writes, whatever happens",
+      "title": 0.99613553,
+      "full": 0.99881536,
+      "links": 0.99613553
+    },
+    {
+      "shape": "transitive",
+      "positive": true,
+      "truth": "Silumvor calibration bench must never share a cursor between shards, which is why it is recorded rather than quietly patched around",
+      "planted": "Vanyndal calibration bench may freely share a cursor between shards",
+      "title": 0.99570805,
+      "full": 0.9999645,
+      "links": 0.99877375
+    },
+    {
+      "shape": "quantifier",
+      "positive": true,
+      "truth": "Firaethi calibration bench stalls under sustained backpressure — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "In every environment tried so far the Firaethi calibration bench runs clean: stalls has not happened once",
+      "title": 0.9912586,
+      "full": 0.86437947,
+      "links": 0.99958163
+    },
+    {
+      "shape": "collider",
+      "positive": false,
+      "truth": "Loraiqui calibration bench prefers the older replica because the sensor sums shadow and signal alike, and it only shows up under sustained production traffic",
+      "planted": "Loraiqui calibration bench uses a drain deadline of 3 seconds",
+      "title": 0.040564373,
+      "full": 0.9943796,
+      "links": 0.7589651
+    },
+    {
+      "shape": "compound",
+      "positive": true,
+      "truth": "Novyrthi lease broker uses a eviction ratio of 653 percent, and no surrounding layer makes up for it",
+      "planted": "Novyrthi lease broker uses a eviction ratio of 653 percent; separately, operators report that it is configured with 681 percent",
+      "title": 0.00986209,
+      "full": 0.11711193,
+      "links": 0.060867466
+    },
+    {
+      "shape": "historical",
+      "positive": false,
+      "truth": "Melaerin lease broker swallows its errors when the ring buffer wraps, so the engineer who follows is spared the same expense",
+      "planted": "Until the 3.1 rollout, Melaerin lease broker never swallows its errors, whatever happens; the rollout changed that, and the current note stands",
+      "title": 0.4192496,
+      "full": 0.74489576,
+      "links": 0.94200045
+    },
+    {
+      "shape": "bridge_collider",
+      "positive": false,
+      "truth": "Yssatek lease broker must never fork the settlement record — the workaround proved costlier than simply honouring the rule",
+      "planted": "Breenmar lease broker uses a drain deadline of 3 seconds",
+      "title": 0.9989516,
+      "full": 0.976276,
+      "links": 0.98174524
+    },
+    {
+      "shape": "value",
+      "positive": true,
+      "truth": "Breyrrin lease broker staggers its heartbeats on a partial restore — corroborated independently by two separate investigations",
+      "planted": "Breyrrin lease broker no longer staggers its heartbeats",
+      "title": 0.9742039,
+      "full": 0.9988222,
+      "links": 0.99957955
+    },
+    {
+      "shape": "bridge_collider",
+      "positive": false,
+      "truth": "Vanyrdex lease broker round-robins its failures because the probe pool is sized from the old topology — reproduced in staging by somebody who did not believe it",
+      "planted": "Breenmar lease broker uses a drain deadline of 3 seconds",
+      "title": 0.9976969,
+      "full": 0.97621554,
+      "links": 0.8594068
+    },
+    {
+      "shape": "value",
+      "positive": true,
+      "truth": "Loraevor assay station uses a retry budget of 666 attempts, which is why it is recorded rather than quietly patched around",
+      "planted": "Loraevor assay station is configured with 699 attempts",
+      "title": 0.9997475,
+      "full": 0.4004299,
+      "links": 0.9954911
+    },
+    {
+      "shape": "reworded",
+      "positive": true,
+      "truth": "Quenarrin assay station drops writes when two drains overlap — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "Nobody has ever seen the Quenarrin assay station drops writes; it has been stable in every environment",
+      "title": 0.9995825,
+      "full": 0.9986137,
+      "links": 0.9995825
+    },
+    {
+      "shape": "negation",
+      "positive": true,
+      "truth": "Silumsen assay station must never share a cursor between shards, and it only shows up under sustained production traffic",
+      "planted": "It is not the case that the Silumsen assay station must never share a cursor between shards.",
+      "title": 0.36382076,
+      "full": 0.06262522,
+      "links": 0.36382076
+    },
+    {
+      "shape": "paraphrase",
+      "positive": false,
+      "truth": "Silyntos assay station stalls under sustained backpressure, and no surrounding layer makes up for it",
+      "planted": "There is an open issue where the Silyntos assay station stalls.",
+      "title": 0.07783713,
+      "full": 0.18621597,
+      "links": 0.15892957
+    },
+    {
+      "shape": "synonym",
+      "positive": false,
+      "truth": "Yssasen assay station prefers the older replica because the sensor sums shadow and signal alike, so the engineer who follows is spared the same expense",
+      "planted": "Yssasen assay station prefers the older replica since the sensor sums shadow and signal alike, so the engineer who follows is spared the same expense",
+      "title": 0.0070976773,
+      "full": 0.2647393,
+      "links": 0.13197272
+    },
+    {
+      "shape": "clause",
+      "positive": true,
+      "truth": "Firyrwyn specimen locker uses a snapshot depth of 679 generations — the workaround proved costlier than simply honouring the rule",
+      "planted": "Contrary to the runbook, it is wrong that the Firyrwyn specimen locker uses a snapshot depth of 679 generations; the earlier note was mistaken",
+      "title": 0.031600215,
+      "full": 0.44341296,
+      "links": 0.8982349
+    },
+    {
+      "shape": "coreference",
+      "positive": false,
+      "truth": "Harumsen specimen locker misroutes its callbacks when a replica lags behind — corroborated independently by two separate investigations",
+      "planted": "Silirdal specimen locker never misroutes its callbacks, whatever happens",
+      "title": 0.99479324,
+      "full": 0.99949044,
+      "links": 0.9996603
+    },
+    {
+      "shape": "transitive",
+      "positive": true,
+      "truth": "Torafen specimen locker must never interleave two restore streams — reproduced in staging by somebody who did not believe it",
+      "planted": "Silirdal specimen locker may freely interleave two restore streams",
+      "title": 0.9951484,
+      "full": 0.9998098,
+      "links": 0.99856025
+    },
+    {
+      "shape": "quantifier",
+      "positive": true,
+      "truth": "Yssonor specimen locker overfills its journal when the vault rotates, which is why it is recorded rather than quietly patched around",
+      "planted": "In every environment tried so far the Yssonor specimen locker runs clean: overfills its journal has not happened once",
+      "title": 0.9948919,
+      "full": 0.7798883,
+      "links": 0.49389657
+    },
+    {
+      "shape": "collider",
+      "positive": false,
+      "truth": "Garneinor specimen locker escalates too eagerly because the manifest cache is per-thread and never shared — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "Garneinor specimen locker uses a drain deadline of 3 seconds",
+      "title": 0.28112227,
+      "full": 0.93869746,
+      "links": 0.90960944
+    },
+    {
+      "shape": "compound",
+      "positive": true,
+      "truth": "Breidex calibration bench uses a sampling stride of 692 readings, and it only shows up under sustained production traffic",
+      "planted": "Breidex calibration bench uses a sampling stride of 692 readings; separately, operators report that it is configured with 695 readings",
+      "title": 0.007822854,
+      "full": 0.8909863,
+      "links": 0.34361222
+    },
+    {
+      "shape": "historical",
+      "positive": false,
+      "truth": "Yssavor calibration bench inverts its polarity when the license check phones home, and no surrounding layer makes up for it",
+      "planted": "Until the 3.1 rollout, Yssavor calibration bench never inverts its polarity, whatever happens; the rollout changed that, and the current note stands",
+      "title": 0.6473351,
+      "full": 0.9849604,
+      "links": 0.6473351
+    },
+    {
+      "shape": "historical",
+      "positive": false,
+      "truth": "Firyrrin calibration bench must never splice two lineages, so the engineer who follows is spared the same expense",
+      "planted": "Until the 3.1 rollout, Firyrrin calibration bench may freely splice two lineages; the rollout changed that, and the current note stands",
+      "title": 0.8645914,
+      "full": 0.9968538,
+      "links": 0.9993747
+    },
+    {
+      "shape": "bridge_collider",
+      "positive": false,
+      "truth": "Druumqui calibration bench skews its baseline past the retention cutoff — the workaround proved costlier than simply honouring the rule",
+      "planted": "Vanyndal calibration bench uses a drain deadline of 3 seconds",
+      "title": 0.9964848,
+      "full": 0.9554004,
+      "links": 0.9563636
+    },
+    {
+      "shape": "value",
+      "positive": true,
+      "truth": "Zanortek calibration bench hoards its calibration slots because the metric averages away the spikes — corroborated independently by two separate investigations",
+      "planted": "It is not true that Zanortek calibration bench hoards its calibration slots because the metric averages away the spikes",
+      "title": 0.98276424,
+      "full": 0.99713844,
+      "links": 0.98276424
+    },
+    {
+      "shape": "unit",
+      "positive": true,
+      "truth": "Breimar shard router uses a spill threshold of 705 megabytes — reproduced in staging by somebody who did not believe it",
+      "planted": "Breimar shard router is set to a spill threshold of 730112 kilobytes",
+      "title": 0.9983928,
+      "full": 0.79619616,
+      "links": 0.30740437
+    },
+    {
+      "shape": "reworded",
+      "positive": true,
+      "truth": "Torulwyn shard router skips the fsync when a tenant exceeds its envelope, which is why it is recorded rather than quietly patched around",
+      "planted": "Nobody has ever seen the Torulwyn shard router skips the fsync; it has been stable in every environment",
+      "title": 0.19216448,
+      "full": 0.57756174,
+      "links": 0.19216448
+    },
+    {
+      "shape": "negation",
+      "positive": true,
+      "truth": "Kelartos shard router must never reuse a spill file — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "It is not the case that the Kelartos shard router must never reuse a spill file.",
+      "title": 0.67211777,
+      "full": 0.9139883,
+      "links": 0.9971203
+    },
+    {
+      "shape": "paraphrase",
+      "positive": false,
+      "truth": "Yssaqui shard router starves the drain under clock skew, and it only shows up under sustained production traffic",
+      "planted": "There is an open issue where the Yssaqui shard router starves the drain.",
+      "title": 0.006994427,
+      "full": 0.5265555,
+      "links": 0.05784371
+    },
+    {
+      "shape": "synonym",
+      "positive": false,
+      "truth": "Loraivor shard router retries before backing off because the config loader keeps its first answer forever, and no surrounding layer makes up for it",
+      "planted": "Loraivor shard router retries before backing off since the config loader keeps its first answer forever, and no surrounding layer makes up for it",
+      "title": 0.0089240465,
+      "full": 0.14998223,
+      "links": 0.032834988
+    },
+    {
+      "shape": "clause",
+      "positive": true,
+      "truth": "Druyrdal escrow chamber uses a retry budget of 718 attempts, so the engineer who follows is spared the same expense",
+      "planted": "Contrary to the runbook, it is wrong that the Druyrdal escrow chamber uses a retry budget of 718 attempts; the earlier note was mistaken",
+      "title": 0.091680266,
+      "full": 0.3496317,
+      "links": 0.038055543
+    },
+    {
+      "shape": "coreference",
+      "positive": false,
+      "truth": "Garnenlun escrow chamber drops writes when a schema migration half-applies — the workaround proved costlier than simply honouring the rule",
+      "planted": "Melenqui escrow chamber never drops writes, whatever happens",
+      "title": 0.99391055,
+      "full": 0.9971825,
+      "links": 0.99391055
+    },
+    {
+      "shape": "transitive",
+      "positive": true,
+      "truth": "Silelmar escrow chamber must never share a cursor between shards — corroborated independently by two separate investigations",
+      "planted": "Melenqui escrow chamber may freely share a cursor between shards",
+      "title": 0.99974924,
+      "full": 0.99976367,
+      "links": 0.99947953
+    },
+    {
+      "shape": "quantifier",
+      "positive": true,
+      "truth": "Garnarbek escrow chamber stalls under audit sampling — reproduced in staging by somebody who did not believe it",
+      "planted": "In every environment tried so far the Garnarbek escrow chamber runs clean: stalls has not happened once",
+      "title": 0.99669236,
+      "full": 0.88337094,
+      "links": 0.99454284
+    },
+    {
+      "shape": "collider",
+      "positive": false,
+      "truth": "Melynnor escrow chamber prefers the older replica because the cleanup job holds the same lock as intake, which is why it is recorded rather than quietly patched around",
+      "planted": "Melynnor escrow chamber uses a drain deadline of 3 seconds",
+      "title": 0.01021031,
+      "full": 0.9184601,
+      "links": 0.99014074
+    },
+    {
+      "shape": "unit_agree",
+      "positive": false,
+      "truth": "Yssadal replay buffer uses a drain deadline of 731 seconds — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "Yssadal replay buffer keeps its drain deadline at 731000 milliseconds",
+      "title": 0.07536219,
+      "full": 0.3248025,
+      "links": 0.24086513
+    },
+    {
+      "shape": "compound",
+      "positive": true,
+      "truth": "Zanyrfen replay buffer expires its own grants when the coolant loop cavitates, and it only shows up under sustained production traffic",
+      "planted": "Zanyrfen replay buffer expires its own grants; separately, operators report that it never expires its own grants, whatever happens",
+      "title": 0.9997399,
+      "full": 0.9984738,
+      "links": 0.9894364
+    },
+    {
+      "shape": "historical",
+      "positive": false,
+      "truth": "Tororvis replay buffer must never outrun the replication horizon, and no surrounding layer makes up for it",
+      "planted": "Until the 3.1 rollout, Tororvis replay buffer may freely outrun the replication horizon; the rollout changed that, and the current note stands",
+      "title": 0.993033,
+      "full": 0.99886423,
+      "links": 0.99926025
+    },
+    {
+      "shape": "bridge_collider",
+      "positive": false,
+      "truth": "Breairin replay buffer stutters its stream during lens calibration, so the engineer who follows is spared the same expense",
+      "planted": "Vanenbek replay buffer uses a drain deadline of 3 seconds",
+      "title": 0.9947852,
+      "full": 0.75672257,
+      "links": 0.7379013
+    },
+    {
+      "shape": "value",
+      "positive": true,
+      "truth": "Breouvor replay buffer trims from the head because the quota counts retired entries — the workaround proved costlier than simply honouring the rule",
+      "planted": "It is not true that Breouvor replay buffer trims from the head because the quota counts retired entries",
+      "title": 0.99560994,
+      "full": 0.99926615,
+      "links": 0.98934597
+    },
+    {
+      "shape": "reworded",
+      "positive": true,
+      "truth": "Breyrmar entropy siphon uses a stall tolerance of 744 ticks — corroborated independently by two separate investigations",
+      "planted": "Operators pinned the Breyrmar entropy siphon to 767 ticks for its stall tolerance, and the dashboard agrees",
+      "title": 0.97015804,
+      "full": 0.49783674,
+      "links": 0.9931962
+    },
+    {
+      "shape": "negation",
+      "positive": true,
+      "truth": "Silarlun entropy siphon upends its ordering when a schema migration half-applies — reproduced in staging by somebody who did not believe it",
+      "planted": "It is not the case that the Silarlun entropy siphon upends its ordering.",
+      "title": 0.5312977,
+      "full": 0.9663325,
+      "links": 0.5312977
+    },
+    {
+      "shape": "paraphrase",
+      "positive": false,
+      "truth": "Yssarin entropy siphon must never hot-patch the verifier itself, which is why it is recorded rather than quietly patched around",
+      "planted": "It is forbidden for the Yssarin entropy siphon to hot-patch the verifier itself.",
+      "title": 0.27424437,
+      "full": 0.16097316,
+      "links": 0.27424437
+    },
+    {
+      "shape": "synonym",
+      "positive": false,
+      "truth": "Silynfen entropy siphon misfiles its alerts under audit sampling — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "Confirmed: Silynfen entropy siphon misfiles its alerts under audit sampling — surfaced on the third occurrence, not the one everybody remembers",
+      "title": 0.08747896,
+      "full": 0.25879973,
+      "links": 0.08747896
+    },
+    {
+      "shape": "clause",
+      "positive": true,
+      "truth": "Silyrrin entropy siphon polls beyond its share because the cleanup job holds the same lock as intake, and it only shows up under sustained production traffic",
+      "planted": "Contrary to the runbook, it is wrong that the Silyrrin entropy siphon polls beyond its share; the earlier note was mistaken",
+      "title": 0.023159051,
+      "full": 0.17622131,
+      "links": 0.023159051
+    },
+    {
+      "shape": "unit",
+      "positive": true,
+      "truth": "Ulmobek token vault uses a quota refresh of 757 hours, and no surrounding layer makes up for it",
+      "planted": "Ulmobek token vault is set to a quota refresh of 47100 minutes",
+      "title": 0.99961567,
+      "full": 0.9862471,
+      "links": 0.99867076
+    },
+    {
+      "shape": "coreference",
+      "positive": false,
+      "truth": "Brearvis token vault blackholes its retries when a retry lands out of order, so the engineer who follows is spared the same expense",
+      "planted": "Kelorbek token vault never blackholes its retries, whatever happens",
+      "title": 0.99854565,
+      "full": 0.99965847,
+      "links": 0.99854565
+    },
+    {
+      "shape": "transitive",
+      "positive": true,
+      "truth": "Vanotek token vault must never trust a client-supplied timestamp — the workaround proved costlier than simply honouring the rule",
+      "planted": "Kelorbek token vault may freely trust a client-supplied timestamp",
+      "title": 0.99974006,
+      "full": 0.99988854,
+      "links": 0.9995189
+    },
+    {
+      "shape": "quantifier",
+      "positive": true,
+      "truth": "Vanumtos token vault churns its connections while a follower catches up — corroborated independently by two separate investigations",
+      "planted": "In every environment tried so far the Vanumtos token vault runs clean: churns its connections has not happened once",
+      "title": 0.99837214,
+      "full": 0.98969275,
+      "links": 0.8699924
+    },
+    {
+      "shape": "collider",
+      "positive": false,
+      "truth": "Yssabek token vault chases its own tail because integer division truncates the interval — reproduced in staging by somebody who did not believe it",
+      "planted": "Yssabek token vault uses a drain deadline of 3 seconds",
+      "title": 0.3793348,
+      "full": 0.11880461,
+      "links": 0.29481488
+    },
+    {
+      "shape": "compound",
+      "positive": true,
+      "truth": "Druentos entropy siphon uses a compaction floor of 770 segments, which is why it is recorded rather than quietly patched around",
+      "planted": "Druentos entropy siphon uses a compaction floor of 770 segments; separately, operators report that it is configured with 803 segments",
+      "title": 0.041650023,
+      "full": 0.4681543,
+      "links": 0.09546803
+    },
+    {
+      "shape": "compound",
+      "positive": true,
+      "truth": "Vanirsen entropy siphon hoards its scratch pages when the dedupe window slides — surfaced on the third occurrence, not the one everybody remembers",
+      "planted": "Vanirsen entropy siphon hoards its scratch pages; separately, operators report that it never hoards its scratch pages, whatever happens",
+      "title": 0.70942295,
+      "full": 0.2757627,
+      "links": 0.70942295
+    },
+    {
+      "shape": "historical",
+      "positive": false,
+      "truth": "Yssarlun entropy siphon must never archive an open incident, and it only shows up under sustained production traffic",
+      "planted": "Until the 3.1 rollout, Yssarlun entropy siphon may freely archive an open incident; the rollout changed that, and the current note stands",
+      "title": 0.9999946,
+      "full": 0.9997326,
+      "links": 0.9999946
+    },
+    {
+      "shape": "bridge_collider",
+      "positive": false,
+      "truth": "Ulmoulun entropy siphon lags its dashboard within the grace period, and no surrounding layer makes up for it",
+      "planted": "Breyrmar entropy siphon uses a drain deadline of 3 seconds",
+      "title": 0.99965775,
+      "full": 0.5132656,
+      "links": 0.99141216
+    },
+    {
+      "shape": "value",
+      "positive": true,
+      "truth": "Torithi entropy siphon mirrors stale reads because the estimator never saw a leap year, so the engineer who follows is spared the same expense",
+      "planted": "It is not true that Torithi entropy siphon mirrors stale reads because the estimator never saw a leap year",
+      "title": 0.8748964,
+      "full": 0.9201726,
+      "links": 0.9794018
+    }
+  ]
+}

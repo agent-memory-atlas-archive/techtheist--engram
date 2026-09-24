@@ -1282,7 +1282,7 @@ pub fn reranker() -> (Option<Box<dyn engram_core::Reranker>>, String) {
 /// Not a constant: `ENGRAM_NLI_DIR` swaps the model without a rebuild, which
 /// is how candidates are compared. A report that hardcoded the default's name
 /// would label every candidate's results as the incumbent's.
-fn nli() -> (Box<dyn Nli>, String) {
+pub fn nli() -> (Box<dyn Nli>, String) {
     #[cfg(feature = "fastembed")]
     {
         let name = std::env::var("ENGRAM_NLI_DIR")
@@ -1295,8 +1295,11 @@ fn nli() -> (Box<dyn Nli>, String) {
             // The default must track the product: a hardcoded string here
             // mislabeled every report for a release after the mobilebert swap.
             .unwrap_or_else(|| engram_core::nli::NLI_MODEL_NAME.to_string());
-        match engram_core::FastNli::new() {
-            Ok(n) => return (Box::new(n), name),
+        let loaded = engram_core::nli::nli_model_dir()
+            .ok_or_else(|| engram_core::Error::Embedding("no home directory".into()))
+            .and_then(|d| engram_core::nli::load_dir(&d));
+        match loaded {
+            Ok(n) => return (n, name),
             Err(err) => eprintln!("! real NLI unavailable ({err}); falling back to fake"),
         }
     }
