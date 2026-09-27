@@ -1008,7 +1008,7 @@ const twinOrder = computed({
                 />
             </div>
             <div class="grid">
-                <label>
+                <label class="full-row">
                     canon order
                     <SelectMenu v-model="canonOrder" :options="CANON_ORDER_OPTIONS" aria-label="canon order" />
                 </label>
@@ -1374,6 +1374,12 @@ const twinOrder = computed({
     gap: 0.5rem;
     font-size: var(--text-caption);
     color: var(--text-secondary);
+}
+
+/* A lone control in its own grid spans the row instead of sitting in one
+   auto-fill column (half the panel at the default width). */
+.grid > label.full-row {
+    grid-column: 1 / -1;
 }
 
 .mini {
