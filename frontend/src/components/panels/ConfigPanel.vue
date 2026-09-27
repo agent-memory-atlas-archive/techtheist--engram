@@ -391,6 +391,22 @@ function removeVerb(v: VerbDef): void {
 }
 
 /** Exactly-one semantics: picking a carrier clears the flag everywhere else. */
+/** The inherits role's value when unset — mirrors VerbDef::inherits in
+ *  engram-core (dependency and reason verbs, and builds-on, inherit). */
+function derivedInherits(v: VerbDef): boolean {
+    return v.roles.dependency || v.roles.reason || v.name === 'builds-on'
+}
+
+function inheritsOf(v: VerbDef): boolean {
+    return v.roles.inherits ?? derivedInherits(v)
+}
+
+/** An explicit value is stored only where it overrides the derived one;
+ *  clicking back to the default returns the verb to "auto". */
+function setInherits(v: VerbDef, on: boolean): void {
+    v.roles.inherits = on === derivedInherits(v) ? null : on
+}
+
 function setRoleCarrier(role: 'supersession' | 'contradiction', verb: VerbDef): void {
     if (!draft.value) return
     for (const v of draft.value.ontology.verbs) v.roles[role] = v === verb
@@ -798,6 +814,12 @@ const twinOrder = computed({
                         v-model="v.roles.dependency"
                         label="dependency"
                         title="A live dependency / blocker"
+                    />
+                    <ToggleChip
+                        :model-value="inheritsOf(v)"
+                        :label="v.roles.inherits == null ? 'inherits · auto' : 'inherits'"
+                        :title="`When a note contradicts or supersedes the target, the source inherits the contradiction and is queued for review against it. ${v.roles.inherits == null ? 'Auto: follows the reason and dependency roles (and builds-on) — click to override.' : 'Set explicitly — click back to the default to return to auto.'}`"
+                        @update:model-value="setInherits(v, $event)"
                     />
                 </div>
             </article>
