@@ -362,3 +362,67 @@ fn corrupt_or_stale_daemon_file_never_blocks_serve() {
         "a fresh core answers where the stale advert pointed"
     );
 }
+
+/// Issue #8 with a session left open (0.9.10): the store is wiped and
+/// recreated while an MCP bridge stays connected. The session must follow the
+/// fresh store on its next call, the way REST does — not keep reading and
+/// writing the deleted file's orphaned inode for the rest of the session.
+#[test]
+fn open_mcp_session_follows_a_wiped_store() {
+    let sb = Sandbox::new("wipesession", 19500);
+    let proj = sb.project("alpha");
+
+    let out = sb
+        .cmd(&["serve", "--fake-embeddings"], &proj)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "first serve failed: {out:?}");
+    let port = sb.wait_core_healthy(CORE_HEALTH_WINDOW);
+    let id = project_id(port, "alpha").expect("alpha registered");
+
+    let mut bridge = Bridge::spawn(&sb, &proj);
+    let before = bridge.call(
+        2,
+        "add_note",
+        r#"{"type":"Decision","title":"written before the wipe","durability":"stable"}"#,
+    );
+    assert!(
+        before.contains(r#"\"created\":true"#) || before.contains(r#"\"created\": true"#),
+        "the pre-wipe write lands: {before}"
+    );
+
+    std::fs::remove_dir_all(proj.join(".engram")).unwrap();
+    std::fs::create_dir_all(proj.join(".engram")).unwrap();
+    let out = sb
+        .cmd(&["serve", "--fake-embeddings"], &proj)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "serve after wipe failed: {out:?}");
+
+    // The SAME session writes again: it must land in the fresh store.
+    let after = bridge.call(
+        3,
+        "add_note",
+        r#"{"type":"Decision","title":"written after the wipe","durability":"stable"}"#,
+    );
+    assert!(
+        after.contains("created"),
+        "the post-wipe write lands: {after}"
+    );
+    let nodes = http_get(port, &format!("/projects/{id}/graph")).expect("REST reads the graph");
+    assert!(
+        nodes.contains("written after the wipe"),
+        "the session's write reached the fresh store REST reads: {nodes}"
+    );
+    assert!(
+        !nodes.contains("written before the wipe"),
+        "the fresh store holds nothing from before the wipe: {nodes}"
+    );
+    // And its reads come from the fresh store too.
+    let listed = bridge.call(4, "list_nodes", "{}");
+    assert!(
+        !listed.contains("written before the wipe"),
+        "the session no longer reads the deleted store: {listed}"
+    );
+    bridge.kill();
+}

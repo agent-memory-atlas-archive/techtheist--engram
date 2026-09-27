@@ -376,9 +376,39 @@ impl Engram {
     }
 
     /// This session's engine right now (rebindable — never cache across
-    /// calls).
+    /// calls). A bound session re-resolves through the hub on every call, so
+    /// a store deleted or replaced on disk under a live session (issue #8's
+    /// wipe shape) is followed to the fresh file the way REST follows it —
+    /// the engine captured at session start would keep serving the orphaned
+    /// inode forever.
     fn session_engine(&self) -> Arc<Mutex<Engine>> {
-        self.binding.read().unwrap().engine.clone()
+        let (engine, bound) = {
+            let b = self.binding.read().unwrap();
+            (b.engine.clone(), b.bound.clone())
+        };
+        let Some(sel) = bound else {
+            return engine;
+        };
+        let Ok(fresh) = self.hub.get(&sel) else {
+            return engine;
+        };
+        if Arc::ptr_eq(&fresh, &engine) {
+            return engine;
+        }
+        let trace = SessionTrace::start(
+            &fresh,
+            &self.session_id,
+            Some(format!(
+                "project {sel} reopened after its store was replaced"
+            )),
+        );
+        let mut b = self.binding.write().unwrap();
+        // A concurrent call may have swapped (or a brief rebound) already.
+        if Arc::ptr_eq(&b.engine, &engine) {
+            b.engine = fresh.clone();
+            b.trace = trace;
+        }
+        b.engine.clone()
     }
 
     /// The selector this session is bound to (`None` = the launch project).
@@ -666,6 +696,13 @@ impl Engram {
             "existing canon already supports this text (see `canon`) — consider linking it \
              (because / builds-on) instead of leaving the reinforcement implicit"
         });
+    }
+
+    /// This session as the writer, for the engine calls that take their own
+    /// locks (the checked writes). Keeps the census row alive like [`mcp`].
+    fn writer(&self) -> engram_core::AuditOrigin {
+        self.hub.session_touch(&self.session_id);
+        engram_core::AuditOrigin::mcp(self.session_id.to_string())
     }
 
     /// Lock a scoped engine with this session stamped as the writer. Every
@@ -1012,9 +1049,12 @@ impl Engram {
                 )
             })?),
         };
-        let outcome = self
-            .mcp(&engine)
-            .add_node_checked(NewNode {
+        // Judged with the lock released (0.9.10): a heavy logic layer must
+        // not park every other request on the graph behind this write.
+        let outcome = Engine::add_node_checked_shared(
+            &engine,
+            self.writer(),
+            NewNode {
                 node_type,
                 title: a.title,
                 body: a.body,
@@ -1028,8 +1068,9 @@ impl Engram {
                 version: a.version,
                 props: None,
                 fields: a.fields,
-            })
-            .map_err(map_err)?;
+            },
+        )
+        .map_err(map_err)?;
         Ok(match outcome {
             WriteOutcome::Created {
                 node,
@@ -1437,9 +1478,7 @@ impl Engram {
             suspects,
             missing_refs,
             canon,
-        } = self
-            .mcp(&engine)
-            .update_node_checked(&a.id, patch)
+        } = Engine::update_node_checked_shared(&engine, self.writer(), &a.id, patch)
             .map_err(map_err)?;
         let mut out = json!({ "ok": true, "id": node.id });
         if !warnings.is_empty() {

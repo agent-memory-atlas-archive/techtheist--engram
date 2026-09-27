@@ -231,6 +231,19 @@ impl Bridge {
         line
     }
 
+    /// One tools/call; skips anything that isn't the reply to `id`.
+    pub fn call(&mut self, id: u64, tool: &str, args: &str) -> String {
+        self.send(&format!(
+            r#"{{"jsonrpc":"2.0","id":{id},"method":"tools/call","params":{{"name":"{tool}","arguments":{args}}}}}"#
+        ));
+        loop {
+            let line = self.recv();
+            if line.contains(&format!(r#""id":{id}"#)) {
+                return line;
+            }
+        }
+    }
+
     pub fn kill(&mut self) {
         let _ = self.child.kill();
         let _ = self.child.wait();

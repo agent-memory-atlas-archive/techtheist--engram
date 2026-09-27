@@ -924,6 +924,120 @@ fn a_shared_sweep_never_holds_the_engine_for_the_whole_scan() {
 }
 
 #[test]
+fn a_shared_checked_write_judges_with_the_engine_released() {
+    // 0.9.10: a checked write judged its candidate pairs (duplicate,
+    // suspects, canon — up to ~14 NLI calls) while holding the engine lock;
+    // with a slow logic model every request on the graph waited seconds
+    // behind one write. The shared write gathers its pairs under the lock,
+    // judges them off it, and queues the result under a short second lock
+    // — and still returns the same same-turn verdict.
+    let mut e = engine();
+    for i in 0..6 {
+        e.add_node(new_node(
+            NodeType::Decision,
+            &format!("contra: sessions live in redis {i}"),
+            "",
+        ))
+        .unwrap();
+    }
+    e.set_nli(Box::new(SlowNli(std::time::Duration::from_millis(80))));
+    let shared = std::sync::Arc::new(std::sync::Mutex::new(e));
+    let writer = {
+        let shared = shared.clone();
+        std::thread::spawn(move || {
+            let t0 = std::time::Instant::now();
+            let out = Engine::add_node_checked_shared(
+                &shared,
+                AuditOrigin::mcp("mcp-writer".into()),
+                new_node(NodeType::Insight, "contra: sessions live in redis!", ""),
+            )
+            .unwrap();
+            (out, t0.elapsed())
+        })
+    };
+    std::thread::sleep(std::time::Duration::from_millis(60));
+    let mut worst = std::time::Duration::ZERO;
+    for _ in 0..6 {
+        let t0 = std::time::Instant::now();
+        let guard = shared.lock().unwrap();
+        worst = worst.max(t0.elapsed());
+        let _ = guard.store().get_node("nope");
+        drop(guard);
+        std::thread::sleep(std::time::Duration::from_millis(40));
+    }
+    let (out, took) = writer.join().unwrap();
+    let WriteOutcome::Created { suspects, .. } = out else {
+        panic!("a different-type near-twin is created, not matched");
+    };
+    assert!(
+        !suspects.is_empty(),
+        "the write still returns what it queued, judged"
+    );
+    assert!(
+        suspects
+            .iter()
+            .all(|s| s.nli_label.as_deref() == Some("contradiction")),
+        "the off-lock judgments reached the queue"
+    );
+    assert!(
+        took > std::time::Duration::from_millis(400),
+        "the judging is long enough to matter: {took:?}"
+    );
+    assert!(
+        worst < std::time::Duration::from_millis(150),
+        "a caller waited {worst:?} for the engine during a {took:?} write"
+    );
+}
+
+#[test]
+fn a_shared_checked_write_skips_pairs_that_changed_while_judged() {
+    // The lock is free while the judge runs, so a candidate may be archived
+    // in between; the queue step re-checks each pair instead of trusting the
+    // snapshot.
+    let mut e = engine();
+    let older = e
+        .add_node(new_node(
+            NodeType::Decision,
+            "contra: tabs are forbidden",
+            "",
+        ))
+        .unwrap();
+    e.set_nli(Box::new(SlowNli(std::time::Duration::from_millis(150))));
+    let shared = std::sync::Arc::new(std::sync::Mutex::new(e));
+    let writer = {
+        let shared = shared.clone();
+        std::thread::spawn(move || {
+            Engine::add_node_checked_shared(
+                &shared,
+                AuditOrigin::mcp("mcp-writer".into()),
+                new_node(NodeType::Insight, "contra: tabs are forbidden!", ""),
+            )
+            .unwrap()
+        })
+    };
+    std::thread::sleep(std::time::Duration::from_millis(60));
+    shared
+        .lock()
+        .unwrap()
+        .update_node(
+            &older.id,
+            NodePatch {
+                valid_until: Some(crate::store::now()),
+                ..NodePatch::default()
+            },
+        )
+        .unwrap();
+    let WriteOutcome::Created { suspects, .. } = writer.join().unwrap() else {
+        panic!("created");
+    };
+    assert!(
+        suspects.is_empty(),
+        "no suspect against a note archived mid-judgment: {suspects:?}"
+    );
+    assert!(shared.lock().unwrap().suspects().unwrap().is_empty());
+}
+
+#[test]
 fn write_time_suspects_carry_nli_hints() {
     let e = engine_with_nli();
     // FakeNli: both texts containing "contra" → contradiction hint.

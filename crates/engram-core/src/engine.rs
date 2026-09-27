@@ -97,7 +97,7 @@ pub struct Engine {
     reranker: Option<Box<dyn Reranker>>,
     /// The logic layer (PLAN §7A): optional local NLI. Nominations only —
     /// suspect hints, claim checks, audit sweeps; never touches trust.
-    nli: Option<Box<dyn Nli>>,
+    nli: Option<std::sync::Arc<dyn Nli>>,
     /// Repo root for write-time code_ref checks (serve/mcp set it).
     repo_root: Option<std::path::PathBuf>,
     /// The history layer (0.8.4): where this graph's sibling `history.tepin`
@@ -183,7 +183,7 @@ impl Engine {
 
     /// Install the optional NLI layer (serve/mcp with real embeddings).
     pub fn set_nli(&mut self, nli: Box<dyn Nli>) {
-        self.nli = Some(nli);
+        self.nli = Some(std::sync::Arc::from(nli));
     }
 
     /// Whether the logic layer is loaded (surfaced by `/system`).
@@ -3058,7 +3058,54 @@ impl Engine {
     /// return it instead of creating — the caller merges via `update_node`.
     /// Created notes carry warnings when they land near contradicted or
     /// superseded knowledge (see `write_warnings`).
+    ///
+    /// Front-ends sharing the engine behind a mutex call
+    /// [`Engine::add_node_checked_shared`] instead — same verdict, judged
+    /// with the lock released.
     pub fn add_node_checked(&self, n: NewNode) -> Result<WriteOutcome> {
+        let nli = self.nli.clone();
+        match self.plan_add(n)? {
+            WritePlan::Matched(m) => Ok(m.judge(nli.as_deref())),
+            WritePlan::Created(p) => {
+                let judged = p.judge(nli.as_deref(), &self.config());
+                self.finish_created(judged)
+            }
+        }
+    }
+
+    /// [`Engine::add_node_checked`] over a shared engine (the MCP tools): the
+    /// write and the pairs it must judge are gathered under one lock, the
+    /// logic layer judges them with the lock RELEASED, and a second short
+    /// lock queues what it nominated. A write judges up to ~14 pairs
+    /// (duplicate, suspects, canon); with a heavy judge — Laya, or any NLI
+    /// on a low-tier machine — that is seconds, and holding the lock for it
+    /// parked every other request on the graph (0.9.10; the sweep got the
+    /// same fix in 0.9.9). `origin` is re-stamped under each lock: another
+    /// front-end may stamp its own in between.
+    pub fn add_node_checked_shared(
+        engine: &std::sync::Mutex<Engine>,
+        origin: AuditOrigin,
+        n: NewNode,
+    ) -> Result<WriteOutcome> {
+        let (nli, cfg, plan) = {
+            let mut e = lock_engine(engine)?;
+            e.set_audit_origin(origin.clone());
+            (e.nli.clone(), e.config(), e.plan_add(n)?)
+        };
+        match plan {
+            WritePlan::Matched(m) => Ok(m.judge(nli.as_deref())),
+            WritePlan::Created(p) => {
+                let judged = p.judge(nli.as_deref(), &cfg);
+                let mut e = lock_engine(engine)?;
+                e.set_audit_origin(origin);
+                e.finish_created(judged)
+            }
+        }
+    }
+
+    /// The locked first half of a checked write: embed, short-circuit to a
+    /// near-duplicate, or create and gather everything the judge will read.
+    fn plan_add(&self, n: NewNode) -> Result<WritePlan> {
         let scrubbed_title = crate::redact::scrub(&n.title);
         let scrubbed_body = n.body.as_deref().map(crate::redact::scrub);
         let vec = self.embedder.embed_one(&embed_text(
@@ -3087,76 +3134,78 @@ impl Engine {
                 // unrelated notes). Undecidable titles keep matching.
                 && !subjects_differ(&scrubbed_title, &node.title)
             {
-                // At duplicate similarity co-reference holds, so an NLI
-                // contradiction is trustworthy — it flags the negated
-                // near-duplicate a cosine score can't see.
-                let (nli_label, nli_score) = match &self.nli {
-                    Some(nli) => {
-                        let text = match &scrubbed_body {
-                            Some(b) => format!("{scrubbed_title}. {b}"),
-                            None => scrubbed_title.clone(),
-                        };
-                        let excerpt: String = text.chars().take(400).collect();
-                        match nli.judge_pair(&excerpt, &claim(&node)) {
-                            Ok(sym) => {
-                                let (l, s) = sym.hint();
-                                (Some(l.to_string()), Some(s as f64))
-                            }
-                            Err(_) => (None, None),
-                        }
-                    }
-                    None => (None, None),
+                let text = match &scrubbed_body {
+                    Some(b) => format!("{scrubbed_title}. {b}"),
+                    None => scrubbed_title.clone(),
                 };
-                return Ok(WriteOutcome::Matched {
+                return Ok(WritePlan::Matched(Box::new(MatchedPlan {
                     node,
                     similarity,
-                    nli_label,
-                    nli_score,
-                });
+                    excerpt: text.chars().take(400).collect(),
+                })));
             }
         }
 
         let missing_refs = self.missing_refs(&n.code_refs);
         let node = self.add_node(n)?;
+        Ok(WritePlan::Created(Box::new(self.plan_created(
+            node,
+            vec,
+            missing_refs,
+        )?)))
+    }
+
+    /// What a fresh text's checks need from the store, read under the lock:
+    /// the warnings (store-only, final here) and the pairs to judge.
+    fn plan_created(
+        &self,
+        node: Node,
+        vec: Vec<f32>,
+        missing_refs: Vec<String>,
+    ) -> Result<CreatedPlan> {
         let warnings = self.write_warnings(&vec, &node.id, &node.title)?;
-        let suspects = if self.record_suspects(&vec, &node.id)? > 0 {
-            self.suspects_involving(&node.id)?
-        } else {
-            Vec::new()
-        };
-        let canon = self.canon_verdicts(&vec, &claim(&node), &node.id)?;
-        Ok(WriteOutcome::Created {
+        let suspects = self.suspect_candidates(&node, &vec)?;
+        let canon = self.canon_candidates(&vec, &node.id)?;
+        Ok(CreatedPlan {
             node,
             warnings,
-            suspects,
             missing_refs,
+            suspects,
             canon,
         })
     }
 
-    /// The write-time canon check (PLAN §7A): judge the fresh text against
-    /// its nearest existing knowledge. Entailment is directional and cheap
-    /// to trust — `supports` says the canon already backs this claim (link
-    /// it, or wonder why it needed rewriting). `contradicts` is only issued
-    /// inside the suspect similarity band, where the co-reference
-    /// presupposition holds — below it an MNLI verdict is noise. Capped, and
-    /// skipped entirely without the logic layer.
-    fn canon_verdicts(
-        &self,
-        vec: &[f32],
-        text: &str,
-        exclude_id: &str,
-    ) -> Result<Vec<CanonVerdict>> {
-        const CANON_CHECK_CAP: usize = 5;
-        const CANON_SUPPORT: f32 = 0.6;
-        const CANON_CONTRADICTION: f32 = 0.7;
-        let Some(nli) = &self.nli else {
+    /// The locked last half of a checked write: queue what the judge
+    /// nominated and assemble the verdict.
+    fn finish_created(&self, j: JudgedPlan) -> Result<WriteOutcome> {
+        let suspects = self.queue_judged(&j.node, j.suspects)?;
+        Ok(WriteOutcome::Created {
+            node: j.node,
+            warnings: j.warnings,
+            suspects,
+            missing_refs: j.missing_refs,
+            canon: j.canon,
+        })
+    }
+
+    /// Queue judged suspects near `node`; returns their judgeable views.
+    fn queue_judged(&self, node: &Node, judged: Vec<JudgedSuspect>) -> Result<Vec<SuspectView>> {
+        if self.queue_suspects(node, judged)? == 0 {
             return Ok(Vec::new());
-        };
+        }
+        self.notify(ChangeEvent::SuspectsChanged);
+        self.suspects_involving(&node.id)
+    }
+
+    /// The write-time canon check's candidates (PLAN §7A): the nearest
+    /// current knowledge above the warn line, capped — judged by
+    /// [`judge_canon`]. Empty without the logic layer.
+    fn canon_candidates(&self, vec: &[f32], exclude_id: &str) -> Result<Vec<(Node, f64)>> {
+        if self.nli.is_none() {
+            return Ok(Vec::new());
+        }
         let cfg = self.store.config();
-        let excerpt: String = text.chars().take(400).collect();
         let mut out = Vec::new();
-        let mut examined = 0;
         for (id, distance) in self.store.search_vec(vec, WRITE_CHECK_K)? {
             if id == exclude_id {
                 continue;
@@ -3165,7 +3214,7 @@ impl Engine {
             if similarity < cfg.policy.warn_similarity {
                 break; // distance-ordered: nothing closer follows
             }
-            if examined >= CANON_CHECK_CAP {
+            if out.len() >= CANON_CHECK_CAP {
                 break;
             }
             let Some(node) = self.store.get_node(&id)? else {
@@ -3178,76 +3227,76 @@ impl Engine {
             if node.valid_until.is_some() || is_anchor(&cfg, &node) || is_tombstone(&cfg, &node) {
                 continue;
             }
-            examined += 1;
-            let Ok(j) = nli.judge_pair(&claim(&node), &excerpt) else {
-                continue;
-            };
-            let verdict = if j.contradiction() >= CANON_CONTRADICTION
-                && similarity >= cfg.policy.conflict_suspect_similarity
-            {
-                Some(("contradicts", j.contradiction()))
-            } else if j.forward.entailment >= CANON_SUPPORT {
-                Some(("supports", j.forward.entailment))
-            } else {
-                None
-            };
-            if let Some((verdict, score)) = verdict {
-                out.push(CanonVerdict {
-                    id: node.id,
-                    node_type: node.node_type,
-                    title: node.title,
-                    verdict: verdict.into(),
-                    score: score as f64,
-                    similarity,
-                });
-            }
+            out.push((node, similarity));
         }
-        // Contradictions first — they are the act-now verdicts.
-        out.sort_by(|a, b| {
-            (b.verdict == "contradicts")
-                .cmp(&(a.verdict == "contradicts"))
-                .then(b.score.total_cmp(&a.score))
-        });
         Ok(out)
     }
 
     /// `update_node` plus conflict warnings and freshly-queued suspects when
-    /// any embedded field changed.
+    /// any embedded field changed. Shared front-ends call
+    /// [`Engine::update_node_checked_shared`].
     pub fn update_node_checked(&self, id: &str, patch: NodePatch) -> Result<CheckedUpdate> {
+        let nli = self.nli.clone();
+        let judged = self
+            .plan_update(id, patch)?
+            .judge(nli.as_deref(), &self.config());
+        self.finish_update(judged)
+    }
+
+    /// [`Engine::update_node_checked`] judged with the lock released — see
+    /// [`Engine::add_node_checked_shared`].
+    pub fn update_node_checked_shared(
+        engine: &std::sync::Mutex<Engine>,
+        origin: AuditOrigin,
+        id: &str,
+        patch: NodePatch,
+    ) -> Result<CheckedUpdate> {
+        let (nli, cfg, plan) = {
+            let mut e = lock_engine(engine)?;
+            e.set_audit_origin(origin.clone());
+            (e.nli.clone(), e.config(), e.plan_update(id, patch)?)
+        };
+        let judged = plan.judge(nli.as_deref(), &cfg);
+        let mut e = lock_engine(engine)?;
+        e.set_audit_origin(origin);
+        e.finish_update(judged)
+    }
+
+    /// The locked first half of a checked update. An update that touches no
+    /// embedded field has nothing to check: its plan carries no pairs.
+    fn plan_update(&self, id: &str, patch: NodePatch) -> Result<CreatedPlan> {
         let touches_text = patch.title.is_some()
             || patch.body.is_some()
             || patch.tags.is_some()
             || patch.code_refs.is_some();
         let node = self.update_node(id, patch)?;
         let missing_refs = self.missing_refs(&node.code_refs);
-        let (warnings, suspects, canon) = if touches_text {
-            let vec = self.embedder.embed_one(&embed_text(
-                &node.title,
-                node.body.as_deref(),
-                &node.tags,
-                &node.code_refs,
-            ))?;
-            let suspects = if self.record_suspects(&vec, &node.id)? > 0 {
-                self.suspects_involving(&node.id)?
-            } else {
-                Vec::new()
-            };
-            let canon = self.canon_verdicts(&vec, &claim(&node), &node.id)?;
+        if !touches_text {
+            return Ok(CreatedPlan {
+                node,
+                warnings: Vec::new(),
+                missing_refs,
+                suspects: Vec::new(),
+                canon: Vec::new(),
+            });
+        }
+        let vec = self.embedder.embed_one(&embed_text(
+            &node.title,
+            node.body.as_deref(),
+            &node.tags,
+            &node.code_refs,
+        ))?;
+        self.plan_created(node, vec, missing_refs)
+    }
 
-            (
-                self.write_warnings(&vec, &node.id, &node.title)?,
-                suspects,
-                canon,
-            )
-        } else {
-            (Vec::new(), Vec::new(), Vec::new())
-        };
+    fn finish_update(&self, j: JudgedPlan) -> Result<CheckedUpdate> {
+        let suspects = self.queue_judged(&j.node, j.suspects)?;
         Ok(CheckedUpdate {
-            node,
-            warnings,
+            node: j.node,
+            warnings: j.warnings,
             suspects,
-            missing_refs,
-            canon,
+            missing_refs: j.missing_refs,
+            canon: j.canon,
         })
     }
 
@@ -3963,19 +4012,6 @@ impl Engine {
         })
     }
 
-    /// Queue suspects near one freshly-written node — the write-time half of
-    /// the scan, reusing the vector the write already computed.
-    fn record_suspects(&self, vec: &[f32], node_id: &str) -> Result<usize> {
-        let Some(node) = self.store.get_node(node_id)? else {
-            return Ok(0);
-        };
-        let added = self.suspects_near(&node, vec)?;
-        if added > 0 {
-            self.notify(ChangeEvent::SuspectsChanged);
-        }
-        Ok(added)
-    }
-
     /// Sweep the whole graph for unlinked look-alike pairs (the pane's
     /// "Scan now" and the daemon's periodic pass). Returns how many new
     /// suspects were queued.
@@ -4502,6 +4538,14 @@ impl Engine {
     /// both active and non-anchor, not already linked by any edge, pair never
     /// raised before. Stored newer-first so `replaces` verdicts read forward.
     fn suspects_near(&self, node: &Node, vec: &[f32]) -> Result<usize> {
+        let candidates = self.suspect_candidates(node, vec)?;
+        let judged = judge_suspects(self.nli.as_deref(), &self.config(), node, candidates);
+        self.queue_suspects(node, judged)
+    }
+
+    /// The pairs [`Engine::suspects_near`] judges — store reads only, so a
+    /// shared write gathers them under the lock and judges them off it.
+    fn suspect_candidates(&self, node: &Node, vec: &[f32]) -> Result<Vec<SuspectCandidate>> {
         let cfg = self.store.config();
         // Tombstones sit out BOTH sides here, as they do in the sweep's
         // scannable set: a tombstone resembles its victim by design, and a
@@ -4509,7 +4553,7 @@ impl Engine {
         // archive the marker. The write path speaks about tombstones through
         // the `tombstoned` warning instead (0.9.2).
         if is_anchor(&cfg, node) || is_tombstone(&cfg, node) || node.valid_until.is_some() {
-            return Ok(0);
+            return Ok(Vec::new());
         }
         // Two ways in (0.9.4). Above the similarity floor a pair is a
         // look-alike and queues on similarity alone, hinted by the claim
@@ -4524,7 +4568,7 @@ impl Engine {
             Some(_) => crate::policy::CONFLICT_NLI_FLOOR,
             None => cfg.policy.conflict_suspect_similarity,
         };
-        let mut added = 0;
+        let mut out = Vec::new();
         for (id, distance) in self.store.search_vec(vec, WRITE_CHECK_K)? {
             if id == node.id {
                 continue;
@@ -4536,33 +4580,69 @@ impl Engine {
             let Some(other) = self.store.get_node(&id)? else {
                 continue;
             };
-            if is_anchor(&cfg, &other)
-                || is_tombstone(&cfg, &other)
-                || other.valid_until.is_some()
-                || self.store.pair_linked(&node.id, &other.id)?
-                || self.store.suspect_between(&node.id, &other.id)?
-            {
+            if self.pair_blocked(node, &other)? {
                 continue;
             }
-            let hint = if similarity >= cfg.policy.conflict_suspect_similarity {
-                self.nli_hint(node, &other)
+            let title_path = if similarity >= cfg.policy.conflict_suspect_similarity {
+                None
             } else {
-                let Some(gate) = nli_gate else { continue };
+                if nli_gate.is_none() {
+                    continue;
+                }
                 let Some(path) = title_pair_admission(&node.title, &other.title) else {
                     continue;
                 };
-                match self.nli_title_hint_for(path, node, &other) {
-                    Some(h) if h.0 == "contradiction" && h.1 >= gate => Some(h),
-                    _ => continue,
-                }
+                Some(path)
             };
+            out.push(SuspectCandidate {
+                other,
+                similarity,
+                title_path,
+            });
+        }
+        Ok(out)
+    }
+
+    /// Whether a pair may not queue: the other side is an anchor, a tombstone
+    /// or archived, or the two are already linked or already suspected.
+    fn pair_blocked(&self, node: &Node, other: &Node) -> Result<bool> {
+        let cfg = self.store.config();
+        Ok(is_anchor(&cfg, other)
+            || is_tombstone(&cfg, other)
+            || other.valid_until.is_some()
+            || self.store.pair_linked(&node.id, &other.id)?
+            || self.store.suspect_between(&node.id, &other.id)?)
+    }
+
+    /// Queue judged pairs, each re-checked first: on the shared path the lock
+    /// was free while the judge ran, so either side may have been archived,
+    /// deleted, linked or queued since.
+    fn queue_suspects(&self, node: &Node, judged: Vec<JudgedSuspect>) -> Result<usize> {
+        if judged.is_empty() {
+            return Ok(0);
+        }
+        let Some(node) = self.store.get_node(&node.id)? else {
+            return Ok(0);
+        };
+        if node.valid_until.is_some() {
+            return Ok(0);
+        }
+        let cfg = self.store.config();
+        let mut added = 0;
+        for (candidate, hint) in judged {
+            let Some(other) = self.store.get_node(&candidate.other.id)? else {
+                continue;
+            };
+            if self.pair_blocked(&node, &other)? {
+                continue;
+            }
             let (newer, older): (&Node, &Node) = if node.created_at >= other.created_at {
-                (node, &other)
+                (&node, &other)
             } else {
-                (&other, node)
+                (&other, &node)
             };
             self.store
-                .add_suspect(&newer.id, &older.id, similarity, hint)?;
+                .add_suspect(&newer.id, &older.id, candidate.similarity, hint)?;
             added += 1;
             // A confident contradiction of the older note reaches whatever
             // inherits from it (0.9.9, the transitive shape): the judge read
@@ -4594,14 +4674,8 @@ impl Engine {
     /// real graph's judged pairs. Calibrating that gate against a
     /// reimplementation of this composition would measure the
     /// reimplementation.
-    pub fn nli_hint(
-        &self,
-        a: &Node,
-        b: &Node,
-    ) -> Option<(&'static str, f64, Option<&'static str>)> {
-        let nli = self.nli.as_ref()?;
-        let sym = nli.judge_pair(&claim(a), &claim(b)).ok()?;
-        Some(hint_with_direction(&sym, a, b))
+    pub fn nli_hint(&self, a: &Node, b: &Node) -> Option<Hint> {
+        claim_hint(self.nli.as_deref()?, a, b)
     }
 
     /// The same hint read off the two bare TITLES (0.9.4) — the text of the
@@ -4609,14 +4683,8 @@ impl Engine {
     /// the KnowledgeDrift gate probe the titles separated contradiction from
     /// restatement far more sharply than the claim text (negation 0.99 vs
     /// 0.61); this is what the below-floor nomination path reads.
-    pub fn nli_title_hint(
-        &self,
-        a: &Node,
-        b: &Node,
-    ) -> Option<(&'static str, f64, Option<&'static str>)> {
-        let nli = self.nli.as_ref()?;
-        let sym = nli.judge_pair(a.title.trim(), b.title.trim()).ok()?;
-        Some(hint_with_direction(&sym, a, b))
+    pub fn nli_title_hint(&self, a: &Node, b: &Node) -> Option<Hint> {
+        title_hint(self.nli.as_deref()?, a, b)
     }
 
     /// [`nli_title_hint`] read twice when the titles carry a trailing clause
@@ -4634,37 +4702,14 @@ impl Engine {
     /// 2026-09-16 replays) where the whole-title read had let none through:
     /// a long real title's first clause is still a long sentence, and the
     /// tail it loses was what told the model the two facts differ.
-    pub fn nli_title_hint_clause(
-        &self,
-        a: &Node,
-        b: &Node,
-    ) -> Option<(&'static str, f64, Option<&'static str>)> {
-        let nli = self.nli.as_ref()?;
-        let (ta, tb) = (a.title.trim(), b.title.trim());
-        let mut sym = nli.judge_pair(ta, tb).ok()?;
-        let (ca, cb) = (title_clause(ta), title_clause(tb));
-        if (ca, cb) != (ta, tb)
-            && let Ok(clause) = nli.judge_pair(ca, cb)
-            && clause.contradiction() > sym.contradiction()
-        {
-            sym = clause;
-        }
-        Some(hint_with_direction(&sym, a, b))
+    pub fn nli_title_hint_clause(&self, a: &Node, b: &Node) -> Option<Hint> {
+        title_hint_clause(self.nli.as_deref()?, a, b)
     }
 
     /// The title read the sweep uses for a pair the guard admitted on
     /// `path` ("named" | "unnamed").
-    pub fn nli_title_hint_for(
-        &self,
-        path: &str,
-        a: &Node,
-        b: &Node,
-    ) -> Option<(&'static str, f64, Option<&'static str>)> {
-        if path == "unnamed" {
-            self.nli_title_hint_clause(a, b)
-        } else {
-            self.nli_title_hint(a, b)
-        }
+    pub fn nli_title_hint_for(&self, path: &str, a: &Node, b: &Node) -> Option<Hint> {
+        title_hint_for(self.nli.as_deref()?, path, a, b)
     }
 
     /// The pending queue, ready for judgment.
@@ -5546,6 +5591,212 @@ pub fn node_line_cfg(
     line
 }
 
+/// A logic-layer triage hint: label, score, and — for contradictions — the
+/// side carrying the negation (see [`Engine::nli_hint`]).
+pub type Hint = (&'static str, f64, Option<&'static str>);
+
+/// How many nearest neighbours the write-time canon check judges.
+const CANON_CHECK_CAP: usize = 5;
+const CANON_SUPPORT: f32 = 0.6;
+const CANON_CONTRADICTION: f32 = 0.7;
+
+/// A checked write's locked first half: a near-duplicate to hand back, or a
+/// created note with the pairs its checks must judge.
+enum WritePlan {
+    Matched(Box<MatchedPlan>),
+    Created(Box<CreatedPlan>),
+}
+
+struct MatchedPlan {
+    node: Node,
+    similarity: f64,
+    /// The new text as the judge reads it against the match.
+    excerpt: String,
+}
+
+impl MatchedPlan {
+    /// At duplicate similarity co-reference holds, so an NLI contradiction
+    /// is trustworthy — it flags the negated near-duplicate a cosine score
+    /// can't see.
+    fn judge(self, nli: Option<&dyn Nli>) -> WriteOutcome {
+        let (nli_label, nli_score) =
+            match nli.and_then(|n| n.judge_pair(&self.excerpt, &claim(&self.node)).ok()) {
+                Some(sym) => {
+                    let (l, s) = sym.hint();
+                    (Some(l.to_string()), Some(s as f64))
+                }
+                None => (None, None),
+            };
+        WriteOutcome::Matched {
+            node: self.node,
+            similarity: self.similarity,
+            nli_label,
+            nli_score,
+        }
+    }
+}
+
+/// A written note (created or updated) plus everything its checks read from
+/// the store — gathered under the engine lock, judged without it.
+struct CreatedPlan {
+    node: Node,
+    warnings: Vec<WriteWarning>,
+    missing_refs: Vec<String>,
+    suspects: Vec<SuspectCandidate>,
+    canon: Vec<(Node, f64)>,
+}
+
+impl CreatedPlan {
+    /// The lock-free half: every logic-layer call a write makes.
+    fn judge(self, nli: Option<&dyn Nli>, cfg: &crate::config::GraphConfig) -> JudgedPlan {
+        let suspects = judge_suspects(nli, cfg, &self.node, self.suspects);
+        let canon = judge_canon(
+            nli,
+            cfg.policy.conflict_suspect_similarity,
+            &claim(&self.node),
+            self.canon,
+        );
+        JudgedPlan {
+            node: self.node,
+            warnings: self.warnings,
+            missing_refs: self.missing_refs,
+            suspects,
+            canon,
+        }
+    }
+}
+
+struct JudgedPlan {
+    node: Node,
+    warnings: Vec<WriteWarning>,
+    missing_refs: Vec<String>,
+    suspects: Vec<JudgedSuspect>,
+    canon: Vec<CanonVerdict>,
+}
+
+/// One pair the conflict scan will judge. `title_path` is set for a
+/// below-floor pair the subject guard admitted ("named" | "unnamed"): it
+/// queues only on a confident title contradiction.
+struct SuspectCandidate {
+    other: Node,
+    similarity: f64,
+    title_path: Option<&'static str>,
+}
+
+/// A judged candidate that queues, with its hint.
+type JudgedSuspect = (SuspectCandidate, Option<Hint>);
+
+/// Judge suspect candidates — no engine, no lock. A look-alike always
+/// queues, hinted when the judge is loaded; a below-floor pair queues only
+/// on a title contradiction at or above the gate.
+fn judge_suspects(
+    nli: Option<&dyn Nli>,
+    cfg: &crate::config::GraphConfig,
+    node: &Node,
+    candidates: Vec<SuspectCandidate>,
+) -> Vec<JudgedSuspect> {
+    let gate = cfg.policy.conflict_nli_gate;
+    candidates
+        .into_iter()
+        .filter_map(|c| {
+            let hint = match c.title_path {
+                None => nli.and_then(|n| claim_hint(n, node, &c.other)),
+                Some(path) => {
+                    let (nli, gate) = (nli?, gate?);
+                    match title_hint_for(nli, path, node, &c.other) {
+                        Some(h) if h.0 == "contradiction" && h.1 >= gate => Some(h),
+                        _ => return None,
+                    }
+                }
+            };
+            Some((c, hint))
+        })
+        .collect()
+}
+
+/// The write-time canon check (PLAN §7A): judge the fresh text against its
+/// nearest existing knowledge. Entailment is directional and cheap to trust
+/// — `supports` says the canon already backs this claim (link it, or wonder
+/// why it needed rewriting). `contradicts` is only issued inside the suspect
+/// similarity band, where the co-reference presupposition holds — below it
+/// an MNLI verdict is noise.
+fn judge_canon(
+    nli: Option<&dyn Nli>,
+    suspect_similarity: f64,
+    text: &str,
+    candidates: Vec<(Node, f64)>,
+) -> Vec<CanonVerdict> {
+    let Some(nli) = nli else {
+        return Vec::new();
+    };
+    let excerpt: String = text.chars().take(400).collect();
+    let mut out = Vec::new();
+    for (node, similarity) in candidates {
+        let Ok(j) = nli.judge_pair(&claim(&node), &excerpt) else {
+            continue;
+        };
+        let verdict =
+            if j.contradiction() >= CANON_CONTRADICTION && similarity >= suspect_similarity {
+                Some(("contradicts", j.contradiction()))
+            } else if j.forward.entailment >= CANON_SUPPORT {
+                Some(("supports", j.forward.entailment))
+            } else {
+                None
+            };
+        if let Some((verdict, score)) = verdict {
+            out.push(CanonVerdict {
+                id: node.id,
+                node_type: node.node_type,
+                title: node.title,
+                verdict: verdict.into(),
+                score: score as f64,
+                similarity,
+            });
+        }
+    }
+    // Contradictions first — they are the act-now verdicts.
+    out.sort_by(|a, b| {
+        (b.verdict == "contradicts")
+            .cmp(&(a.verdict == "contradicts"))
+            .then(b.score.total_cmp(&a.score))
+    });
+    out
+}
+
+/// [`Engine::nli_hint`] without the engine.
+fn claim_hint(nli: &dyn Nli, a: &Node, b: &Node) -> Option<Hint> {
+    let sym = nli.judge_pair(&claim(a), &claim(b)).ok()?;
+    Some(hint_with_direction(&sym, a, b))
+}
+
+/// [`Engine::nli_title_hint`] without the engine.
+fn title_hint(nli: &dyn Nli, a: &Node, b: &Node) -> Option<Hint> {
+    let sym = nli.judge_pair(a.title.trim(), b.title.trim()).ok()?;
+    Some(hint_with_direction(&sym, a, b))
+}
+
+/// [`Engine::nli_title_hint_clause`] without the engine.
+fn title_hint_clause(nli: &dyn Nli, a: &Node, b: &Node) -> Option<Hint> {
+    let (ta, tb) = (a.title.trim(), b.title.trim());
+    let mut sym = nli.judge_pair(ta, tb).ok()?;
+    let (ca, cb) = (title_clause(ta), title_clause(tb));
+    if (ca, cb) != (ta, tb)
+        && let Ok(clause) = nli.judge_pair(ca, cb)
+        && clause.contradiction() > sym.contradiction()
+    {
+        sym = clause;
+    }
+    Some(hint_with_direction(&sym, a, b))
+}
+
+/// [`Engine::nli_title_hint_for`] without the engine.
+fn title_hint_for(nli: &dyn Nli, path: &str, a: &Node, b: &Node) -> Option<Hint> {
+    if path == "unnamed" {
+        title_hint_clause(nli, a, b)
+    } else {
+        title_hint(nli, a, b)
+    }
+}
 /// Lock a shared engine; a poisoned lock (a panic mid-write elsewhere) is an
 /// error for the caller, not a second panic.
 fn lock_engine(engine: &std::sync::Mutex<Engine>) -> Result<std::sync::MutexGuard<'_, Engine>> {

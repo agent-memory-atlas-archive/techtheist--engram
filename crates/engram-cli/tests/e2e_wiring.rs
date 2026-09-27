@@ -225,19 +225,6 @@ fn devin_mcp_config_launches_a_bridge_serving_current_tools() {
     bridge.kill();
 }
 
-/// One tools/call on a bridge; skips anything that isn't the reply to `id`.
-fn call(bridge: &mut Bridge, id: u64, tool: &str, args: &str) -> String {
-    bridge.send(&format!(
-        r#"{{"jsonrpc":"2.0","id":{id},"method":"tools/call","params":{{"name":"{tool}","arguments":{args}}}}}"#
-    ));
-    loop {
-        let line = bridge.recv();
-        if line.contains(&format!(r#""id":{id}"#)) {
-            return line;
-        }
-    }
-}
-
 /// The Claude Code plugin's server (0.9.9) is `mcp --wired-only`, started in
 /// every folder Claude Code opens: a folder that isn't an Engram project is
 /// never turned into one (reads the home graph, project writes refused with
@@ -251,10 +238,9 @@ fn wired_only_bridge_never_creates_a_project() {
     std::fs::create_dir_all(loose.join(".git")).unwrap();
     let mut bridge =
         Bridge::spawn_cmd(sb.cmd(&["mcp", "--wired-only", "--fake-embeddings"], &loose));
-    let brief = call(&mut bridge, 2, "brief", "{}");
+    let brief = bridge.call(2, "brief", "{}");
     assert!(brief.contains("not an Engram project yet"), "{brief}");
-    let write = call(
-        &mut bridge,
+    let write = bridge.call(
         3,
         "add_note",
         r#"{"type":"Insight","title":"a stray capture","body":"x"}"#,
@@ -264,8 +250,7 @@ fn wired_only_bridge_never_creates_a_project() {
         "{write}"
     );
     // A deliberate user-level write still works.
-    let home = call(
-        &mut bridge,
+    let home = bridge.call(
         4,
         "add_note",
         r#"{"type":"Insight","title":"a deliberate user-level note","body":"x","project":"home"}"#,
@@ -283,12 +268,11 @@ fn wired_only_bridge_never_creates_a_project() {
     // Registered the way `serve`/setup leave it: the project's own bridge
     // binds once, which registers the root.
     let mut own = Bridge::spawn_cmd(sb.cmd(&["mcp", "--fake-embeddings"], &wired));
-    let bound = call(&mut own, 2, "brief", "{}");
+    let bound = own.call(2, "brief", "{}");
     assert!(bound.contains("project 'wired'"), "{bound}");
     own.kill();
     let mut inner = Bridge::spawn_cmd(sb.cmd(&["mcp", "--wired-only", "--fake-embeddings"], &deep));
-    let write = call(
-        &mut inner,
+    let write = inner.call(
         2,
         "add_note",
         r#"{"type":"Insight","title":"captured from a subfolder","body":"x"}"#,
