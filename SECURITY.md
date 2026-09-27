@@ -56,6 +56,9 @@ plaintext before it is sealed — runs a server-side redaction pass
    note still reads).
 2. **A high-entropy backstop** for opaque tokens with no recognisable shape.
 
+It covers note titles, bodies and string custom-field values. Tags,
+`code_refs` and edge notes are not scrubbed (see Known gaps).
+
 The backstop deliberately does **not** try to be clever. Since 0.8.7 it judges
 entropy per separator-delimited *segment* rather than over a whole token,
 because the previous whole-token rule masked compound technical identifiers —
@@ -135,6 +138,9 @@ over HTTPS from their recorded Hugging Face URLs into `~/.cache/engram/`.
   wiping the layer) removes the rows, but the storage engine's freed pages
   aren't scrubbed — the same caveat already documented for curated hard
   deletes. Sealed rows reduce this to ciphertext residue.
+- **Tags, code refs and edge notes are not redacted.** The scrub covers
+  titles, bodies and custom-field strings; a secret typed into a tag, a
+  code ref or an edge note is stored as written.
 - **No local authentication.** Any process on your machine can use the API —
   consistent with the single-user local trust model, but stated plainly.
 - **Model files are not checksum-pinned.** Unlike the binary self-update,

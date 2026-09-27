@@ -137,6 +137,40 @@ verdict it must act on:
 - **Missing code refs** — paths that don't resolve in the repository, caught
   at write time instead of at the next drift scan.
 
+## Secrets never land in the graph
+
+Every write passes a redaction step inside the store before anything is
+saved. This covers assistant writes, pane edits, imports and history
+transcripts, so no surface can skip it. The secret is replaced with
+`[REDACTED]` and the original is kept nowhere. The step has two layers:
+
+- **Named patterns** catch the shapes secrets actually take:
+  - PEM private-key blocks
+  - AWS access key ids
+  - JWTs
+  - GitHub, Slack and OpenAI-style tokens
+  - credentials inside a URL (`scheme://user:pass@host`)
+  - `password: …`, `token = …`, `api_key: …` and similar assignments. Here
+    the value is masked and the key kept, so the note still reads.
+- **An entropy backstop** for opaque tokens with no recognisable prefix: long
+  runs of random-looking letters and digits. It judges each `-`/`_`/`/`
+  separated part on its own, so a model slug like
+  `cross-encoder/nli-deberta-v3-small` or a target triple survives.
+
+**What it covers:** note titles, bodies, and string values in custom fields.
+Tags, code refs and edge notes are not scrubbed, so keep secrets out of them.
+
+**To check it yourself**, create a note in the pane whose body contains a
+made-up key, such as `password: hunter2-not-real` or
+`AKIAABCDEFGHIJKLMNOP`. The saved card shows `[REDACTED]`. The patterns live
+in [`crates/engram-core/src/redact.rs`](../crates/engram-core/src/redact.rs),
+with their tests beside them.
+
+Redaction is a backstop. The capture skill tells assistants never to store
+secrets in the first place. The full security posture is in
+[`SECURITY.md`](../SECURITY.md): what is encrypted at rest, the history
+layer's cipher, and the known gaps.
+
 ## Memory that tracks the code
 
 Nodes can point at code (`code_refs`). When the code moves, the memory

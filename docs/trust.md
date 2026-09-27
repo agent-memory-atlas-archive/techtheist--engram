@@ -49,6 +49,38 @@ The same rule binds the local models: no model verdict — NLI, similarity,
 reranker — ever moves a trust value. Models nominate candidates for the
 review queues; only human or assistant *judgments* change anything.
 
+## When a pinned note is wrong
+
+A pin says the note is true, and the graph takes your word for it. So when a
+pinned note goes wrong, nothing fixes it for you. What you see instead:
+
+- **A judged conflict flags it but doesn't lower it.** A `conflicts-with`
+  edge against a pinned note puts the pair on your review list. The pinned
+  side keeps its trust, and search keeps treating it as trusted.
+- **The assistant can't retire it.** Merging a pinned note away, or judging a
+  suspect pair as `replaces` when the older side is pinned, fails with a
+  "user-pinned — tell the user" error, so the assistant has to raise it with
+  you.
+- **One gap, stated plainly.** If the assistant links a new note straight to
+  a pinned one with `replaces`, the edge is created but the pinned note stays
+  live beside its successor. No error or warning is raised yet, so a pinned
+  note found in the replaces chain is worth a look.
+
+To fix it, in the pane:
+
+1. **Unpin** (📌 on the card). Trust drops back to the computed value, and
+   decay and conflicts apply again.
+2. Then settle it the usual way:
+   - Is it still true but badly worded? **Edit** it.
+   - Has a newer note superseded it? Give a **replaces** verdict; a verdict
+     from you in the pane archives even a pinned note.
+   - Is it plain wrong with no successor? **Archive** it, or hard-delete it.
+     A hard delete leaves a tombstone, so the same claim isn't quietly
+     re-captured.
+
+Every one of these steps is journaled in **Audit**. If a single session
+produced the bad note, the audit view shows everything that session wrote.
+
 ## Stale, and what happens to it
 
 Below **30%** a node is **stale**: badged in the pane, flagged to the
