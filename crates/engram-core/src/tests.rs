@@ -11005,3 +11005,55 @@ fn undoing_a_merge_reverts_the_whole_merge() {
         .count();
     assert_eq!(replaces, 0, "the merge's replaces edge is gone");
 }
+
+#[test]
+fn search_hits_carry_the_graphs_standing_verdict() {
+    // Grounded answers (0.9.10): each hit says how far it can be relied on.
+    let e = engine();
+    let standing_of = |title: &str| {
+        e.search(title, &[], 10)
+            .unwrap()
+            .into_iter()
+            .find(|h| h.title == title)
+            .and_then(|h| h.standing)
+            .unwrap_or_else(|| panic!("{title} delivered with a standing"))
+    };
+    let lead = e
+        .add_node(new_node(NodeType::Insight, "caching halves latency", "x"))
+        .unwrap();
+    assert_eq!(standing_of(&lead.title).verdict, "unverified");
+
+    let endorsed = e
+        .add_node(new_node(
+            NodeType::Decision,
+            "deploys go through canary",
+            "x",
+        ))
+        .unwrap();
+    e.approve(&endorsed.id).unwrap();
+    assert_eq!(standing_of(&endorsed.title).verdict, "canon");
+
+    let a = e
+        .add_node(new_node(NodeType::Decision, "tabs for indentation", "x"))
+        .unwrap();
+    let b = e
+        .add_node(new_node(NodeType::Decision, "spaces for indentation", "x"))
+        .unwrap();
+    edge(&e, EdgeType::ConflictsWith, &b.id, &a.id);
+    let contested = standing_of(&a.title);
+    assert_eq!(contested.verdict, "contested");
+    assert_eq!(contested.other.as_deref(), Some(b.id.as_str()));
+
+    // A pinned note survives a `replaces` onto it — and now says so.
+    let old = e
+        .add_node(new_node(NodeType::Decision, "queue is rabbitmq", "x"))
+        .unwrap();
+    e.set_trust_override(&old.id, Some(1.0)).unwrap();
+    let new = e
+        .add_node(new_node(NodeType::Decision, "queue is kafka now", "x"))
+        .unwrap();
+    edge(&e, EdgeType::Replaces, &new.id, &old.id);
+    let superseded = standing_of(&old.title);
+    assert_eq!(superseded.verdict, "superseded");
+    assert_eq!(superseded.other.as_deref(), Some(new.id.as_str()));
+}

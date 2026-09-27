@@ -3163,6 +3163,7 @@ impl Engine {
             hit.tombstone = cfg
                 .type_def(hit.node_type.as_str())
                 .is_some_and(|t| t.roles.tombstone);
+            hit.standing = Some(self.standing_of(hit)?);
         }
         order_hits(&mut hits, filter.order);
         // Observability stamp on what was actually returned — never the
@@ -3173,6 +3174,106 @@ impl Engine {
         Ok(hits)
     }
 
+    /// Grounded answers (0.9.10): how far a hit can be relied on, composed
+    /// from what the graph already records — the tombstone role, a live
+    /// `replaces` onto it, an open judged conflict, staleness, and the trust
+    /// ladder. The first that applies wins, worst first. Reads the full edge
+    /// lists, not the capped neighbour sample, so no conflict hides behind
+    /// the cap.
+    fn standing_of(&self, hit: &SearchHit) -> Result<Standing> {
+        let standing = |verdict: &str, reason: String, other: Option<String>| Standing {
+            verdict: verdict.to_string(),
+            reason,
+            other,
+        };
+        if hit.tombstone {
+            return Ok(standing(
+                "tombstone",
+                "a record that this knowledge was deliberately removed — don't act on it or re-add it"
+                    .into(),
+                None,
+            ));
+        }
+        let cfg = self.store.config();
+        let live =
+            |e: &Edge| !matches!(e.status, Some(EdgeStatus::Resolved | EdgeStatus::Dismissed));
+        let edges_in = self.store.edges_in(&hit.id)?;
+        for e in edges_in.iter().filter(|e| live(e)) {
+            if e.edge_type.as_str() == cfg.supersession_verb()
+                && let Some(newer) = self.store.get_node(&e.from_id)?
+                && newer.valid_until.is_none()
+            {
+                return Ok(standing(
+                    "superseded",
+                    format!("replaced by \"{}\" — read that instead", newer.title),
+                    Some(newer.id),
+                ));
+            }
+        }
+        let edges_out = self.store.edges_out(&hit.id)?;
+        for e in edges_in.iter().chain(&edges_out).filter(|e| live(e)) {
+            if e.edge_type.as_str() != cfg.contradiction_verb() {
+                continue;
+            }
+            let other_id = if e.from_id == hit.id {
+                &e.to_id
+            } else {
+                &e.from_id
+            };
+            if let Some(other) = self.store.get_node(other_id)?
+                && other.valid_until.is_none()
+            {
+                return Ok(standing(
+                    "contested",
+                    format!(
+                        "in an open judged conflict with \"{}\" — tell the user before relying on either",
+                        other.title
+                    ),
+                    Some(other.id),
+                ));
+            }
+        }
+        if hit.stale {
+            return Ok(standing(
+                "stale",
+                "its trust fell below the stale line — verify against the code or the user first"
+                    .into(),
+                None,
+            ));
+        }
+        let Some(node) = self.store.get_node(&hit.id)? else {
+            return Ok(standing(
+                "unverified",
+                "not found in the store".into(),
+                None,
+            ));
+        };
+        Ok(if node.trust_override.is_some() {
+            standing("canon", "pinned by the user".into(), None)
+        } else if node.approved_at.is_some() {
+            standing(
+                "canon",
+                if node.source == Source::User {
+                    "written by the user".into()
+                } else {
+                    "approved by the user".into()
+                },
+                None,
+            )
+        } else if node.confirmed_at.is_some() {
+            standing(
+                "confirmed",
+                "confirmed still true since it was written".into(),
+                None,
+            )
+        } else {
+            standing(
+                "unverified",
+                "written by an assistant and never confirmed — a lead, not a fact".into(),
+                None,
+            )
+        })
+    }
     /// The half-open window a named working version was current for, read from
     /// the audit journal's `version_switched` rows (`set_current_version`
     /// journals every switch under entity_id "version").

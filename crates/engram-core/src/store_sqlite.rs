@@ -930,6 +930,7 @@ impl Store for SqliteStore {
                 tombstone: false,
                 neighbors: Vec::new(),
                 project: None,
+                standing: None,
             })
         })?;
         Ok(rows.collect::<rusqlite::Result<_>>()?)

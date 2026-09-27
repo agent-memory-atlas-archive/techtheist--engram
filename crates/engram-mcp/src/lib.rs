@@ -605,6 +605,9 @@ impl Engram {
                         if let Some(s) = h.status {
                             o["status"] = json!(s);
                         }
+                        if let Some(st) = &h.standing {
+                            o["standing"] = json!(st.verdict);
+                        }
                         o
                     })
                     .collect::<Vec<_>>()
@@ -720,8 +723,12 @@ impl Engram {
         Respect the reply's `confidence` verdict: `strong` = the top hit cleared \
         this graph's calibrated line; `weak` = likely not in memory, the hits \
         are nearest candidates — verify before relying; `none` = the graph is \
-        silent — say so instead of inventing a memory. Hits carry trust (0..1), \
-        stale (verify first), and 1-hop neighbors (conflicts/replaces first). \
+        silent — say so instead of inventing a memory. Every hit carries a \
+        `standing` verdict — canon (the user endorsed it), confirmed, \
+        unverified (a lead, not a fact), stale (verify first), contested (an \
+        open conflict: tell the user), superseded (read the replacement), \
+        tombstone (deliberately removed) — plus trust (0..1) and 1-hop \
+        neighbors (conflicts/replaces first). \
         Temporal questions: scope with `after`/`before`/`during_version` \
         (the daemon resolves relative phrases — never compute dates yourself) \
         and `order` (chronological = how it developed, recent = current value); \

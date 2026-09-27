@@ -53,6 +53,24 @@ code refs, node vectors, claim vectors. Every hit carries its 1-hop neighbors â€
 is hard to do by accident: the contradiction arrives attached to the search
 result that would have caused it.
 
+Every hit also carries a **standing**, which is the graph's own verdict on
+how far it can be relied on. It is built from what the graph already records,
+and the first that applies wins:
+
+| Standing | Meaning |
+|---|---|
+| `tombstone` | A record that this knowledge was deliberately removed |
+| `superseded` | A live newer note replaces it; the hit names that note |
+| `contested` | It is in an open, judged conflict; the hit names the other side |
+| `stale` | Its trust fell below the stale line |
+| `canon` | You pinned it, approved it, or wrote it |
+| `confirmed` | Someone confirmed it is still true |
+| `unverified` | An assistant wrote it and nobody has confirmed it yet |
+
+The capture skill teaches the assistant to weigh a hit by its standing, not
+just its rank: to tell you about a contested hit, and to treat an
+unverified one as a lead rather than a fact.
+
 Since 0.8.0 the result set is also **calibrated**. Hits scoring under a
 benchmark-measured delivery floor are trimmed before they reach the assistant
 â€” the floor sits at the top of a measured "free zone", so recall is untouched

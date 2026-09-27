@@ -1082,6 +1082,7 @@ impl Store for TepinStore {
                 tombstone: false,
                 neighbors: Vec::new(),
                 project: None,
+                standing: None,
             });
             if out.len() == limit {
                 break;

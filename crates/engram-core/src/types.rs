@@ -392,6 +392,25 @@ pub struct SearchHit {
     /// (PLAN §7C provenance); absent means the queried project itself.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub project: Option<String>,
+    /// Grounded answers (0.9.10): the graph's own account of this hit —
+    /// whether it is endorsed, unverified, stale, contested, superseded or a
+    /// tombstone — so the assistant inherits the graph's epistemology instead
+    /// of re-deriving it from trust numbers and neighbour lists.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub standing: Option<Standing>,
+}
+
+/// How far a search hit can be relied on, in one word and one sentence.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Standing {
+    /// canon | confirmed | unverified | stale | contested | superseded |
+    /// tombstone — the first that applies, in reverse order of that list.
+    pub verdict: String,
+    /// What it means for the reader, in plain words.
+    pub reason: String,
+    /// The note that contests or replaces this one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub other: Option<String>,
 }
 
 /// One edge+endpoint of a hit's 1-hop subgraph, compact enough to inline in

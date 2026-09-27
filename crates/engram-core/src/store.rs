@@ -600,6 +600,7 @@ pub trait Store: Send {
                 tombstone: false,
                 neighbors: Vec::new(),
                 project: None,
+                standing: None,
             });
         }
         hits.sort_by(|a, b| {

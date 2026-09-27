@@ -192,7 +192,7 @@ Engram is a local, user-owned graph of *why things are the way they are* in this
 ## Recall — brief first, then search
 
 - **At the start of a session**, call `brief` once — a compact digest of the canon. If the session already opens with an injected "# Engram brief", that IS the brief; don't call it again.
-- Before any **non-trivial decision**, `search` with a natural-language description of what you're about to do. Hits carry their 1-hop neighbors, `{contradiction}`/`{supersession}` first — read those especially.
+- Before any **non-trivial decision**, `search` with a natural-language description of what you're about to do. Hits carry their 1-hop neighbors, `{contradiction}`/`{supersession}` first — read those especially. Every hit also carries a `standing` verdict — canon (the user endorsed it), confirmed, unverified (a lead, not a fact), stale (verify first), contested (an open judged conflict — tell the user), superseded (read the replacement it names), tombstone — so weigh a hit by its standing, not by its rank alone.
 - `get_node` / `traverse` pull the reasoning around a hit; `timeline` walks a node's `{supersession}` chain oldest-first; `list_open` shows the live worklist (open {worklist_csv}).
 
 ## Capture — this graph's node types
