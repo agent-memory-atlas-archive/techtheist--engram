@@ -293,6 +293,17 @@ pub const SEARCH_WINDOW_OVERFETCH: usize = 2;
 /// How much trust modulates a reranked hit's score (mirrors the trust weight
 /// inside the hybrid blend): relevance dominates, trust breaks near-ties.
 pub const RERANK_TRUST_WEIGHT: f64 = 0.15;
+/// Cosine at or above which two delivered hits count as twins for the
+/// endorsement order (0.9.10): between near-identical notes the pinned or
+/// more-trusted one goes first. Measured 2026-09-27: on `eval --authority`
+/// at 500 the endorsed twin ranked first 0.575 → 1.00 (a fresher capture
+/// stamp beat confirm/approve/pin 94–100% of the time before; pin vs approve
+/// was a coin flip), the no-endorsement control unchanged at 0.44; the
+/// post-tune ladder at 100/500/1500 is identical in every recall and FP
+/// column. 0.95 misses twins (0.906). Receipts:
+/// eval/results/2026-09-27-authority-500.json and
+/// 2026-09-27-0.9.10-posttune-{shipped,twins090}-100-1500.json.
+pub const TWIN_TRUST_ORDER: Option<f64> = Some(0.90);
 /// Damping constant for the reciprocal-rank vote that combines the retrieval
 /// ordering with the cross-encoder's. `None` gives the cross-encoder the final
 /// word instead.

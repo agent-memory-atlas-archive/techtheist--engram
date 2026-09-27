@@ -75,6 +75,9 @@ pub struct Config {
     /// Share of tested subjects that gain a second, unrelated claim under the
     /// same coined name. `0.0` = the identical corpus every receipt used.
     pub collision: f64,
+    /// `--twin-order <cos>`: endorsed-first order among delivered twins at or
+    /// above this cosine (`policy.twin_trust_order`). A 0.9.10 candidate.
+    pub twin_order: Option<f64>,
 }
 
 impl Default for Config {
@@ -95,6 +98,7 @@ impl Default for Config {
             rerank_full: false,
             history: false,
             collision: 0.0,
+            twin_order: None,
         }
     }
 }
@@ -1762,6 +1766,9 @@ pub fn posttune(cfg: &Config) -> anyhow::Result<PostTuneReport> {
         if cfg.rerank_full {
             engram.tune(|p| p.rerank_full_note = true)?;
         }
+        if let Some(band) = cfg.twin_order {
+            engram.tune(|p| p.twin_trust_order = Some(band))?;
+        }
         // Auto-tune is damped (half the distance per pass), and a real
         // deployment runs it at every session boundary — so the measured
         // stack is the converged line, not the first half-step. Sixteen
@@ -2893,6 +2900,9 @@ pub fn run(cfg: &Config) -> anyhow::Result<Report> {
         if cfg.rerank_full {
             engram.tune(|p| p.rerank_full_note = true)?;
         }
+        if let Some(band) = cfg.twin_order {
+            engram.tune(|p| p.twin_trust_order = Some(band))?;
+        }
         let rag = RagArm::new(&engram, embedder(model).0);
 
         // The ladder, weakest first. `engram-hybrid` and `engram-full` are two
@@ -3032,6 +3042,7 @@ mod tests {
             rerank_full: false,
             history: false,
             collision: 0.0,
+            twin_order: None,
         }
     }
 

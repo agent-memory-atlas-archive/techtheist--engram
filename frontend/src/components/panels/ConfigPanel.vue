@@ -479,6 +479,9 @@ const deliveryWords = computed(() => {
         p.session_diversity_demote > 0
             ? `Session-diverse delivery is on: when more strong candidates survive the floor than fit the list, each extra hit from a session already holding a slot is demoted ${p.session_diversity_demote} rank position${p.session_diversity_demote === 1 ? '' : 's'} — one session's restatements stop crowding out other sessions' evidence. Measured recall-free at the shipped value; scores and the verdict are untouched.`
             : `Session-diverse delivery is off: the result list is cut purely by rank, however many hits share a session.`,
+        p.twin_trust_order != null
+            ? `Endorsed twins go first: when two delivered hits are ${pct(p.twin_trust_order)} alike or more — near-identical notes — the one you pinned or approved ranks above the other, whatever its capture date or type. Nothing else moves.`
+            : `Twin order is off: between two near-identical notes, capture date and type decide the order, not your endorsements.`,
     ]
 })
 
@@ -515,6 +518,14 @@ const nliGate = computed({
     get: () => draft.value?.policy.conflict_nli_gate ?? 0,
     set: (v: number) => {
         if (draft.value) draft.value.policy.conflict_nli_gate = v > 0 ? v : null
+    },
+})
+// Twin order: null is off, shown as 0 — a cosine band of zero would make
+// every pair of hits "twins", so zero has no other meaning to lose.
+const twinOrder = computed({
+    get: () => draft.value?.policy.twin_trust_order ?? 0,
+    set: (v: number) => {
+        if (draft.value) draft.value.policy.twin_trust_order = v > 0 ? v : null
     },
 })
 
@@ -934,6 +945,7 @@ const nliGate = computed({
                 <label v-if="kneeOn">knee cliff ≥ <StepperInput v-model="kneeCliff" :step="0.05" :max="1" aria-label="knee cliff" /></label>
                 <label>weak-line q <StepperInput v-model="draft.policy.weak_line_quantile" :step="0.05" :max="1" aria-label="weak-line quantile" /></label>
                 <label>session demote <StepperInput v-model="draft.policy.session_diversity_demote" :step="1" :max="50" aria-label="session diversity demotion" /></label>
+                <label>endorsed twins ≥ <StepperInput v-model="twinOrder" :step="0.01" :max="1" aria-label="twin order band (0 = off)" /></label>
             </div>
             <div class="checks">
                 <ToggleChip

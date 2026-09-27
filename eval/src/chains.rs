@@ -356,6 +356,7 @@ mod tests {
             rerank_full: false,
             history: false,
             collision: 0.0,
+            twin_order: None,
         }
     }
 

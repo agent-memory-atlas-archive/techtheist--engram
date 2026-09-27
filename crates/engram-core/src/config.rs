@@ -494,6 +494,16 @@ pub struct PolicyConfig {
     /// [`crate::policy::SESSION_DIVERSITY_DEMOTE`].
     #[serde(default = "default_session_diversity_demote")]
     pub session_diversity_demote: f64,
+    /// Twin order (0.9.10): among delivered hits whose vectors sit at or
+    /// above this cosine — near-identical notes — the endorsed one goes
+    /// first (pinned, then higher trust), whatever the vote said. Only twins
+    /// trade places; `None` disables. See [`crate::policy::TWIN_TRUST_ORDER`].
+    #[serde(default = "default_twin_trust_order")]
+    pub twin_trust_order: Option<f64>,
+}
+
+fn default_twin_trust_order() -> Option<f64> {
+    crate::policy::TWIN_TRUST_ORDER
 }
 
 fn default_session_diversity_demote() -> f64 {
@@ -588,6 +598,7 @@ impl Default for PolicyConfig {
             weak_line_probes: WEAK_LINE_PROBES,
             rerank_full_note: false,
             session_diversity_demote: SESSION_DIVERSITY_DEMOTE,
+            twin_trust_order: TWIN_TRUST_ORDER,
         }
     }
 }
@@ -1762,6 +1773,11 @@ impl GraphConfig {
         // A rank-fusion constant, not a 0..1 weight: it is added to a 1-based
         // rank, so anything non-positive divides by zero at rank 0 or inverts
         // the ordering outright.
+        if let Some(t) = p.twin_trust_order
+            && !(0.0..=1.0).contains(&t)
+        {
+            return fail(format!("policy.twin_trust_order {t} out of 0..=1"));
+        }
         if let Some(k) = p.rerank_vote_k
             && !(k.is_finite() && k > 0.0)
         {

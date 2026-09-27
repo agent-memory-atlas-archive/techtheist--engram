@@ -21,6 +21,7 @@
 //!   against a generated answer, so it never needs a judge either.
 
 pub mod arms;
+pub mod authority;
 pub mod cascade;
 pub mod chains;
 pub mod generate;

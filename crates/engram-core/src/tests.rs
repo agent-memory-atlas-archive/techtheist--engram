@@ -11057,3 +11057,46 @@ fn search_hits_carry_the_graphs_standing_verdict() {
     assert_eq!(superseded.verdict, "superseded");
     assert_eq!(superseded.other.as_deref(), Some(new.id.as_str()));
 }
+
+#[test]
+fn endorsed_twins_rank_first_pinned_above_approved() {
+    // 0.9.10 twin order: between near-identical delivered hits the endorsed
+    // one goes first — pinned above approved above neither — whatever the
+    // vote said; nothing that isn't a twin moves.
+    let e = engine();
+    let mut cfg = e.graph_config();
+    cfg.policy.twin_trust_order = Some(0.5); // the fake embedder's scale
+    e.set_graph_config(&cfg).unwrap();
+    let body = "set after the spring load tests; applies to production";
+    let plain = e
+        .add_node(new_node(
+            NodeType::Decision,
+            "the retry budget is three attempts",
+            body,
+        ))
+        .unwrap();
+    let approved = e
+        .add_node(new_node(
+            NodeType::Decision,
+            "the retry budget is five attempts",
+            body,
+        ))
+        .unwrap();
+    let pinned = e
+        .add_node(new_node(
+            NodeType::Decision,
+            "the retry budget is seven attempts",
+            body,
+        ))
+        .unwrap();
+    e.approve(&approved.id).unwrap();
+    e.set_trust_override(&pinned.id, Some(1.0)).unwrap();
+    let order: Vec<String> = e
+        .search("retry budget", &[], 10)
+        .unwrap()
+        .into_iter()
+        .map(|h| h.id)
+        .filter(|id| [&plain.id, &approved.id, &pinned.id].contains(&id))
+        .collect();
+    assert_eq!(order, vec![pinned.id, approved.id, plain.id]);
+}

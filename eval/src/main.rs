@@ -101,6 +101,14 @@ OPTIONS:
                           generation pollution against a flat ablation with
                           no supersession edges, plus the mechanism checks:
                           retired gone from search, reachable by link
+    --authority           do endorsements move ranking? Twin notes (same body,
+                          a different value in the title) over a sizes[0]
+                          background; one twin confirmed/approved/pinned, some
+                          against a fresher or higher-prior sibling. Scores how
+                          often the endorsed twin ranks first, with and
+                          without the twin order at two bands
+    --twin-order COS      engram arm: endorsed-first among delivered twins at
+                          or above COS (policy.twin_trust_order) — a candidate
     --chain-count N       chains per run          [default: sizes[0]/10, >=4]
     --chain-len N         generations per chain   [default: 3]
     --longmemeval V       run the LongMemEval external corpus, variant
@@ -184,6 +192,7 @@ fn cli() -> anyhow::Result<()> {
     let mut tasks_out: Option<String> = None;
     let mut sample = false;
     let mut chains_mode = false;
+    let mut authority_mode = false;
     let mut window_mode = false;
     let mut sessions_mode = false;
     let mut chain_count: Option<usize> = None;
@@ -249,6 +258,8 @@ fn cli() -> anyhow::Result<()> {
                 apply_ladder(&mut cfg);
             }
             "--chains" => chains_mode = true,
+            "--authority" => authority_mode = true,
+            "--twin-order" => cfg.twin_order = Some(value()?.parse()?),
             "--window" => window_mode = true,
             "--sessions" => sessions_mode = true,
             "--chain-count" => chain_count = Some(value()?.parse()?),
@@ -311,6 +322,15 @@ fn cli() -> anyhow::Result<()> {
     if sessions_mode {
         let report = engram_eval::sessions::run(&cfg)?;
         engram_eval::sessions::print(&report);
+        if let Some(path) = json_out {
+            std::fs::write(&path, serde_json::to_string_pretty(&report)?)?;
+            println!("\nwrote {path}");
+        }
+        return Ok(());
+    }
+    if authority_mode {
+        let report = engram_eval::authority::run(&cfg)?;
+        print_authority(&report);
         if let Some(path) = json_out {
             std::fs::write(&path, serde_json::to_string_pretty(&report)?)?;
             println!("\nwrote {path}");
@@ -637,6 +657,34 @@ fn parse_phrasing(spec: &str) -> anyhow::Result<PhrasingMix> {
         paraphrase,
         oblique,
     })
+}
+
+fn print_authority(r: &engram_eval::authority::AuthorityReport) {
+    println!(
+        "authority — do endorsements move ranking? (embedder {}, reranker {}, background {} notes, {} cases per scenario, seed {}, limit {})",
+        r.embedder, r.reranker, r.background, r.cases_per_scenario, r.seed, r.limit
+    );
+    let Some(first) = r.variants.first() else {
+        return;
+    };
+    print!("{:<22}", "scenario");
+    for v in &r.variants {
+        print!(" {:>22}", v.variant.name);
+    }
+    println!();
+    for (i, s) in first.scenarios.iter().enumerate() {
+        print!("{:<22}", s.scenario);
+        for v in &r.variants {
+            let row = &v.scenarios[i];
+            print!(" {:>15.2} miss {:.2}", row.endorsed_first, row.missed);
+        }
+        println!();
+    }
+    print!("{:<22}", "mean (excl. control)");
+    for v in &r.variants {
+        print!(" {:>22.3}", v.mean_endorsed_first);
+    }
+    println!();
 }
 
 fn print_chains(r: &engram_eval::chains::ChainsReport) {

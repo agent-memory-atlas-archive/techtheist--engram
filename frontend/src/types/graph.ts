@@ -635,6 +635,9 @@ export interface PolicyConfig {
      * delivery cut — session-diverse delivery. 0 disables.
      */
     session_diversity_demote: number
+    /** Endorsed-first order among near-identical hits at or above this
+     *  cosine; null = off (0.9.10). */
+    twin_trust_order?: number | null
 }
 
 export interface BriefConfig {

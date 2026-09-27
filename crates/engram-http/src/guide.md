@@ -150,7 +150,9 @@ of relevance), `semantic_floor`, `search_min_score`, `search_relative_cut`,
 reranker has the final word), `rerank_full_note`, `delivery_floor`,
 `weak_evidence_top`, `knee_cliff` (`null` = off; **`0` is the harshest trim,
 not off** — the config refuses it), `weak_line_quantile`,
-`weak_line_probes`, `session_diversity_demote` (`0` = off), `auto_tune`
+`weak_line_probes`, `session_diversity_demote` (`0` = off),
+`twin_trust_order` (cosine band for endorsed-first order among
+near-identical hits; `null` = off), `auto_tune`
 (let a mature graph refit its own conflict floor and weak line).
 
 Caveats to say out loud: the defaults were measured on the eval bench and

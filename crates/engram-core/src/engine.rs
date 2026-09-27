@@ -3152,6 +3152,9 @@ impl Engine {
                 hits.retain(|h| h.score >= k);
             }
         }
+        if let Some(band) = self.store.config().policy.twin_trust_order {
+            self.order_twins(&mut hits, band)?;
+        }
         for hit in &mut hits {
             hit.neighbors = self.store.neighbors(&hit.id, NEIGHBOR_CAP)?;
         }
@@ -3274,6 +3277,71 @@ impl Engine {
             )
         })
     }
+
+    /// Twin order (0.9.10): delivered hits whose vectors sit at or above
+    /// `band` of each other are near-identical notes, and among them the one
+    /// people endorsed goes first: pinned, then higher trust. Each group of
+    /// twins is re-sorted within the positions it already holds, so nothing
+    /// that isn't a twin moves, and nothing enters or leaves the delivered
+    /// set. The vote otherwise decides between two near-identical notes on
+    /// capture stamps and type priors, which are the same size as the trust
+    /// bonus (KnowledgeDrift authority family, 2026-09-14).
+    fn order_twins(&self, hits: &mut [SearchHit], band: f64) -> Result<()> {
+        let n = hits.len();
+        if n < 2 {
+            return Ok(());
+        }
+        let mut vecs = Vec::with_capacity(n);
+        let mut pinned = Vec::with_capacity(n);
+        for h in hits.iter() {
+            vecs.push(self.store.embedding_of(&h.id)?);
+            pinned.push(
+                self.store
+                    .get_node(&h.id)?
+                    .is_some_and(|node| node.trust_override.is_some()),
+            );
+        }
+        // Union-find over the twin relation, so a chain of twins is one group.
+        let mut group: Vec<usize> = (0..n).collect();
+        fn root(g: &mut [usize], mut i: usize) -> usize {
+            while g[i] != i {
+                g[i] = g[g[i]];
+                i = g[i];
+            }
+            i
+        }
+        for i in 0..n {
+            for j in (i + 1)..n {
+                if let (Some(a), Some(b)) = (&vecs[i], &vecs[j])
+                    && cosine(a, b) >= band
+                {
+                    let (ri, rj) = (root(&mut group, i), root(&mut group, j));
+                    group[rj] = ri;
+                }
+            }
+        }
+        let mut members: std::collections::HashMap<usize, Vec<usize>> =
+            std::collections::HashMap::new();
+        for i in 0..n {
+            let r = root(&mut group, i);
+            members.entry(r).or_default().push(i);
+        }
+        let original: Vec<SearchHit> = hits.to_vec();
+        for slots in members.values().filter(|m| m.len() > 1) {
+            let mut ranked = slots.clone();
+            // Stable: equal standing keeps the vote's order.
+            ranked.sort_by(|a, b| {
+                pinned[*b]
+                    .cmp(&pinned[*a])
+                    .then(original[*b].trust.total_cmp(&original[*a].trust))
+            });
+            for (slot, from) in slots.iter().zip(ranked) {
+                hits[*slot] = original[from].clone();
+            }
+        }
+        Ok(())
+    }
+
     /// The half-open window a named working version was current for, read from
     /// the audit journal's `version_switched` rows (`set_current_version`
     /// journals every switch under entity_id "version").
