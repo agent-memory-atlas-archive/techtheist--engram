@@ -38,7 +38,7 @@ jobs:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag || github.ref_name }}
 
@@ -118,18 +118,18 @@ jobs:
       run:
         working-directory: engram-jetbrains
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag || github.ref_name }}
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 21
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v5
 
       # Produces build/distributions/*-signed.zip. The version (and thus the
       # Marketplace channel) comes from the tag, overriding gradle.properties.
@@ -189,13 +189,13 @@ jobs:
     name: VSCode — package, attach
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag || github.ref_name }}
 
       - uses: oven-sh/setup-bun@v2
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
 
@@ -220,17 +220,15 @@ jobs:
         run: gh release upload "$RELEASE_TAG" "$VSIX" --clobber
 
       # Both marketplaces get the exact same file that was attached above.
+      # Published with the registries' own CLIs: HaaLeo/publish-vscode-extension
+      # never shipped a Node 24 runtime (its v2 is node20, the last major).
       - name: Publish to Open VSX
-        uses: HaaLeo/publish-vscode-extension@v2
-        with:
-          pat: ${{ secrets.OPEN_VSX_TOKEN }}
-          extensionFile: ${{ env.VSIX }}
-          skipDuplicate: true
+        env:
+          OVSX_PAT: ${{ secrets.OPEN_VSX_TOKEN }}
+        run: npx --yes ovsx publish "$VSIX" --skip-duplicate
 
       - name: Publish to Visual Studio Marketplace
-        uses: HaaLeo/publish-vscode-extension@v2
-        with:
-          pat: ${{ secrets.VS_MARKETPLACE_TOKEN }}
-          registryUrl: https://marketplace.visualstudio.com
-          extensionFile: ${{ env.VSIX }}
-          skipDuplicate: true
+        env:
+          VSCE_PAT: ${{ secrets.VS_MARKETPLACE_TOKEN }}
+        run: npx vsce publish --packagePath "$VSIX" --skip-duplicate
+        working-directory: engram-vscode
