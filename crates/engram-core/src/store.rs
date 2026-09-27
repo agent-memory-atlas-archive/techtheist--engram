@@ -311,6 +311,10 @@ pub trait Store: Send {
         entity_id: Option<&str>,
         limit: usize,
     ) -> Result<AuditPage>;
+    /// Journal rows matching every filter `q` sets, oldest first — the
+    /// lookups undo needs (one row, a session, an operation, later rows on an
+    /// entity).
+    fn audit_rows(&self, q: &AuditQuery) -> Result<Vec<AuditEntry>>;
 
     // ---- tags ------------------------------------------------------------
 

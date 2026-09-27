@@ -758,6 +758,50 @@ pub struct AuditEntry {
     pub cwd: Option<String>,
     pub pid: Option<i64>,
     pub version: Option<String>,
+    /// Groups the rows one operation wrote (0.9.10): a merge, a hard delete
+    /// with the edges it cascaded, an undo. Undoing any row of a group undoes
+    /// the whole group. Absent on older rows, which undo one by one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub op_id: Option<String>,
+    /// Read-side only, never stored: the `undone` row that reverted this one,
+    /// when that undo still stands (see [`crate::Engine::audit_log`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub undone_by: Option<i64>,
+}
+
+/// A journal lookup for undo (0.9.10): every set filter must match.
+#[derive(Debug, Clone, Default)]
+pub struct AuditQuery {
+    pub seq: Option<i64>,
+    pub entity_id: Option<String>,
+    pub session_id: Option<String>,
+    pub op_id: Option<String>,
+    pub action: Option<String>,
+    /// Only rows with a seq strictly above this.
+    pub after: Option<i64>,
+}
+
+/// What an undo did — or, on a dry run, would do (0.9.10).
+#[derive(Debug, Clone, Serialize, Default)]
+pub struct UndoReport {
+    pub dry_run: bool,
+    pub undone: Vec<UndoItem>,
+    pub skipped: Vec<UndoItem>,
+}
+
+/// One journal row an undo handled.
+#[derive(Debug, Clone, Serialize)]
+pub struct UndoItem {
+    pub seq: i64,
+    pub action: String,
+    pub entity: String,
+    pub entity_id: String,
+    pub title: Option<String>,
+    /// What undoing it means: "removes the note", "restores the note", …
+    pub effect: String,
+    /// Why it was skipped, or what else the undo touched (links it removed).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
 }
 
 /// One page of the journal, newest first, with the unfiltered-total so the

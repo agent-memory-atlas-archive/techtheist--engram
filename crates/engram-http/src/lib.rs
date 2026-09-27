@@ -699,6 +699,8 @@ fn api_router(state: Arc<AppState>) -> Router {
             get(history_session_messages).delete(history_session_delete),
         )
         .route("/audit/stale", post(audit_stale))
+        .route("/audit/{seq}/undo", post(audit_undo))
+        .route("/audit/sessions/{sid}/undo", post(audit_undo_session))
         .route("/events", get(sse))
         // Anything not an API route is the Vue pane (served from the embedded
         // build), so `engram-alpha serve` is a complete browser-standalone app and
@@ -1893,6 +1895,35 @@ async fn audit(
     Ok(Json(page))
 }
 
+/// Undo one journal row — or its whole operation — from the pane (0.9.10).
+/// User-only like hard delete: HTTP serves it, MCP has no such tool.
+/// `?dry_run=true` reports what would happen without changing anything.
+async fn audit_undo(
+    State(state): State<Arc<AppState>>,
+    scope: Scope,
+    Path(seq): Path<String>,
+    Query(p): Query<UndoParams>,
+) -> Result<Json<engram_core::UndoReport>, AppError> {
+    let seq: i64 = seq
+        .parse()
+        .map_err(|_| engram_core::Error::NotFound(format!("audit row {seq:?}")))?;
+    let engine = state.engine_arc(&scope)?;
+    let report = pane(&engine).undo_entry(seq, p.dry_run)?;
+    Ok(Json(report))
+}
+
+/// Undo everything one session wrote (0.9.10) — see [`audit_undo`].
+async fn audit_undo_session(
+    State(state): State<Arc<AppState>>,
+    scope: Scope,
+    Path(sid): Path<String>,
+    Query(p): Query<UndoParams>,
+) -> Result<Json<engram_core::UndoReport>, AppError> {
+    let engine = state.engine_arc(&scope)?;
+    let report = pane(&engine).undo_session(&sid, p.dry_run)?;
+    Ok(Json(report))
+}
+
 async fn list_open(
     State(state): State<Arc<AppState>>,
     scope: Scope,
@@ -2295,6 +2326,12 @@ struct BriefParams {
 #[derive(Deserialize)]
 struct TagsParams {
     limit: Option<usize>,
+}
+
+#[derive(Deserialize)]
+struct UndoParams {
+    #[serde(default)]
+    dry_run: bool,
 }
 
 #[derive(Deserialize)]

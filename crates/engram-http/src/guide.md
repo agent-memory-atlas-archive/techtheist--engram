@@ -198,8 +198,10 @@ similarity thresholds were calibrated on the default embedding model.
 resolve), `POST /audit/conflicts`, `POST /audit/duplicates`,
 `POST /audit/answered`, `POST /audit/promotions`, `POST /audit/stale`
 (checkup sweeps — nominations, never verdicts), `GET /export` / `POST /import`
-(the whole graph as JSON, config included). Hard delete and pinning stay
-pane-only.
+(the whole graph as JSON, config included). Hard delete, pinning and undo
+(`POST /audit/{seq}/undo`, `POST /audit/sessions/{sid}/undo`, the audit
+view's buttons) stay pane-only: point the user at the audit view rather than
+calling them.
 
 ## Before a digest: review the settings with the user
 

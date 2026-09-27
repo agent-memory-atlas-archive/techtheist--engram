@@ -152,6 +152,10 @@ impl SqliteStore {
         if !column_exists(conn, "nodes", "fields")? {
             conn.execute_batch("ALTER TABLE nodes ADD COLUMN fields TEXT;")?;
         }
+        // Audit undo (0.9.10): rows of one operation share an id.
+        if !column_exists(conn, "audit", "op_id")? {
+            conn.execute_batch("ALTER TABLE audit ADD COLUMN op_id TEXT;")?;
+        }
         // Local cortex (v0.5.0): suspects carry an optional NLI hint.
         if !column_exists(conn, "suspects", "nli_label")? {
             conn.execute_batch(
@@ -1187,8 +1191,8 @@ impl Store for SqliteStore {
         self.conn.execute(
             "INSERT INTO audit
                (ts, action, entity, entity_id, title, before_json, after_json,
-                origin, session_id, cwd, pid, version)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)",
+                origin, session_id, cwd, pid, version, op_id)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)",
             params![
                 e.ts,
                 e.action,
@@ -1202,6 +1206,7 @@ impl Store for SqliteStore {
                 e.cwd,
                 e.pid,
                 e.version,
+                e.op_id,
             ],
         )?;
         Ok(())
@@ -1220,7 +1225,7 @@ impl Store for SqliteStore {
         )?;
         let mut stmt = self.conn.prepare(
             "SELECT seq, ts, action, entity, entity_id, title, before_json,
-                    after_json, origin, session_id, cwd, pid, version
+                    after_json, origin, session_id, cwd, pid, version, op_id
              FROM audit
              WHERE (?1 IS NULL OR seq < ?1) AND (?2 IS NULL OR entity_id = ?2)
              ORDER BY seq DESC LIMIT ?3",
@@ -1230,6 +1235,23 @@ impl Store for SqliteStore {
             entries: rows.collect::<rusqlite::Result<_>>()?,
             total,
         })
+    }
+
+    fn audit_rows(&self, q: &AuditQuery) -> Result<Vec<AuditEntry>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT seq, ts, action, entity, entity_id, title, before_json,
+                    after_json, origin, session_id, cwd, pid, version, op_id
+             FROM audit
+             WHERE (?1 IS NULL OR seq = ?1) AND (?2 IS NULL OR entity_id = ?2)
+               AND (?3 IS NULL OR session_id = ?3) AND (?4 IS NULL OR op_id = ?4)
+               AND (?5 IS NULL OR action = ?5) AND (?6 IS NULL OR seq > ?6)
+             ORDER BY seq ASC",
+        )?;
+        let rows = stmt.query_map(
+            params![q.seq, q.entity_id, q.session_id, q.op_id, q.action, q.after],
+            row_to_audit,
+        )?;
+        Ok(rows.collect::<rusqlite::Result<_>>()?)
     }
 
     // ---- brief queries ---------------------------------------------------
@@ -1436,6 +1458,8 @@ fn row_to_audit(row: &Row) -> rusqlite::Result<AuditEntry> {
         cwd: row.get(10)?,
         pid: row.get(11)?,
         version: row.get(12)?,
+        op_id: row.get(13)?,
+        undone_by: None,
     })
 }
 

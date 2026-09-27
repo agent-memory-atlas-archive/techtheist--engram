@@ -4,6 +4,7 @@ import type {
     AnsweredHint,
     EncryptionStatus,
     AuditPage,
+    UndoReport,
     StaleTriage,
     AuditSweep,
     NliAgreement,
@@ -346,6 +347,17 @@ export const api = {
     /** One page of the audit journal, newest first; pass the last entry's seq as `before` to page on. */
     audit: (limit = 50, before?: number) =>
         request<AuditPage>(`/audit?limit=${limit}${before != null ? `&before=${before}` : ''}`),
+    /** Undo one journal row — or its whole operation (0.9.10). */
+    auditUndo: (seq: number, dryRun: boolean) =>
+        request<UndoReport>(`/audit/${seq}/undo${dryRun ? '?dry_run=true' : ''}`, {
+            method: 'POST',
+        }),
+    /** Undo everything one session wrote, newest first (0.9.10). */
+    auditUndoSession: (sessionId: string, dryRun: boolean) =>
+        request<UndoReport>(
+            `/audit/sessions/${encodeURIComponent(sessionId)}/undo${dryRun ? '?dry_run=true' : ''}`,
+            { method: 'POST' },
+        ),
 
     exportGraph: () => request<ExportGraph>('/export'),
 

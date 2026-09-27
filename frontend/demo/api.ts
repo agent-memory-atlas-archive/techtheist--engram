@@ -414,6 +414,10 @@ export const api: EngramApi = {
         return ok(page)
     },
 
+    /** The demo journal keeps no before/after snapshots to undo from. */
+    auditUndo: () => unavailable('Undo'),
+    auditUndoSession: () => unavailable('Undo'),
+
     exportGraph: () => {
         const g: ExportGraph = {
             version: 1,

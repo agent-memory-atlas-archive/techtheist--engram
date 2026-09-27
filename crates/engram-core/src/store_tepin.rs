@@ -1270,6 +1270,33 @@ impl Store for TepinStore {
         Ok(AuditPage { entries, total })
     }
 
+    fn audit_rows(&self, q: &AuditQuery) -> Result<Vec<AuditEntry>> {
+        let mut filter = serde_json::Map::new();
+        if let Some(seq) = q.seq {
+            filter.insert("seq".into(), json!(seq));
+        }
+        for (key, value) in [
+            ("entity_id", &q.entity_id),
+            ("session_id", &q.session_id),
+            ("op_id", &q.op_id),
+            ("action", &q.action),
+        ] {
+            if let Some(v) = value {
+                filter.insert(key.into(), json!(v));
+            }
+        }
+        let mut entries: Vec<AuditEntry> = self
+            .find_docs(AUDIT, &Value::Object(filter))?
+            .into_iter()
+            .map(|doc| self.audit_from_doc(doc))
+            .collect::<Result<_>>()?;
+        if let Some(after) = q.after {
+            entries.retain(|e| e.seq > after);
+        }
+        entries.sort_by_key(|e| e.seq);
+        Ok(entries)
+    }
+
     // ---- tags ------------------------------------------------------------
 
     fn tag_stats(&self, limit: usize) -> Result<Vec<TagStat>> {

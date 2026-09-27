@@ -865,6 +865,46 @@ async fn audit_endpoint_pages_the_journal_with_pane_origin() {
 }
 
 #[tokio::test]
+async fn audit_undo_reverts_a_row_and_dry_runs_change_nothing() {
+    let app = test_app();
+    let (_, created) = req(&app, "POST", "/nodes", Some(decision("undo me", "a"))).await;
+    let id = created["id"].as_str().unwrap().to_string();
+    let (_, page) = req(&app, "GET", &format!("/audit?entity_id={id}"), None).await;
+    let seq = page["entries"][0]["seq"].as_i64().unwrap();
+
+    let (status, dry) = req(
+        &app,
+        "POST",
+        &format!("/audit/{seq}/undo?dry_run=true"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{dry}");
+    assert_eq!(dry["dry_run"], true);
+    assert_eq!(dry["undone"][0]["effect"], "removes the note");
+    let (status, _) = req(&app, "GET", &format!("/nodes/{id}"), None).await;
+    assert_eq!(status, StatusCode::OK, "a dry run leaves the note");
+
+    let (status, done) = req(&app, "POST", &format!("/audit/{seq}/undo"), None).await;
+    assert_eq!(status, StatusCode::OK, "{done}");
+    assert_eq!(done["undone"].as_array().unwrap().len(), 1);
+    let (status, _) = req(&app, "GET", &format!("/nodes/{id}"), None).await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "the note is gone");
+    let (_, page) = req(&app, "GET", &format!("/audit?entity_id={id}"), None).await;
+    let original = page["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["action"] == "created")
+        .unwrap();
+    assert!(original["undone_by"].is_number(), "the row reads as undone");
+
+    // An unknown session is a 404, not a silent no-op.
+    let (status, _) = req(&app, "POST", "/audit/sessions/nope/undo", None).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
 async fn system_reports_version_store_and_wiring() {
     // Mirror real daemon startup: build_engine stamps the embed composition.
     let engine = Engine::new(

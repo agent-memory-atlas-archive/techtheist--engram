@@ -163,6 +163,23 @@ it, over which transport, and what the daemon knew at the time.
 When you come back from vacation to a graph that looks different, *"what
 changed and who wrote this"* has an exact answer.
 
+And if the answer is "a session that went wrong", you can take it back. Open
+a row and use one of its buttons:
+
+- **Undo** reverts that one change. A created note is removed (with no
+  tombstone), an edit is restored to what it was, and a deleted note comes
+  back with its links. When the row is part of one operation, such as a
+  merge or a delete together with its links, the button reads **Undo
+  operation** and reverts all of it.
+- **Undo session** reverts everything that session wrote, newest first.
+
+Both show a preview first, listing what will be undone and what will be
+skipped, and nothing changes until you confirm. A change is skipped when
+something newer touched the same note since; the preview names that newer
+row, so you can undo it first if you mean to. Every undo is recorded as its
+own row, so an undo can be undone too. Undo is yours alone, like hard
+delete: the assistant has no tool for it.
+
 ## History at the knowledge level
 
 Any node in a `replaces` chain shows a **History** section in its detail

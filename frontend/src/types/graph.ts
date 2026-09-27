@@ -368,6 +368,31 @@ export interface AuditEntry {
     cwd: string | null
     pid: number | null
     version: string | null
+    /** Rows one operation wrote (a merge, a delete and its links, an undo)
+     *  share this; undoing any of them undoes the whole operation (0.9.10). */
+    op_id?: string | null
+    /** The `undone` row that reverted this one, while that undo stands. */
+    undone_by?: number | null
+}
+
+/** One journal row an undo handled (0.9.10). */
+export interface UndoItem {
+    seq: number
+    action: string
+    entity: string
+    entity_id: string
+    title: string | null
+    /** "removes the note", "restores the note as it was", … */
+    effect: string
+    /** Why it was skipped, or what else the undo touched. */
+    note?: string | null
+}
+
+/** What an undo did — or, on a dry run, would do. */
+export interface UndoReport {
+    dry_run: boolean
+    undone: UndoItem[]
+    skipped: UndoItem[]
 }
 
 /** One journal page, newest first, with the total row count for progress. */
