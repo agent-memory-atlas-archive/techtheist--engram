@@ -905,6 +905,28 @@ async fn audit_undo_reverts_a_row_and_dry_runs_change_nothing() {
 }
 
 #[tokio::test]
+async fn node_standing_names_the_replacement() {
+    let app = test_app();
+    let (_, old) = req(&app, "POST", "/nodes", Some(decision("old way", "a"))).await;
+    let (_, new) = req(&app, "POST", "/nodes", Some(decision("new way", "b"))).await;
+    let (old, new) = (old["id"].as_str().unwrap(), new["id"].as_str().unwrap());
+
+    let (status, s) = req(&app, "GET", &format!("/nodes/{old}/standing"), None).await;
+    assert_eq!(status, StatusCode::OK, "{s}");
+    assert_eq!(s["verdict"], "unverified");
+
+    let edge = json!({"type": "replaces", "from_id": new, "to_id": old, "source": "claude"});
+    let (status, e) = req(&app, "POST", "/edges", Some(edge)).await;
+    assert_eq!(status, StatusCode::OK, "{e}");
+    let (_, s) = req(&app, "GET", &format!("/nodes/{old}/standing"), None).await;
+    assert_eq!(s["verdict"], "superseded", "{s}");
+    assert_eq!(s["other"], new);
+
+    let (status, _) = req(&app, "GET", "/nodes/nope/standing", None).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
 async fn system_reports_version_store_and_wiring() {
     // Mirror real daemon startup: build_engine stamps the embed composition.
     let engine = Engine::new(

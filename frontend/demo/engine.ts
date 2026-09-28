@@ -26,6 +26,7 @@ import type {
     NewEdge,
     NewNode,
     NodeStatus,
+    Standing,
     PolicyConfig,
     Source,
     SuspectView,
@@ -492,6 +493,67 @@ export function readNode(id: string, project = active): GraphNode {
     const n = p.nodes.get(id)
     if (!n) throw new Error(`GET /nodes/${id} → 404 not found`)
     return materialize(n, p.config, nowSecs())
+}
+
+/**
+ * The grounded-answer verdict (0.9.10) — a port of the daemon's
+ * `standing_of`: tombstone role, a live supersession onto it, an open judged
+ * conflict, stale, then the trust ladder. Worst first.
+ */
+export function standing(id: string, project = active): Standing {
+    const p = state(project)
+    const n = readNode(id, project)
+    const verbs = p.config.ontology.verbs
+    const role = (name: string, r: 'supersession' | 'contradiction') =>
+        verbs.find((v) => v.name === name)?.roles[r] ?? false
+    const live = (e: GraphEdge) => e.status !== 'resolved' && e.status !== 'dismissed'
+    const title = (other: string) => p.nodes.get(other)?.title ?? other
+    const current = (other: string) => p.nodes.get(other)?.valid_until == null
+    if (p.config.ontology.types.find((t) => t.name === n.type)?.roles.tombstone) {
+        return {
+            verdict: 'tombstone',
+            reason: "a record that this knowledge was deliberately removed — don't act on it or re-add it",
+        }
+    }
+    const edges = [...p.edges.values()].filter(live)
+    const newer = edges.find((e) => e.to_id === id && role(e.type, 'supersession') && current(e.from_id))
+    if (newer) {
+        return {
+            verdict: 'superseded',
+            reason: `replaced by "${title(newer.from_id)}" — read that instead`,
+            other: newer.from_id,
+        }
+    }
+    for (const e of edges) {
+        if (!role(e.type, 'contradiction') || (e.from_id !== id && e.to_id !== id)) continue
+        const other = e.from_id === id ? e.to_id : e.from_id
+        if (!current(other)) continue
+        return {
+            verdict: 'contested',
+            reason: `in an open judged conflict with "${title(other)}" — tell the user before relying on either`,
+            other,
+        }
+    }
+    if (n.stale) {
+        return {
+            verdict: 'stale',
+            reason: 'its trust fell below the stale line — verify against the code or the user first',
+        }
+    }
+    if (n.trust_override != null) return { verdict: 'canon', reason: 'pinned by the user' }
+    if (n.approved_at != null) {
+        return {
+            verdict: 'canon',
+            reason: n.source === 'user' ? 'written by the user' : 'approved by the user',
+        }
+    }
+    if (n.confirmed_at != null) {
+        return { verdict: 'confirmed', reason: 'confirmed still true since it was written' }
+    }
+    return {
+        verdict: 'unverified',
+        reason: 'written by an assistant and never confirmed — a lead, not a fact',
+    }
 }
 
 function put(n: GraphNode, project = active): GraphNode {

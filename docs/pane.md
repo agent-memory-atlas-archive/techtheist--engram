@@ -108,7 +108,9 @@ capturing, and you filter by it when reviewing.
 ## Edit everything by hand
 
 The graph is yours, not a read-only visualization of what the AI did.
-Selecting a node opens everything the graph knows about it — badges, tags,
+Selecting a node opens everything the graph knows about it — badges, its
+[standing](./recall-and-capture.md) (the verdict the assistant reads on the
+same note, linking to whatever replaces or contests it), tags,
 custom field values, body, links, and the session it was born in — with
 every one of them editable in place.
 

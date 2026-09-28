@@ -693,6 +693,7 @@ fn api_router(state: Arc<AppState>) -> Router {
         .route("/refs/match", get(refs_match))
         .route("/history", get(history_stats).delete(history_reset))
         .route("/nodes/{id}/born-in", get(node_born_in))
+        .route("/nodes/{id}/standing", get(node_standing))
         .route("/history/sessions", get(history_sessions))
         .route(
             "/history/sessions/{sid}",
@@ -1789,6 +1790,18 @@ async fn node_born_in(
     let engine = state.engine_arc(&scope)?;
     let born = engine.lock().unwrap().born_in_of(&id);
     Ok(Json(json!({ "born_in": born })))
+}
+
+/// The grounded-answer verdict for one node (0.9.10) — the same `standing`
+/// search hits carry, for the pane's inspector.
+async fn node_standing(
+    State(state): State<Arc<AppState>>,
+    scope: Scope,
+    Path(id): Path<String>,
+) -> Result<Json<engram_core::Standing>, AppError> {
+    let engine = state.engine_arc(&scope)?;
+    let standing = pane(&engine).node_standing(&id)?;
+    standing.map(Json).ok_or(AppError::NotFound)
 }
 
 async fn history_sessions(

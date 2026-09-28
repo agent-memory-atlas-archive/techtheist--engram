@@ -5,6 +5,7 @@ import type {
     EncryptionStatus,
     AuditPage,
     UndoReport,
+    Standing,
     StaleTriage,
     AuditSweep,
     NliAgreement,
@@ -215,6 +216,9 @@ export const api = {
             method: 'DELETE',
         }),
     bornIn: (id: string) => request<{ born_in: BornIn | null }>(`/nodes/${id}/born-in`),
+
+    /** The node's grounded-answer verdict — the `standing` search hits carry (0.9.10). */
+    standing: (id: string) => request<Standing>(`/nodes/${id}/standing`),
 
     /** The per-graph configuration (PLAN §7D) — project-scoped. */
     config: () => request<GraphConfig>('/config'),

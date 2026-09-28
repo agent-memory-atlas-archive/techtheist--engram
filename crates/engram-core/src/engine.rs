@@ -3166,7 +3166,7 @@ impl Engine {
             hit.tombstone = cfg
                 .type_def(hit.node_type.as_str())
                 .is_some_and(|t| t.roles.tombstone);
-            hit.standing = Some(self.standing_of(hit)?);
+            hit.standing = Some(self.standing_of(&hit.id, hit.tombstone, hit.stale)?);
         }
         order_hits(&mut hits, filter.order);
         // Observability stamp on what was actually returned — never the
@@ -3177,19 +3177,30 @@ impl Engine {
         Ok(hits)
     }
 
+    /// A node's grounded-answer verdict (0.9.10) — the same `standing` a
+    /// search hit carries, for surfaces that show one node (the pane's
+    /// inspector). `None` when the node does not exist.
+    pub fn node_standing(&self, id: &str) -> Result<Option<Standing>> {
+        let Some(node) = self.store.get_node(id)? else {
+            return Ok(None);
+        };
+        let tombstone = is_tombstone(&self.store.config(), &node);
+        self.standing_of(id, tombstone, node.stale).map(Some)
+    }
+
     /// Grounded answers (0.9.10): how far a hit can be relied on, composed
     /// from what the graph already records — the tombstone role, a live
     /// `replaces` onto it, an open judged conflict, staleness, and the trust
     /// ladder. The first that applies wins, worst first. Reads the full edge
     /// lists, not the capped neighbour sample, so no conflict hides behind
     /// the cap.
-    fn standing_of(&self, hit: &SearchHit) -> Result<Standing> {
+    fn standing_of(&self, id: &str, tombstone: bool, stale: bool) -> Result<Standing> {
         let standing = |verdict: &str, reason: String, other: Option<String>| Standing {
             verdict: verdict.to_string(),
             reason,
             other,
         };
-        if hit.tombstone {
+        if tombstone {
             return Ok(standing(
                 "tombstone",
                 "a record that this knowledge was deliberately removed — don't act on it or re-add it"
@@ -3200,7 +3211,7 @@ impl Engine {
         let cfg = self.store.config();
         let live =
             |e: &Edge| !matches!(e.status, Some(EdgeStatus::Resolved | EdgeStatus::Dismissed));
-        let edges_in = self.store.edges_in(&hit.id)?;
+        let edges_in = self.store.edges_in(id)?;
         for e in edges_in.iter().filter(|e| live(e)) {
             if e.edge_type.as_str() == cfg.supersession_verb()
                 && let Some(newer) = self.store.get_node(&e.from_id)?
@@ -3213,12 +3224,12 @@ impl Engine {
                 ));
             }
         }
-        let edges_out = self.store.edges_out(&hit.id)?;
+        let edges_out = self.store.edges_out(id)?;
         for e in edges_in.iter().chain(&edges_out).filter(|e| live(e)) {
             if e.edge_type.as_str() != cfg.contradiction_verb() {
                 continue;
             }
-            let other_id = if e.from_id == hit.id {
+            let other_id = if e.from_id == id {
                 &e.to_id
             } else {
                 &e.from_id
@@ -3236,7 +3247,7 @@ impl Engine {
                 ));
             }
         }
-        if hit.stale {
+        if stale {
             return Ok(standing(
                 "stale",
                 "its trust fell below the stale line — verify against the code or the user first"
@@ -3244,7 +3255,7 @@ impl Engine {
                 None,
             ));
         }
-        let Some(node) = self.store.get_node(&hit.id)? else {
+        let Some(node) = self.store.get_node(id)? else {
             return Ok(standing(
                 "unverified",
                 "not found in the store".into(),

@@ -7,6 +7,7 @@ import SelectMenu from '@/components/common/SelectMenu.vue'
 import SidePanel from '@/components/common/SidePanel.vue'
 import FieldInput from '@/components/common/FieldInput.vue'
 import TagEditor from '@/components/common/TagEditor.vue'
+import StandingChip from '@/components/common/StandingChip.vue'
 import { useConfigStore } from '@/stores/config'
 import { BADGE_TIPS, explainTrust } from '@/constants/trust'
 import { api } from '@/services/api'
@@ -14,7 +15,7 @@ import { useGraphStore } from '@/stores/graph'
 import { useHistoryStore } from '@/stores/history'
 import { useLayoutStore } from '@/stores/layout'
 import { parseCodeRefs } from '@/utils/codeRefs'
-import type { BornIn, EdgeType, GraphEdge, TimelineEntry } from '@/types/graph'
+import type { BornIn, EdgeType, GraphEdge, Standing, TimelineEntry } from '@/types/graph'
 
 const store = useGraphStore()
 const config = useConfigStore()
@@ -44,6 +45,49 @@ watch(
     },
     { immediate: true },
 )
+
+// --- grounded answers (0.9.10): the note's standing -----------------------
+
+const standing = ref<Standing | null>(null)
+
+/**
+ * Everything the daemon's verdict reads: the node's endorsements and
+ * staleness, and the live edges touching it — so pinning, approving, or
+ * linking a `replaces` re-reads the verdict at once.
+ */
+const standingKey = computed(() => {
+    const n = selected.value
+    if (!n) return null
+    const touching = edgeList.value
+        .filter((e) => e.from_id === n.id || e.to_id === n.id)
+        .map((e) => `${e.id}:${e.status ?? ''}`)
+        .sort()
+        .join(',')
+    return [n.id, n.trust_override, n.approved_at, n.confirmed_at, n.stale, n.valid_until, touching].join('|')
+})
+
+watch(
+    standingKey,
+    async (key) => {
+        const id = selected.value?.id
+        if (!key || !id) {
+            standing.value = null
+            return
+        }
+        try {
+            const s = await api.standing(id)
+            if (selected.value?.id === id) standing.value = s
+        } catch {
+            standing.value = null // an older daemon without the route
+        }
+    },
+    { immediate: true },
+)
+
+const standingOther = computed(() => {
+    const other = standing.value?.other
+    return other ? (nodes.value.get(other) ?? null) : null
+})
 
 /**
  * The recorded session a pre-history note most plausibly belongs to: its
@@ -447,6 +491,19 @@ function close(): void {
 
         <p class="trust-note">{{ explainTrust(selected, config.cfg?.policy) }}</p>
 
+        <p v-if="standing" class="standing-line">
+            <StandingChip :standing="standing" />
+            <span class="standing-reason">
+                <template v-if="standingOther">
+                    {{ standing.verdict === 'superseded' ? 'replaced by' : 'in conflict with' }}
+                    <button class="standing-other" type="button" @click="store.select(standingOther.id)">
+                        {{ standingOther.title }}
+                    </button>
+                </template>
+                <template v-else>{{ standing.reason }}</template>
+            </span>
+        </p>
+
         <div v-if="selected.tags.length && !editing" class="tag-row">
             <span v-for="t in selected.tags" :key="t" class="tag-chip">#{{ t }}</span>
         </div>
@@ -827,6 +884,33 @@ function close(): void {
 }
 
 /* One stale badge across the pane — same shape here, in Review, in the feed. */
+.standing-line {
+    display: flex;
+    align-items: baseline;
+    gap: 0.8rem;
+    margin-top: 0.6rem;
+    font-size: var(--text-caption);
+    color: var(--text-secondary);
+}
+
+.standing-reason {
+    min-width: 0;
+}
+
+.standing-other {
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--interactive-primary);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.standing-other:hover {
+    text-decoration: underline;
+}
+
 .badge.stale {
     color: var(--node-problem);
     background-color: color-mix(in srgb, var(--node-problem) 14%, transparent);

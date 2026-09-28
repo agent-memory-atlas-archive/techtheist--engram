@@ -413,6 +413,21 @@ export interface SearchHit {
     created_at: number
     /** The hit plays the graph's tombstone role — a removal record, not live canon; present only when true (0.9.4). */
     tombstone?: boolean
+    /** How far the hit can be relied on (0.9.10) — absent from older daemons. */
+    standing?: Standing
+}
+
+/**
+ * Grounded answers (0.9.10): one verdict on how far a note can be relied on,
+ * composed by the daemon from the tombstone role, a live `replaces`, an open
+ * judged conflict, staleness and the trust ladder — worst first.
+ */
+export interface Standing {
+    verdict: 'tombstone' | 'superseded' | 'contested' | 'stale' | 'canon' | 'confirmed' | 'unverified'
+    /** What it means for the reader, in plain words. */
+    reason: string
+    /** The note that replaces or contests this one. */
+    other?: string
 }
 
 /** One node's NLI verdict against a checked claim (POST /claims/check). */

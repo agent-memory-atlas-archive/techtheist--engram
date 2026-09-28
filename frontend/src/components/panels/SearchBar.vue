@@ -8,6 +8,7 @@ import { useGraphStore } from '@/stores/graph'
 import { useConfigStore } from '@/stores/config'
 import { useHistoryStore } from '@/stores/history'
 import { useLayoutStore } from '@/stores/layout'
+import StandingChip from '@/components/common/StandingChip.vue'
 import type { HistoryHit, SearchHit } from '@/types/graph'
 
 /**
@@ -65,6 +66,15 @@ watchDebounced(
     },
     { debounce: 250, maxWait: 1000 },
 )
+
+/**
+ * Hits whose standing changes how to read them (0.9.10). Confirmed and
+ * unverified stay quiet — most of any list, and a chip on every row is noise.
+ */
+function flagged(hit: SearchHit): boolean {
+    const v = hit.standing?.verdict
+    return v != null && v !== 'confirmed' && v !== 'unverified'
+}
 
 function pick(hit: SearchHit): void {
     store.select(hit.id)
@@ -166,7 +176,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKey))
                     <!-- eslint-disable-next-line vue/no-v-html -->
                     <span class="result-snippet" v-html="safeSnippet(hit.snippet)" />
                 </span>
-                <span class="result-type">{{ hit.type }}</span>
+                <span class="result-side">
+                    <StandingChip v-if="flagged(hit)" :standing="hit.standing!" />
+                    <span class="result-type">{{ hit.type }}</span>
+                </span>
             </button>
         </li>
     </ul>
@@ -319,6 +332,14 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKey))
     background: transparent;
     color: var(--interactive-primary-hover);
     font-weight: 600;
+}
+
+.result-side {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.4rem;
+    flex-shrink: 0;
 }
 
 .result-type {

@@ -69,7 +69,10 @@ and the first that applies wins:
 
 The capture skill teaches the assistant to weigh a hit by its standing, not
 just its rank: to tell you about a contested hit, and to treat an
-unverified one as a lead rather than a fact.
+unverified one as a lead rather than a fact. The pane shows you the same
+verdict: a chip on search results that need a second look (canon,
+superseded, contested, stale, tombstone), and a standing line in the node
+drawer that links to the replacing or conflicting note.
 
 Since 0.8.0 the result set is also **calibrated**. Hits scoring under a
 benchmark-measured delivery floor are trimmed before they reach the assistant

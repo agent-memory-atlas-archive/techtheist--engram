@@ -98,7 +98,16 @@ export const api: EngramApi = {
     tags: () => ok(engine.tagStats()),
 
     // Pre-recorded: ranking is the cortex's job and the cortex isn't here.
-    search: () => ok(SEARCH_HITS),
+    search: () =>
+        ok(
+            SEARCH_HITS.map((h) => {
+                try {
+                    return { ...h, standing: engine.standing(h.id) }
+                } catch {
+                    return h // a canned hit whose note the visitor deleted
+                }
+            }),
+        ),
 
     searchHistory: (query: string) => {
         const q = query.toLowerCase()
@@ -283,6 +292,8 @@ export const api: EngramApi = {
         return ok({ removed })
     },
     bornIn: (id: string) => ok({ born_in: BORN_IN[id] ?? null }),
+
+    standing: (id: string) => ok(engine.standing(id)),
 
     config: () => ok(engine.state().config),
     putConfig: (cfg: GraphConfig) => {
