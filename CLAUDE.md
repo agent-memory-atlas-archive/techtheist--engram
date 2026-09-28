@@ -25,7 +25,7 @@
 - Search-before-write; every write response is a verdict (matched → merge, suspects → judge now, warnings → check canon).
 
 ## Chronicle (one line per release — `search` with `during_version` or read CHANGELOG.md for the story)
-- **0.9.10** (OPEN 2026-09-25) — scope not chosen yet; the cycle Intent `00dqat4jzfx6` lists the threads 0.9.9 left (this machine's NLI is on Laya for testing — switch back to tasksource).
+- **0.9.10** (release pending, 2026-09-28) — grounded answers (`standing` on every hit, in the pane too); endorsements rank twins (twin order + endorsement clock, `eval --authority`); audit undo (pane/HTTP only); write judging off the engine lock; MCP sessions follow a replaced store; reproducible weak line; doctor knows the plugin; CI on Node 24. This machine's graph stays on Laya for dogfooding; every bench runs tasksource, which stays the default. Next lever measured: embedding holds the write lock (Insight `00dxfvuv1j1f`).
 - **0.9.9** (RELEASED 2026-09-24 at ffbcd1a) — contradictions propagate along inheriting edges (`inherits` verb role, hint `inherited`); Laya int4 / multilingual selectable judges (tasksource stays default; exports at huggingface.co/techtheist/laya-onnx); `eval --shapes`; brief gains Current cycle + `bodies` / `canon_order`; numeric MCP args accept strings; the Claude Code plugin ships its MCP server (`mcp --wired-only`, rung `unwired`); sweeps release the engine lock per node (a Laya sweep froze the core); this file slimmed (old chronicle in git history).
 - **0.9.8** (released) — unbound sessions refuse writes (issue #11); `GET /guide` operator's manual.
 - **0.9.7** — the icon arrives; plugins say "Engram Alpha".

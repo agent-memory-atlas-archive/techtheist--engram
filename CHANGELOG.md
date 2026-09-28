@@ -3,6 +3,77 @@
 Release notes for Engram Alpha. Each release's section below becomes the
 body of its GitHub Release (draft-release.yml lifts it automatically).
 
+## v0.9.10
+
+### Answers that say how far they can be trusted
+
+- **Every search hit carries a `standing`**, the graph's own verdict on how
+  far it can be relied on: `tombstone`, `superseded` (naming its
+  replacement), `contested` (naming the other side of an open conflict),
+  `stale`, `canon` (pinned, approved or written by you), `confirmed`, or
+  `unverified`. It is read from the note's full edge lists, so no conflict
+  hides behind the neighbour cap. The assistant weighs a hit by its standing,
+  not just its rank: every capture skill and the MCP search description teach
+  it. A pinned note that was later replaced now says so.
+- **The pane shows the same verdict.** Search results that need a second look
+  get a chip, and the node drawer gets a standing line that links to the note
+  that replaces or contests it (`GET /nodes/{id}/standing`).
+
+### Endorsements decide between near-identical notes
+
+- **The one you endorsed ranks first.** When two delivered hits are near
+  twins (cosine 0.90 or more), the pinned one goes first, then the more
+  trusted one, and between two you endorsed alike, the one endorsed most
+  recently. Nothing that isn't a twin moves. Before this, a fresher capture
+  date beat every endorsement, and pin against approve was a coin flip. On the
+  new `engram-eval --authority` bench, endorsed-first rises from 0.54 to 1.00
+  with the control unchanged; recall on the post-tune ladder is identical at
+  100, 500 and 1500 notes. Graph settings → *endorsed twins ≥*
+  (`policy.twin_trust_order`, `null` = off).
+
+### Undo from the audit log
+
+- **Open an audit row and undo it**: the row, its whole operation, or
+  everything that session wrote. Every undo shows a dry-run preview you
+  confirm in place, is journaled itself, and can be undone again. An entity
+  changed since is skipped and named, not overwritten. Undoing a created
+  note removes it without a tombstone; undoing an edit restores the before
+  snapshot; a delete comes back with its links. Rows written before this
+  release are undoable too. Undo is user-only, in the pane and over HTTP
+  (`POST /audit/{seq}/undo`, `/audit/sessions/{sid}/undo`, `?dry_run`),
+  never over MCP.
+- **Audit badges line up.** The badge holds the verb (CREATED, STARTED,
+  SERVED); a long action's subject (MCP session, history, brief) moves to
+  the line below. Only the display changed: the journal and the API keep
+  the original action names.
+
+### Steadier under load
+
+- **A write no longer holds the core while the contradiction judge runs.**
+  Duplicate, suspect and canon pairs are gathered under the lock, judged
+  with it released, then re-checked and queued. On a slow machine or with
+  Laya selected, other sessions stop waiting behind one write. Each write
+  also reads its neighbourhood once instead of four times.
+- **An open MCP session follows a wiped or replaced store** instead of
+  writing to the one it captured at start.
+- **The weak line is reproducible.** Its calibration probes were sampled in
+  id order, and ids are minted from the clock, so the same graph fitted a
+  slightly different line on every run. They are sampled by content now.
+
+### Smaller things
+
+- **`doctor` understands the Claude Code plugin:** a plugin-wired repo with
+  no `.mcp.json` entry is healthy, and an entry beside the plugin warns that
+  the tools load twice.
+- **Graph settings:** the verb card shows each verb's `inherits` role
+  (`inherits · auto` when derived); the brief's canon-order select spans its
+  row.
+- **Docs:** what redaction covers and how to check it yourself
+  (recall-and-capture), the fields it does not scrub (SECURITY.md), and
+  what to do when a pinned note is wrong (trust).
+- **CI** runs every action on its Node 24 major; the VS Code extension
+  publishes through the `ovsx` and `vsce` CLIs.
+
 ## v0.9.9
 
 ### Contradictions travel along edges
