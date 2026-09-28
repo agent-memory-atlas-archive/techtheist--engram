@@ -5,6 +5,7 @@ import { api } from '@/services/api'
 import { onProjectSwitch } from '@/composables/onProjectSwitch'
 import { useAuditLog } from '@/composables/useAuditLog'
 import type { AuditEntry, UndoReport } from '@/types/graph'
+import { actionLabel } from '@/utils/auditAction'
 
 /**
  * Audit log (PLAN §10): the append-only journal of every node/edge mutation,
@@ -201,12 +202,12 @@ function fmtDate(secs: number): string {
     <ul class="entries">
         <li v-for="e in entries" :key="e.seq" class="entry">
             <button class="entry-head" type="button" @click="toggle(e.seq)">
-                <span class="action" :data-action="e.action">{{ e.action }}</span>
+                <span class="action" :data-action="e.action" :title="e.action">{{ actionLabel(e.action).verb }}</span>
                 <span class="what">
                     <span class="entry-title">{{ e.title ?? e.entity_id }}</span>
                     <span class="meta">
                         <span class="origin" :data-origin="e.origin">{{ e.origin }}</span>
-                        {{ e.entity }} · {{ fmtDate(e.ts) }}
+                        {{ actionLabel(e.action).noun ?? e.entity }} · {{ fmtDate(e.ts) }}
                         <span v-if="e.undone_by != null" class="undone-tag" :title="`Reverted by row #${e.undone_by}`">
                             undone
                         </span>
@@ -238,6 +239,8 @@ function fmtDate(secs: number): string {
                     </template>
                     <dt>process</dt>
                     <dd>pid {{ e.pid ?? '—' }} · v{{ e.version ?? '?' }} · {{ e.origin }}</dd>
+                    <dt>action</dt>
+                    <dd>{{ e.action }} · {{ e.entity }}</dd>
                     <dt>id</dt>
                     <dd>{{ e.entity_id || '—' }}</dd>
                 </dl>
@@ -354,17 +357,22 @@ function fmtDate(secs: number): string {
 }
 
 .action {
-    /* Sized by its text: activity actions (mcp_session_started, brief_served)
-       run longer than the mutation verbs the old fixed width was cut for. */
+    /* One width for every badge: the badge holds only the verb (a compound
+       action's noun moves to the meta line — utils/auditAction), so titles
+       line up whatever the action. Sized for the widest journal verb
+       (UNAPPROVED); a longer unknown one ellipsizes, the raw
+       action is in the tooltip and the opened detail. */
     flex-shrink: 0;
-    min-width: 7.2rem;
-    width: fit-content;
+    width: 9.6rem;
+    overflow: hidden;
     padding: 0.2rem 0.6rem;
     border-radius: var(--radius-sm);
     font-size: var(--text-caption);
     font-weight: 600;
     text-align: center;
+    text-overflow: ellipsis;
     text-transform: uppercase;
+    white-space: nowrap;
     letter-spacing: 0.04em;
     color: var(--text-secondary);
     background-color: var(--surface-muted);
