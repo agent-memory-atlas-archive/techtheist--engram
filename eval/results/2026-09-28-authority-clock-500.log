@@ -1,0 +1,22 @@
+  no twin order            mean endorsed-first 0.54
+  twins@0.90               mean endorsed-first 1.00
+  twins@0.95               mean endorsed-first 0.89
+authority — do endorsements move ranking? (embedder bge-small-en-v1.5, reranker jina-reranker-v1-turbo-en, background 500 notes, 32 cases per scenario, seed 1, limit 10)
+scenario                        no twin order             twins@0.90             twins@0.95
+control                           0.44 miss 0.00            0.44 miss 0.00            0.44 miss 0.00
+confirm_vs_none                   0.59 miss 0.00            1.00 miss 0.00            0.91 miss 0.00
+approve_vs_none                   1.00 miss 0.00            1.00 miss 0.00            1.00 miss 0.00
+pin_vs_none                       1.00 miss 0.00            1.00 miss 0.00            1.00 miss 0.00
+approve_vs_confirm                1.00 miss 0.00            1.00 miss 0.00            1.00 miss 0.00
+pin_vs_approve                    0.44 miss 0.00            1.00 miss 0.00            0.84 miss 0.00
+confirm_vs_fresh                  0.00 miss 0.00            1.00 miss 0.00            0.78 miss 0.00
+approve_vs_fresh                  0.06 miss 0.00            1.00 miss 0.00            0.81 miss 0.00
+confirm_vs_kind                   0.59 miss 0.00            1.00 miss 0.00            0.91 miss 0.00
+approve_vs_kind                   1.00 miss 0.00            1.00 miss 0.00            1.00 miss 0.00
+pin_vs_fresh_kind                 0.06 miss 0.00            1.00 miss 0.00            0.81 miss 0.00
+latest_confirm                    0.44 miss 0.00            1.00 miss 0.00            0.84 miss 0.00
+latest_approve                    0.44 miss 0.00            1.00 miss 0.00            0.84 miss 0.00
+latest_pin                        0.44 miss 0.00            1.00 miss 0.00            0.84 miss 0.00
+mean (excl. control)                    0.543                  1.000                  0.892
+
+wrote eval/results/2026-09-28-authority-clock-500.json

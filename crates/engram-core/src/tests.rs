@@ -11138,3 +11138,60 @@ fn endorsed_twins_rank_first_pinned_above_approved() {
         .collect();
     assert_eq!(order, vec![pinned.id, approved.id, plain.id]);
 }
+
+#[test]
+fn twins_on_the_same_rung_rank_the_latest_endorsement_first() {
+    // 0.9.10 endorsement clock: two pinned (approved, confirmed) twins
+    // compute the same trust, so which was endorsed last decides — within
+    // the same second too, where the journal seq breaks the tie.
+    let e = engine();
+    let mut cfg = e.graph_config();
+    cfg.policy.twin_trust_order = Some(0.5); // the fake embedder's scale
+    e.set_graph_config(&cfg).unwrap();
+    let body = "set after the spring load tests; applies to production";
+    let twin = |value: &str| {
+        let mut n = new_node(
+            NodeType::Decision,
+            &format!("the retry budget is {value} attempts"),
+            body,
+        );
+        n.durability = Durability::Stable;
+        e.add_node(n).unwrap().id
+    };
+    let (a, b) = (twin("three"), twin("five"));
+    let order = |e: &Engine| -> Vec<String> {
+        e.search("retry budget", &[], 10)
+            .unwrap()
+            .into_iter()
+            .map(|h| h.id)
+            .filter(|id| *id == a || *id == b)
+            .collect()
+    };
+    type Endorse = fn(&Engine, &str);
+    let rungs: [(&str, Endorse); 3] = [
+        ("confirm", |e, id| {
+            e.reconfirm(id).unwrap();
+        }),
+        ("approve", |e, id| {
+            e.approve(id).unwrap();
+        }),
+        ("pin", |e, id| {
+            e.set_trust_override(id, Some(1.0)).unwrap();
+        }),
+    ];
+    for (name, endorse) in rungs {
+        endorse(&e, &a);
+        endorse(&e, &b);
+        assert_eq!(
+            order(&e),
+            vec![b.clone(), a.clone()],
+            "{name}: b was endorsed last"
+        );
+        endorse(&e, &a);
+        assert_eq!(
+            order(&e),
+            vec![a.clone(), b.clone()],
+            "{name}: a was endorsed last"
+        );
+    }
+}

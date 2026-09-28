@@ -152,7 +152,8 @@ reranker has the final word), `rerank_full_note`, `delivery_floor`,
 not off** — the config refuses it), `weak_line_quantile`,
 `weak_line_probes`, `session_diversity_demote` (`0` = off),
 `twin_trust_order` (cosine band for endorsed-first order among
-near-identical hits; `null` = off), `auto_tune`
+near-identical hits — pinned, then higher trust, then the most recent
+endorsement on the same rung; `null` = off), `auto_tune`
 (let a mature graph refit its own conflict floor and weak line).
 
 Caveats to say out loud: the defaults were measured on the eval bench and

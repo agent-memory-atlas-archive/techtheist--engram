@@ -496,7 +496,7 @@ const deliveryWords = computed(() => {
             ? `Session-diverse delivery is on: when more strong candidates survive the floor than fit the list, each extra hit from a session already holding a slot is demoted ${p.session_diversity_demote} rank position${p.session_diversity_demote === 1 ? '' : 's'} — one session's restatements stop crowding out other sessions' evidence. Measured recall-free at the shipped value; scores and the verdict are untouched.`
             : `Session-diverse delivery is off: the result list is cut purely by rank, however many hits share a session.`,
         p.twin_trust_order != null
-            ? `Endorsed twins go first: when two delivered hits are ${pct(p.twin_trust_order)} alike or more — near-identical notes — the one you pinned or approved ranks above the other, whatever its capture date or type. Nothing else moves.`
+            ? `Endorsed twins go first: when two delivered hits are ${pct(p.twin_trust_order)} alike or more — near-identical notes — the one you pinned or approved ranks above the other, whatever its capture date or type; between two you endorsed alike, the one endorsed last. Nothing else moves.`
             : `Twin order is off: between two near-identical notes, capture date and type decide the order, not your endorsements.`,
     ]
 })

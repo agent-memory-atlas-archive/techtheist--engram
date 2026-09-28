@@ -132,6 +132,31 @@ const SCENARIOS: &[Scenario] = &[
         true,
         true,
     ),
+    // The endorsement clock: both twins on the same rung, the winner
+    // endorsed LAST — the tie trust cannot break (KnowledgeDrift
+    // latest_confirm / latest_approve / latest_pin, engram Insight
+    // 00d7plf0wpjx).
+    sc(
+        "latest_confirm",
+        Endorsement::Confirm,
+        Endorsement::Confirm,
+        false,
+        false,
+    ),
+    sc(
+        "latest_approve",
+        Endorsement::Approve,
+        Endorsement::Approve,
+        false,
+        false,
+    ),
+    sc(
+        "latest_pin",
+        Endorsement::Pin,
+        Endorsement::Pin,
+        false,
+        false,
+    ),
 ];
 
 const fn sc(
@@ -333,8 +358,11 @@ fn score_scenario(
             };
             let winner = write(engine, win_kind, &title(win_value), &body, win_at)?;
             let loser = write(engine, lose_kind, &title(lose_value), &body, lose_at)?;
-            endorse(engine, &winner, s.winner)?;
+            // The loser is endorsed first, so on a shared rung the winner
+            // holds the latest endorsement; on different rungs the order is
+            // moot.
             endorse(engine, &loser, s.loser)?;
+            endorse(engine, &winner, s.winner)?;
             written.push(winner.clone());
             written.push(loser.clone());
 

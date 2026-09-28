@@ -1,0 +1,290 @@
+{
+  "embedder": "bge-small-en-v1.5",
+  "reranker": "jina-reranker-v1-turbo-en",
+  "embeddings_are_fake": false,
+  "seed": 1,
+  "limit": 10,
+  "background": 500,
+  "cases_per_scenario": 32,
+  "variants": [
+    {
+      "variant": {
+        "name": "no twin order",
+        "twin_order": null
+      },
+      "scenarios": [
+        {
+          "scenario": "control",
+          "cases": 32,
+          "endorsed_first": 0.4375,
+          "missed": 0.0
+        },
+        {
+          "scenario": "confirm_vs_none",
+          "cases": 32,
+          "endorsed_first": 0.59375,
+          "missed": 0.0
+        },
+        {
+          "scenario": "approve_vs_none",
+          "cases": 32,
+          "endorsed_first": 1.0,
+          "missed": 0.0
+        },
+        {
+          "scenario": "pin_vs_none",
+          "cases": 32,
+          "endorsed_first": 1.0,
+          "missed": 0.0
+        },
+        {
+          "scenario": "approve_vs_confirm",
+          "cases": 32,
+          "endorsed_first": 1.0,
+          "missed": 0.0
+        },
+        {
+          "scenario": "pin_vs_approve",
+          "cases": 32,
+          "endorsed_first": 0.4375,
+          "missed": 0.0
+        },
+        {
+          "scenario": "confirm_vs_fresh",
+          "cases": 32,
+          "endorsed_first": 0.0,
+          "missed": 0.0
+        },
+        {
+          "scenario": "approve_vs_fresh",
+          "cases": 32,
+          "endorsed_first": 0.0625,
+          "missed": 0.0
+        },
+        {
+          "scenario": "confirm_vs_kind",
+          "cases": 32,
+          "endorsed_first": 0.59375,
+          "missed": 0.0
+        },
+        {
+          "scenario": "approve_vs_kind",
+          "cases": 32,
+          "endorsed_first": 1.0,
+          "missed": 0.0
+        },
+        {
+          "scenario": "pin_vs_fresh_kind",
+          "cases": 32,
+          "endorsed_first": 0.0625,
+          "missed": 0.0
+        },
+        {
+          "scenario": "latest_confirm",
+          "cases": 32,
+          "endorsed_first": 0.4375,
+          "missed": 0.0
+        },
+        {
+          "scenario": "latest_approve",
+          "cases": 32,
+          "endorsed_first": 0.4375,
+          "missed": 0.0
+        },
+        {
+          "scenario": "latest_pin",
+          "cases": 32,
+          "endorsed_first": 0.4375,
+          "missed": 0.0
+        }
+      ],
+      "mean_endorsed_first": 0.5432692307692307
+    },
+    {
+      "variant": {
+        "name": "twins@0.90",
+        "twin_order": 0.9
+      },
+      "scenarios": [
+        {
+          "scenario": "control",
+          "cases": 32,
+          "endorsed_first": 0.4375,
+          "missed": 0.0
+        },
+        {
+          "scenario": "confirm_vs_none",
+          "cases": 32,
+          "endorsed_first": 1.0,
+          "missed": 0.0
+        },
+        {
+          "scenario": "approve_vs_none",
+          "cases": 32,
+          "endorsed_first": 1.0,
+          "missed": 0.0
+        },
+        {
+          "scenario": "pin_vs_none",
+          "cases": 32,
+          "endorsed_first": 1.0,
+          "missed": 0.0
+        },
+        {
+          "scenario": "approve_vs_confirm",
+          "cases": 32,
+          "endorsed_first": 1.0,
+          "missed": 0.0
+        },
+        {
+          "scenario": "pin_vs_approve",
+          "cases": 32,
+          "endorsed_first": 1.0,
+          "missed": 0.0
+        },
+        {
+          "scenario": "confirm_vs_fresh",
+          "cases": 32,
+          "endorsed_first": 1.0,
+          "missed": 0.0
+        },
+        {
+          "scenario": "approve_vs_fresh",
+          "cases": 32,
+          "endorsed_first": 1.0,
+          "missed": 0.0
+        },
+        {
+          "scenario": "confirm_vs_kind",
+          "cases": 32,
+          "endorsed_first": 1.0,
+          "missed": 0.0
+        },
+        {
+          "scenario": "approve_vs_kind",
+          "cases": 32,
+          "endorsed_first": 1.0,
+          "missed": 0.0
+        },
+        {
+          "scenario": "pin_vs_fresh_kind",
+          "cases": 32,
+          "endorsed_first": 1.0,
+          "missed": 0.0
+        },
+        {
+          "scenario": "latest_confirm",
+          "cases": 32,
+          "endorsed_first": 0.4375,
+          "missed": 0.0
+        },
+        {
+          "scenario": "latest_approve",
+          "cases": 32,
+          "endorsed_first": 0.4375,
+          "missed": 0.0
+        },
+        {
+          "scenario": "latest_pin",
+          "cases": 32,
+          "endorsed_first": 0.4375,
+          "missed": 0.0
+        }
+      ],
+      "mean_endorsed_first": 0.8701923076923077
+    },
+    {
+      "variant": {
+        "name": "twins@0.95",
+        "twin_order": 0.95
+      },
+      "scenarios": [
+        {
+          "scenario": "control",
+          "cases": 32,
+          "endorsed_first": 0.4375,
+          "missed": 0.0
+        },
+        {
+          "scenario": "confirm_vs_none",
+          "cases": 32,
+          "endorsed_first": 0.90625,
+          "missed": 0.0
+        },
+        {
+          "scenario": "approve_vs_none",
+          "cases": 32,
+          "endorsed_first": 1.0,
+          "missed": 0.0
+        },
+        {
+          "scenario": "pin_vs_none",
+          "cases": 32,
+          "endorsed_first": 1.0,
+          "missed": 0.0
+        },
+        {
+          "scenario": "approve_vs_confirm",
+          "cases": 32,
+          "endorsed_first": 1.0,
+          "missed": 0.0
+        },
+        {
+          "scenario": "pin_vs_approve",
+          "cases": 32,
+          "endorsed_first": 0.84375,
+          "missed": 0.0
+        },
+        {
+          "scenario": "confirm_vs_fresh",
+          "cases": 32,
+          "endorsed_first": 0.78125,
+          "missed": 0.0
+        },
+        {
+          "scenario": "approve_vs_fresh",
+          "cases": 32,
+          "endorsed_first": 0.8125,
+          "missed": 0.0
+        },
+        {
+          "scenario": "confirm_vs_kind",
+          "cases": 32,
+          "endorsed_first": 0.90625,
+          "missed": 0.0
+        },
+        {
+          "scenario": "approve_vs_kind",
+          "cases": 32,
+          "endorsed_first": 1.0,
+          "missed": 0.0
+        },
+        {
+          "scenario": "pin_vs_fresh_kind",
+          "cases": 32,
+          "endorsed_first": 0.8125,
+          "missed": 0.0
+        },
+        {
+          "scenario": "latest_confirm",
+          "cases": 32,
+          "endorsed_first": 0.4375,
+          "missed": 0.0
+        },
+        {
+          "scenario": "latest_approve",
+          "cases": 32,
+          "endorsed_first": 0.4375,
+          "missed": 0.0
+        },
+        {
+          "scenario": "latest_pin",
+          "cases": 32,
+          "endorsed_first": 0.4375,
+          "missed": 0.0
+        }
+      ],
+      "mean_endorsed_first": 0.7980769230769231
+    }
+  ]
+}

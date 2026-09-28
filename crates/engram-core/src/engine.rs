@@ -3296,7 +3296,9 @@ impl Engine {
 
     /// Twin order (0.9.10): delivered hits whose vectors sit at or above
     /// `band` of each other are near-identical notes, and among them the one
-    /// people endorsed goes first: pinned, then higher trust. Each group of
+    /// people endorsed goes first: pinned, then higher trust, then — between
+    /// twins on the same rung that trust cannot tell apart — the one endorsed
+    /// most recently (the endorsement clock). Each group of
     /// twins is re-sorted within the positions it already holds, so nothing
     /// that isn't a twin moves, and nothing enters or leaves the delivered
     /// set. The vote otherwise decides between two near-identical notes on
@@ -3308,15 +3310,12 @@ impl Engine {
             return Ok(());
         }
         let mut vecs = Vec::with_capacity(n);
-        let mut pinned = Vec::with_capacity(n);
+        let mut nodes = Vec::with_capacity(n);
         for h in hits.iter() {
             vecs.push(self.store.embedding_of(&h.id)?);
-            pinned.push(
-                self.store
-                    .get_node(&h.id)?
-                    .is_some_and(|node| node.trust_override.is_some()),
-            );
+            nodes.push(self.store.get_node(&h.id)?);
         }
+        let rung = |i: usize| nodes[i].as_ref().map_or(Rung::None, Rung::of);
         // Union-find over the twin relation, so a chain of twins is one group.
         let mut group: Vec<usize> = (0..n).collect();
         fn root(g: &mut [usize], mut i: usize) -> usize {
@@ -3345,17 +3344,58 @@ impl Engine {
         let original: Vec<SearchHit> = hits.to_vec();
         for slots in members.values().filter(|m| m.len() > 1) {
             let mut ranked = slots.clone();
+            // The endorsement clock is read only for twins that share a rung
+            // — one journal lookup each, and only in a twin group.
+            let mut clock = std::collections::HashMap::new();
+            for &i in slots {
+                if let Some(node) = &nodes[i] {
+                    clock.insert(i, self.endorsement_clock(node, rung(i))?);
+                }
+            }
             // Stable: equal standing keeps the vote's order.
             ranked.sort_by(|a, b| {
-                pinned[*b]
-                    .cmp(&pinned[*a])
+                let pinned = |i: usize| rung(i) == Rung::Pinned;
+                pinned(*b)
+                    .cmp(&pinned(*a))
                     .then(original[*b].trust.total_cmp(&original[*a].trust))
+                    .then_with(|| {
+                        if rung(*a) != rung(*b) {
+                            return std::cmp::Ordering::Equal;
+                        }
+                        clock.get(b).cmp(&clock.get(a))
+                    })
             });
             for (slot, from) in slots.iter().zip(ranked) {
                 hits[*slot] = original[from].clone();
             }
         }
         Ok(())
+    }
+
+    /// When `node` last received the endorsement its rung names, as
+    /// (stamp, journal seq): the seq breaks same-second ties. Pins keep no
+    /// stamp on the node, so theirs is the newest `pinned` journal row —
+    /// which also dates pins made before this existed. Approvals and
+    /// confirmations read their node stamp, seq from the matching row
+    /// (`approved`; `updated`, which is what stamps `confirmed_at`).
+    fn endorsement_clock(&self, node: &Node, rung: Rung) -> Result<(i64, i64)> {
+        let (stamp, action) = match rung {
+            Rung::None => return Ok((0, 0)),
+            Rung::Pinned => (None, "pinned"),
+            Rung::Approved => (node.approved_at, "approved"),
+            Rung::Confirmed => (node.confirmed_at, "updated"),
+        };
+        let newest = self
+            .store
+            .audit_rows(&AuditQuery {
+                entity_id: Some(node.id.clone()),
+                action: Some(action.to_string()),
+                ..Default::default()
+            })?
+            .pop();
+        let seq = newest.as_ref().map_or(0, |r| r.seq);
+        let stamp = stamp.or(newest.map(|r| r.ts)).unwrap_or(0);
+        Ok((stamp, seq))
     }
 
     /// The half-open window a named working version was current for, read from
@@ -6395,6 +6435,29 @@ fn is_anchor(cfg: &crate::config::GraphConfig, n: &Node) -> bool {
 /// Whether a node's type carries the `tombstone` role under this graph's
 /// ontology (a record of deliberately removed knowledge — findable, never
 /// canon, never to be re-derived).
+/// The endorsement ladder a twin sits on, highest first (twin order).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Rung {
+    Pinned,
+    Approved,
+    Confirmed,
+    None,
+}
+
+impl Rung {
+    fn of(n: &Node) -> Self {
+        if n.trust_override.is_some() {
+            Rung::Pinned
+        } else if n.approved_at.is_some() {
+            Rung::Approved
+        } else if n.confirmed_at.is_some() {
+            Rung::Confirmed
+        } else {
+            Rung::None
+        }
+    }
+}
+
 /// FNV-1a over a note's title and body: a sampling order that depends only
 /// on content — stable across runs, platforms and Rust versions (std's
 /// hasher promises none of that).
