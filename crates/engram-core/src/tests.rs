@@ -1249,8 +1249,22 @@ fn audit_sweeps_queue_only_their_target_label() {
 
     let suspects = e.suspects().unwrap();
     assert_eq!(suspects.len(), 2);
-    // Re-running queues nothing (raised pairs are never re-raised).
-    assert_eq!(e.audit_conflicts().unwrap().queued, 0);
+    // Re-running queues nothing (raised pairs are never re-raised) — and
+    // says why: the pair it found last time now counts once as raised, not
+    // twice, and a linked pair counts as linked.
+    assert_eq!(conflicts.already_raised, 0, "its own find is not a skip");
+    let again = e.audit_conflicts().unwrap();
+    assert_eq!(again.queued, 0);
+    assert_eq!(again.examined, 0, "nothing left to judge: {again:?}");
+    assert_eq!(again.already_raised, 2, "each raised pair once: {again:?}");
+    let pair = &e.suspects().unwrap()[0];
+    edge(&e, EdgeType::BuildsOn, &pair.a.id, &pair.b.id);
+    let linked = e.audit_conflicts().unwrap();
+    assert_eq!(
+        (linked.already_linked, linked.already_raised),
+        (1, 1),
+        "{linked:?}"
+    );
 }
 
 #[test]

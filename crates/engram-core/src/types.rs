@@ -592,11 +592,23 @@ pub struct ClaimReport {
 
 /// What an audit sweep did: pairs it examined with NLI, suspects it queued,
 /// and whether the pair budget cut it short (PLAN §7A: no silent caps).
-#[derive(Debug, Clone, Serialize)]
+///
+/// Since 0.9.11 it also says what it passed over: the close pairs (above
+/// the sweep's floor) it did not judge, each counted once whichever side
+/// the scan met it from. "Nothing found" on a graph where every close pair
+/// is already linked or judged is a healthy result, and without these the
+/// pane could not tell it from broken embeddings.
+#[derive(Debug, Clone, Serialize, Default)]
 pub struct AuditSweep {
     pub queued: usize,
     pub examined: usize,
     pub truncated: bool,
+    /// Close pairs already joined by an edge.
+    pub already_linked: usize,
+    /// Close pairs already raised as a suspect — pending or judged.
+    pub already_raised: usize,
+    /// Close pairs with an archived note or an anchor on one side.
+    pub inactive: usize,
 }
 
 /// A nomination that an open Problem/Intent may already be answered by an

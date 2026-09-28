@@ -4768,10 +4768,19 @@ impl Engine {
         const NLI_PAIR_BUDGET: usize = 300;
         let cfg = self.store.config();
         self.require_nli()?;
-        let mut sweep = AuditSweep {
-            queued: 0,
-            examined: 0,
-            truncated: false,
+        let mut sweep = AuditSweep::default();
+        // Skips are counted per unordered pair: the scan meets every close
+        // pair from both sides.
+        let mut skipped = std::collections::HashSet::new();
+        let mut skip = |a: &str, b: &str, bucket: &mut usize| {
+            let key = if a < b {
+                (a.to_string(), b.to_string())
+            } else {
+                (b.to_string(), a.to_string())
+            };
+            if skipped.insert(key) {
+                *bucket += 1;
+            }
         };
         'nodes: for node in self.store.scannable_nodes()? {
             let Some(vec) = self.store.embedding_of(&node.id)? else {
@@ -4788,11 +4797,16 @@ impl Engine {
                 let Some(other) = self.store.get_node(&id)? else {
                     continue;
                 };
-                if is_anchor(&cfg, &other)
-                    || other.valid_until.is_some()
-                    || self.store.pair_linked(&node.id, &other.id)?
-                    || self.store.suspect_between(&node.id, &other.id)?
-                {
+                if is_anchor(&cfg, &other) || other.valid_until.is_some() {
+                    skip(&node.id, &other.id, &mut sweep.inactive);
+                    continue;
+                }
+                if self.store.pair_linked(&node.id, &other.id)? {
+                    skip(&node.id, &other.id, &mut sweep.already_linked);
+                    continue;
+                }
+                if self.store.suspect_between(&node.id, &other.id)? {
+                    skip(&node.id, &other.id, &mut sweep.already_raised);
                     continue;
                 }
                 if sweep.examined >= NLI_PAIR_BUDGET {
@@ -4818,6 +4832,9 @@ impl Engine {
                     Some((label, score, direction)),
                 )?;
                 sweep.queued += 1;
+                // Met again from the other side, this pair is this sweep's
+                // own find, not one it passed over.
+                skip(&node.id, &other.id, &mut 0);
             }
         }
         if sweep.queued > 0 {

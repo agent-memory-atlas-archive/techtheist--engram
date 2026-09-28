@@ -8,6 +8,7 @@ import { onProjectSwitch } from '@/composables/onProjectSwitch'
 import { useGraphStore } from '@/stores/graph'
 import type {
     AnsweredHint,
+    AuditSweep,
     ClaimReport,
     GraphNode,
     NliAgreement,
@@ -48,6 +49,38 @@ watch(open, async (isOpen) => {
 const running = ref<string | null>(null)
 const sweepNote = ref<Record<string, string>>({})
 
+const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`
+
+/**
+ * Why a sweep came back empty (0.9.11). A graph whose close pairs are all
+ * linked or already judged is healthy, and "0 pairs judged" alone read like
+ * broken embeddings.
+ */
+function emptySweep(kind: 'conflicts' | 'duplicates', sweep: AuditSweep): string {
+    if (sweep.already_linked == null) return `nothing found (${sweep.examined} pairs judged)`
+    const linked = sweep.already_linked
+    const raised = sweep.already_raised ?? 0
+    const inactive = sweep.inactive ?? 0
+    const passed = linked + raised + inactive
+    if (sweep.examined === 0 && passed === 0) {
+        return 'nothing to compare — no two notes are close enough to be a pair'
+    }
+    const parts: string[] = []
+    if (sweep.examined > 0) {
+        const none = kind === 'conflicts' ? 'none contradicts' : 'none restates the other'
+        parts.push(`${plural(sweep.examined, 'pair')} judged, ${none}`)
+    }
+    if (passed > 0) {
+        const why = [
+            linked && `${linked} linked`,
+            raised && `${raised} already raised`,
+            inactive && `${inactive} archived or anchored`,
+        ].filter(Boolean)
+        parts.push(`${plural(passed, 'close pair')} already handled (${why.join(', ')})`)
+    }
+    return `nothing new — ${parts.join('; ')}`
+}
+
 async function runSweep(kind: 'conflicts' | 'duplicates'): Promise<void> {
     running.value = kind
     try {
@@ -56,7 +89,7 @@ async function runSweep(kind: 'conflicts' | 'duplicates'): Promise<void> {
         const what = kind === 'conflicts' ? 'hidden conflict' : 'duplicate'
         sweepNote.value[kind] = sweep.queued
             ? `${sweep.queued} ${what}${sweep.queued > 1 ? 's' : ''} queued for judgment (${sweep.examined} pairs judged)`
-            : `nothing found (${sweep.examined} pairs judged)`
+            : emptySweep(kind, sweep)
         if (sweep.truncated) sweepNote.value[kind] += ' — budget hit, run again to continue'
         if (sweep.queued) await store.loadSuspects()
     } catch (e) {

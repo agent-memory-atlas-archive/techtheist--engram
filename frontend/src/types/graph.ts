@@ -462,6 +462,13 @@ export interface AuditSweep {
     queued: number
     examined: number
     truncated: boolean
+    /**
+     * Close pairs the sweep passed over, each counted once (0.9.11) — absent
+     * from older daemons.
+     */
+    already_linked?: number
+    already_raised?: number
+    inactive?: number
 }
 
 /** A nomination that an open Problem may already be answered (POST /audit/answered). */
