@@ -8003,6 +8003,44 @@ fn auto_tune_calibrates_the_weak_line_from_phantom_probes_and_settles() {
     assert!(e.auto_tune().unwrap().is_none(), "converged means settled");
 }
 
+/// Scores a query by its own text — so a fitted line depends on WHICH
+/// probes were asked, the thing the sampling order decides.
+struct TextReranker;
+impl crate::Reranker for TextReranker {
+    fn rank(&self, query: &str, documents: &[String]) -> Result<Vec<f32>> {
+        let h = query
+            .bytes()
+            .fold(0u32, |a, b| a.wrapping_mul(31).wrapping_add(u32::from(b)));
+        let logit = (h % 97) as f32 / 97.0 * 6.0 - 3.0;
+        Ok(vec![logit; documents.len()])
+    }
+}
+
+#[test]
+fn the_weak_line_fit_depends_on_content_not_on_minted_ids() {
+    // The same corpus written in two orders mints ids in two orders — the
+    // sample must not notice (eval Finding 00dvpn0t6gx6: the same seed
+    // fitted 0.898 in one run and 0.902 in the next).
+    let n = crate::policy::WEAK_LINE_MIN_NOTES as usize + 30;
+    let fit = |order: &mut dyn Iterator<Item = usize>| {
+        let mut e = engine();
+        for i in order {
+            e.add_node(new_node(
+                NodeType::Insight,
+                &format!("subject-{i} behaves differently under load {}", i * 7 + 3),
+                &format!("distinct body {i} about module {} and its cache", i % 11),
+            ))
+            .unwrap();
+        }
+        e.set_reranker(Box::new(TextReranker));
+        e.auto_tune().unwrap();
+        e.graph_config().policy.weak_evidence_top
+    };
+    let forward = fit(&mut (0..n));
+    let backward = fit(&mut (0..n).rev());
+    assert_eq!(forward, backward, "same content, same line");
+}
+
 #[test]
 fn weak_line_dial_is_silent_without_a_reranker_or_below_the_note_gate() {
     // Reranker present but the graph is too small to place a quantile on.

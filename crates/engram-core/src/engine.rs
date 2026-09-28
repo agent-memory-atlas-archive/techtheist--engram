@@ -1412,7 +1412,12 @@ impl Engine {
         // unanswerable; the borrowed words keep it in register.
         let mut notes = self.store.all_nodes()?;
         notes.retain(|n| n.valid_until.is_none());
-        notes.sort_by(|a, b| a.id.cmp(&b.id));
+        // Content order, not id order (0.9.10): ids are minted from the
+        // clock, so the same corpus written twice sampled different
+        // transplants and fitted a different line every run (eval Finding
+        // 00dvpn0t6gx6). A content hash is fixed for a given graph and still
+        // spreads the sample across it.
+        notes.sort_by_cached_key(|n| (content_hash(&n.title, n.body.as_deref()), n.id.clone()));
         let vocab: Vec<String> = notes.iter().filter_map(|n| probe_terms(&n.title)).collect();
         // Two probe families, each answering "how high can a score climb
         // here when the answer does not exist" from a different angle:
@@ -6390,6 +6395,19 @@ fn is_anchor(cfg: &crate::config::GraphConfig, n: &Node) -> bool {
 /// Whether a node's type carries the `tombstone` role under this graph's
 /// ontology (a record of deliberately removed knowledge — findable, never
 /// canon, never to be re-derived).
+/// FNV-1a over a note's title and body: a sampling order that depends only
+/// on content — stable across runs, platforms and Rust versions (std's
+/// hasher promises none of that).
+fn content_hash(title: &str, body: Option<&str>) -> u64 {
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    let bytes = title.bytes().chain([0u8]).chain(body.unwrap_or("").bytes());
+    for b in bytes {
+        h ^= u64::from(b);
+        h = h.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    h
+}
+
 fn is_tombstone(cfg: &crate::config::GraphConfig, n: &Node) -> bool {
     cfg.type_def(n.node_type.as_str())
         .is_some_and(|t| t.roles.tombstone)
