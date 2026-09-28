@@ -399,36 +399,96 @@ fn check_wiring(r: &mut Report, repo: &Path, db_abs: &Path) {
 }
 
 fn check_claude(r: &mut Report, repo: &Path, db_abs: &Path) {
-    match std::fs::read_to_string(repo.join(".mcp.json")) {
-        Err(_) => r.warn("claude: no .mcp.json — `engram-alpha setup --cli claude`"),
-        Ok(raw) => {
-            let problems = mcp_json_problems(&raw, db_abs);
-            if problems.is_empty() {
-                r.ok("claude: .mcp.json registers this repo's graph");
-            }
-            for p in problems {
-                r.fail(&format!("claude: .mcp.json {p}"));
-            }
-            if prerename_mcp_json(&raw) {
-                r.warn(
-                    "claude: .mcp.json launches the pre-rename `engram` binary — re-run `engram-alpha setup --cli claude --mcp-only` to re-point it (pre-rename support ended in v0.5.0)",
-                );
-            }
-        }
-    }
+    let mcp_json = std::fs::read_to_string(repo.join(".mcp.json")).ok();
     let hook = [".claude/settings.json", ".claude/settings.local.json"]
         .iter()
         .any(|p| {
             std::fs::read_to_string(repo.join(p))
                 .is_ok_and(|s| s.contains("engram-brief") || s.contains("session-brief"))
         });
-    if hook {
-        r.ok("claude: session-brief hook registered");
-    } else {
-        r.note(
-            "claude: no repo-level brief hook (fine if the Engram Claude Code plugin provides it)",
-        );
+    let plugin = setup::claude_plugin_installed();
+    for (level, msg) in claude_findings(plugin, mcp_json.as_deref(), hook, db_abs) {
+        match level {
+            Level::Ok => r.ok(&msg),
+            Level::Note => r.note(&msg),
+            Level::Warn => r.warn(&msg),
+            Level::Fail => r.fail(&msg),
+        }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Level {
+    Ok,
+    Note,
+    Warn,
+    Fail,
+}
+
+/// Claude Code's wiring verdict. Since 0.9.9 the plugin carries the MCP
+/// server (`mcp --wired-only`) and setup skips the project `.mcp.json`
+/// entry when the plugin is installed — so with the plugin, a missing entry
+/// is the healthy state and a present one loads every tool twice.
+fn claude_findings(
+    plugin: bool,
+    mcp_json: Option<&str>,
+    repo_hook: bool,
+    db_abs: &Path,
+) -> Vec<(Level, String)> {
+    let mut out = Vec::new();
+    let has_entry = mcp_json
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
+        .is_some_and(|v| v["mcpServers"].get("engram").is_some());
+    match (plugin, mcp_json) {
+        (true, _) if has_entry => out.push((
+            Level::Warn,
+            "claude: the Engram plugin serves MCP and .mcp.json registers an `engram` server too — \
+             Claude Code loads the engram tools twice; remove that entry"
+                .into(),
+        )),
+        (true, _) => out.push((
+            Level::Ok,
+            "claude: the Engram plugin serves MCP (no project .mcp.json entry needed)".into(),
+        )),
+        (false, None) => out.push((
+            Level::Warn,
+            "claude: no .mcp.json — `engram-alpha setup --cli claude`".into(),
+        )),
+        (false, Some(raw)) => {
+            let problems = mcp_json_problems(raw, db_abs);
+            if problems.is_empty() {
+                out.push((Level::Ok, "claude: .mcp.json registers this repo's graph".into()));
+            }
+            for p in problems {
+                out.push((Level::Fail, format!("claude: .mcp.json {p}")));
+            }
+        }
+    }
+    if has_entry && mcp_json.is_some_and(prerename_mcp_json) {
+        out.push((
+            Level::Warn,
+            "claude: .mcp.json launches the pre-rename `engram` binary — re-run \
+             `engram-alpha setup --cli claude --mcp-only` to re-point it (pre-rename support \
+             ended in v0.5.0)"
+                .into(),
+        ));
+    }
+    // The plugin's hook stands down when the repo registers its own, so the
+    // brief never injects twice — either source alone is healthy.
+    out.push(match (repo_hook, plugin) {
+        (true, _) => (Level::Ok, "claude: session-brief hook registered".into()),
+        (false, true) => (
+            Level::Ok,
+            "claude: session-brief hook comes from the Engram plugin".into(),
+        ),
+        (false, false) => (
+            Level::Note,
+            "claude: no session-brief hook — sessions start without the brief \
+             (`engram-alpha setup --cli claude` installs it)"
+                .into(),
+        ),
+    });
+    out
 }
 
 /// Problems with a `.mcp.json` engram entry; empty = healthy.
@@ -551,6 +611,41 @@ mod tests {
     fn missing_entry_and_bad_json_are_flagged() {
         assert_eq!(mcp_json_problems("{}", &db()).len(), 1);
         assert_eq!(mcp_json_problems("not json", &db()).len(), 1);
+    }
+
+    fn levels(f: &[(Level, String)]) -> Vec<Level> {
+        f.iter().map(|(l, _)| *l).collect()
+    }
+
+    const ENTRY: &str = r#"{"mcpServers":{"engram":{"command":"/bin/sh","args":["mcp","--db","/repo/.engram/graph.db"]}}}"#;
+
+    #[test]
+    fn plugin_without_entry_is_healthy() {
+        let f = claude_findings(true, None, false, &db());
+        assert_eq!(levels(&f), [Level::Ok, Level::Ok], "{f:?}");
+        assert!(f[0].1.contains("plugin serves MCP"));
+        assert!(f[1].1.contains("from the Engram plugin"));
+        // Another server in .mcp.json is not ours to judge.
+        let f = claude_findings(true, Some(r#"{"mcpServers":{"other":{}}}"#), true, &db());
+        assert_eq!(levels(&f), [Level::Ok, Level::Ok], "{f:?}");
+    }
+
+    #[test]
+    fn plugin_beside_an_entry_warns_about_doubled_tools() {
+        let f = claude_findings(true, Some(ENTRY), true, &db());
+        assert_eq!(f[0].0, Level::Warn, "{f:?}");
+        assert!(f[0].1.contains("twice"));
+    }
+
+    #[test]
+    fn without_the_plugin_the_entry_is_required() {
+        let f = claude_findings(false, None, false, &db());
+        assert_eq!(levels(&f), [Level::Warn, Level::Note], "{f:?}");
+        assert!(f[0].1.contains("no .mcp.json"));
+        let f = claude_findings(false, Some(ENTRY), true, &db());
+        assert_eq!(levels(&f), [Level::Ok, Level::Ok], "{f:?}");
+        let f = claude_findings(false, Some("{}"), true, &db());
+        assert_eq!(f[0].0, Level::Fail, "{f:?}");
     }
 
     #[test]
