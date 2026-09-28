@@ -3719,9 +3719,10 @@ impl Engine {
         vec: Vec<f32>,
         missing_refs: Vec<String>,
     ) -> Result<CreatedPlan> {
-        let warnings = self.write_warnings(&vec, &node.id, &node.title)?;
-        let suspects = self.suspect_candidates(&node, &vec)?;
-        let canon = self.canon_candidates(&vec, &node.id)?;
+        let near = self.nearby(&vec, &node.id)?;
+        let warnings = self.write_warnings(&near, &node.id, &node.title)?;
+        let suspects = self.suspect_candidates(&node, &near)?;
+        let canon = self.canon_candidates(&near)?;
         Ok(CreatedPlan {
             node,
             warnings,
@@ -3753,29 +3754,43 @@ impl Engine {
         self.suspects_involving(&node.id)
     }
 
-    /// The write-time canon check's candidates (PLAN §7A): the nearest
-    /// current knowledge above the warn line, capped — judged by
-    /// [`judge_canon`]. Empty without the logic layer.
-    fn canon_candidates(&self, vec: &[f32], exclude_id: &str) -> Result<Vec<(Node, f64)>> {
-        if self.nli.is_none() {
-            return Ok(Vec::new());
-        }
-        let cfg = self.store.config();
+    /// The nearest current neighbourhood of a fresh text, read once for
+    /// every check that walks it (0.9.10): the warnings, the suspect
+    /// candidates and the canon candidates each used to run the same
+    /// `WRITE_CHECK_K` search and re-read the same nodes under the lock.
+    /// Distance-ordered, `exclude_id` (the written note itself) left out, a
+    /// neighbour whose node is gone skipped — what each check did on its
+    /// own.
+    fn nearby(&self, vec: &[f32], exclude_id: &str) -> Result<Vec<(Node, f64)>> {
         let mut out = Vec::new();
         for (id, distance) in self.store.search_vec(vec, WRITE_CHECK_K)? {
             if id == exclude_id {
                 continue;
             }
-            let similarity = 1.0 - distance;
+            if let Some(node) = self.store.get_node(&id)? {
+                out.push((node, 1.0 - distance));
+            }
+        }
+        Ok(out)
+    }
+
+    /// The write-time canon check's candidates (PLAN §7A): the nearest
+    /// current knowledge above the warn line, capped — judged by
+    /// [`judge_canon`]. Empty without the logic layer.
+    fn canon_candidates(&self, near: &[(Node, f64)]) -> Result<Vec<(Node, f64)>> {
+        if self.nli.is_none() {
+            return Ok(Vec::new());
+        }
+        let cfg = self.store.config();
+        let mut out = Vec::new();
+        for (node, similarity) in near {
+            let (node, similarity) = (node.clone(), *similarity);
             if similarity < cfg.policy.warn_similarity {
                 break; // distance-ordered: nothing closer follows
             }
             if out.len() >= CANON_CHECK_CAP {
                 break;
             }
-            let Some(node) = self.store.get_node(&id)? else {
-                continue;
-            };
             // Tombstones are skipped here on purpose: "Removed: X" against
             // "X" is not a pair the NLI reads reliably, and the write already
             // carries a `tombstoned` warning for the same neighbor — one
@@ -4108,29 +4123,23 @@ impl Engine {
     /// PURGED notes about other subjects' markers (knob probe, 2026-09-16).
     fn write_warnings(
         &self,
-        vec: &[f32],
+        near: &[(Node, f64)],
         exclude_id: &str,
         title: &str,
     ) -> Result<Vec<WriteWarning>> {
         let mut warnings = Vec::new();
         let cfg = self.store.config();
         let warn_similarity = cfg.policy.warn_similarity;
-        for (id, distance) in self.store.search_vec(vec, WRITE_CHECK_K)? {
-            if id == exclude_id {
-                continue;
-            }
-            let similarity = 1.0 - distance;
+        for (node, similarity) in near {
+            let (node, similarity) = (node.clone(), *similarity);
             if similarity < warn_similarity {
                 break;
             }
-            let Some(node) = self.store.get_node(&id)? else {
-                continue;
-            };
             let (reason, note) = if node.valid_until.is_some() {
                 ("superseded", None)
             } else if is_tombstone(&cfg, &node) {
                 ("tombstoned", tombstone_note(&node))
-            } else if self.store.has_active_conflict(&id)? {
+            } else if self.store.has_active_conflict(&node.id)? {
                 ("in-active-conflict", None)
             } else {
                 continue;
@@ -5096,14 +5105,18 @@ impl Engine {
     /// both active and non-anchor, not already linked by any edge, pair never
     /// raised before. Stored newer-first so `replaces` verdicts read forward.
     fn suspects_near(&self, node: &Node, vec: &[f32]) -> Result<usize> {
-        let candidates = self.suspect_candidates(node, vec)?;
+        let candidates = self.suspect_candidates(node, &self.nearby(vec, &node.id)?)?;
         let judged = judge_suspects(self.nli.as_deref(), &self.config(), node, candidates);
         self.queue_suspects(node, judged)
     }
 
     /// The pairs [`Engine::suspects_near`] judges — store reads only, so a
     /// shared write gathers them under the lock and judges them off it.
-    fn suspect_candidates(&self, node: &Node, vec: &[f32]) -> Result<Vec<SuspectCandidate>> {
+    fn suspect_candidates(
+        &self,
+        node: &Node,
+        near: &[(Node, f64)],
+    ) -> Result<Vec<SuspectCandidate>> {
         let cfg = self.store.config();
         // Tombstones sit out BOTH sides here, as they do in the sweep's
         // scannable set: a tombstone resembles its victim by design, and a
@@ -5127,17 +5140,11 @@ impl Engine {
             None => cfg.policy.conflict_suspect_similarity,
         };
         let mut out = Vec::new();
-        for (id, distance) in self.store.search_vec(vec, WRITE_CHECK_K)? {
-            if id == node.id {
-                continue;
-            }
-            let similarity = 1.0 - distance;
+        for (other, similarity) in near {
+            let (other, similarity) = (other.clone(), *similarity);
             if similarity < floor {
                 break; // distance-ordered: nothing closer follows
             }
-            let Some(other) = self.store.get_node(&id)? else {
-                continue;
-            };
             if self.pair_blocked(node, &other)? {
                 continue;
             }
