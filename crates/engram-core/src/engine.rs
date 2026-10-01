@@ -90,7 +90,10 @@ struct ParkedProvenance {
 
 pub struct Engine {
     store: Box<dyn Store>,
-    embedder: Box<dyn Embedder>,
+    /// Shared so a checked write can embed with the engine lock released
+    /// (0.9.11): the vectors are computed before the lock, and only reused
+    /// under it when the model is still this one.
+    embedder: std::sync::Arc<dyn Embedder>,
     /// The precision layer (PLAN §7A): optional cross-encoder re-scoring of
     /// search candidates. Absent in tests, under `--fake-embeddings`, and
     /// when the model can't load — search then keeps plain hybrid order.
@@ -146,7 +149,7 @@ impl Engine {
     pub fn with_store(store: Box<dyn Store>, embedder: Box<dyn Embedder>) -> Self {
         Self {
             store,
-            embedder,
+            embedder: std::sync::Arc::from(embedder),
             reranker: None,
             nli: None,
             repo_root: None,
@@ -213,7 +216,7 @@ impl Engine {
     /// caller must follow with [`Engine::ensure_embed_model`] — vectors from
     /// two models must never mix.
     pub fn set_embedder(&mut self, embedder: Box<dyn Embedder>) {
-        self.embedder = embedder;
+        self.embedder = std::sync::Arc::from(embedder);
     }
 
     /// Where write-time code_ref checks resolve paths (set by serve/mcp from
@@ -1970,14 +1973,19 @@ impl Engine {
     /// from timestamps at read time; user-authored nodes are approved by
     /// construction (the store stamps `approved_at`).
     pub fn add_node(&self, n: NewNode) -> Result<Node> {
-        self.add_node_opts(n, true)
+        self.add_node_opts(n, true, None)
     }
 
     /// `enforce_required_fields: false` is reserved for engine-minted notes
     /// (the tombstone a hard delete leaves): a required custom field is a
     /// contract for authors, and must never be able to veto a user's delete.
     /// Provided values are still validated either way.
-    fn add_node_opts(&self, mut n: NewNode, enforce_required_fields: bool) -> Result<Node> {
+    fn add_node_opts(
+        &self,
+        mut n: NewNode,
+        enforce_required_fields: bool,
+        cache: Option<&EmbedCache>,
+    ) -> Result<Node> {
         self.check_node_type(&n.node_type)?;
         let cfg = self.store.config();
         // Worklist-role types are live items from birth — the write boundary
@@ -2007,7 +2015,7 @@ impl Engine {
         }
         self.check_fields_ext(&n.node_type, n.fields.as_ref(), enforce_required_fields)?;
         let node = self.store.add_node(n)?;
-        self.embed_node(&node)?;
+        self.embed_node_with(&node, cache)?;
         self.audit_node("created", None, Some(&node))?;
         self.notify(ChangeEvent::NodeAdded(node.clone()));
         Ok(node)
@@ -2206,7 +2214,18 @@ impl Engine {
     /// Patch a node and re-embed if any embedded field changed (title, body,
     /// tags, code_refs). Any update refreshes `last_seen` (the store stamps
     /// it): edited knowledge is in-use knowledge.
-    pub fn update_node(&self, id: &str, mut patch: NodePatch) -> Result<Node> {
+    pub fn update_node(&self, id: &str, patch: NodePatch) -> Result<Node> {
+        self.update_node_with(id, patch, None)
+    }
+
+    /// [`Engine::update_node`] taking vectors computed before the lock
+    /// (0.9.11) wherever their texts match.
+    fn update_node_with(
+        &self,
+        id: &str,
+        mut patch: NodePatch,
+        cache: Option<&EmbedCache>,
+    ) -> Result<Node> {
         if let Some(t) = &patch.node_type {
             self.check_node_type(t)?;
         }
@@ -2240,7 +2259,7 @@ impl Engine {
         }
         let node = self.store.update_node(id, patch)?;
         if touches_text {
-            self.embed_node(&node)?;
+            self.embed_node_with(&node, cache)?;
         }
         // Setting valid_until is the supersede flow (replaces verdict), not an
         // edit — journal it under its real name.
@@ -2414,6 +2433,7 @@ impl Engine {
                 fields: None,
             },
             false,
+            None,
         )?;
         // Rehome the victim's live anchor edges before the cascade takes
         // them. Same contract as merge's rehoming: the edge keeps its id and
@@ -3620,7 +3640,7 @@ impl Engine {
     /// with the lock released.
     pub fn add_node_checked(&self, n: NewNode) -> Result<WriteOutcome> {
         let nli = self.nli.clone();
-        match self.plan_add(n)? {
+        match self.plan_add(n, None)? {
             WritePlan::Matched(m) => Ok(m.judge(nli.as_deref())),
             WritePlan::Created(p) => {
                 let judged = p.judge(nli.as_deref(), &self.config());
@@ -3643,10 +3663,19 @@ impl Engine {
         origin: AuditOrigin,
         n: NewNode,
     ) -> Result<WriteOutcome> {
+        // Embedding off the lock (0.9.11): a moment under it to learn the
+        // model and the graph's config, the vectors computed outside it.
+        let cache = {
+            let (embedder, model, cfg) = {
+                let e = lock_engine(engine)?;
+                (e.embedder.clone(), e.embed_model_id(), e.config())
+            };
+            EmbedCache::for_add(embedder.as_ref(), model, &cfg, &n)
+        };
         let (nli, cfg, plan) = {
             let mut e = lock_engine(engine)?;
             e.set_audit_origin(origin.clone());
-            (e.nli.clone(), e.config(), e.plan_add(n)?)
+            (e.nli.clone(), e.config(), e.plan_add(n, cache.as_ref())?)
         };
         match plan {
             WritePlan::Matched(m) => Ok(m.judge(nli.as_deref())),
@@ -3659,17 +3688,21 @@ impl Engine {
         }
     }
 
-    /// The locked first half of a checked write: embed, short-circuit to a
-    /// near-duplicate, or create and gather everything the judge will read.
-    fn plan_add(&self, n: NewNode) -> Result<WritePlan> {
+    /// The locked first half of a checked write: embed (or take the vectors
+    /// `cache` computed before the lock), short-circuit to a near-duplicate,
+    /// or create and gather everything the judge will read.
+    fn plan_add(&self, n: NewNode, cache: Option<&EmbedCache>) -> Result<WritePlan> {
         let scrubbed_title = crate::redact::scrub(&n.title);
         let scrubbed_body = n.body.as_deref().map(crate::redact::scrub);
-        let vec = self.embedder.embed_one(&embed_text(
-            &scrubbed_title,
-            scrubbed_body.as_deref(),
-            &n.tags,
-            &n.code_refs,
-        ))?;
+        let vec = self.embed_one_with(
+            &embed_text(
+                &scrubbed_title,
+                scrubbed_body.as_deref(),
+                &n.tags,
+                &n.code_refs,
+            ),
+            cache,
+        )?;
 
         let duplicate_similarity = self.store.config().policy.duplicate_similarity;
         for (id, distance) in self.store.search_vec(&vec, WRITE_CHECK_K)? {
@@ -3703,7 +3736,7 @@ impl Engine {
         }
 
         let missing_refs = self.missing_refs(&n.code_refs);
-        let node = self.add_node(n)?;
+        let node = self.add_node_opts(n, true, cache)?;
         Ok(WritePlan::Created(Box::new(self.plan_created(
             node,
             vec,
@@ -3809,7 +3842,7 @@ impl Engine {
     pub fn update_node_checked(&self, id: &str, patch: NodePatch) -> Result<CheckedUpdate> {
         let nli = self.nli.clone();
         let judged = self
-            .plan_update(id, patch)?
+            .plan_update(id, patch, None)?
             .judge(nli.as_deref(), &self.config());
         self.finish_update(judged)
     }
@@ -3822,10 +3855,29 @@ impl Engine {
         id: &str,
         patch: NodePatch,
     ) -> Result<CheckedUpdate> {
+        // Embedding off the lock, as on add: the texts are predicted from
+        // the stored node as the patch will leave it; if the node changes
+        // in between, the misses are embedded under the lock.
+        let cache = {
+            let (embedder, model, cfg, before) = {
+                let e = lock_engine(engine)?;
+                (
+                    e.embedder.clone(),
+                    e.embed_model_id(),
+                    e.config(),
+                    e.store.get_node(id)?,
+                )
+            };
+            before.and_then(|b| EmbedCache::for_update(embedder.as_ref(), model, &cfg, &b, &patch))
+        };
         let (nli, cfg, plan) = {
             let mut e = lock_engine(engine)?;
             e.set_audit_origin(origin.clone());
-            (e.nli.clone(), e.config(), e.plan_update(id, patch)?)
+            (
+                e.nli.clone(),
+                e.config(),
+                e.plan_update(id, patch, cache.as_ref())?,
+            )
         };
         let judged = plan.judge(nli.as_deref(), &cfg);
         let mut e = lock_engine(engine)?;
@@ -3835,12 +3887,17 @@ impl Engine {
 
     /// The locked first half of a checked update. An update that touches no
     /// embedded field has nothing to check: its plan carries no pairs.
-    fn plan_update(&self, id: &str, patch: NodePatch) -> Result<CreatedPlan> {
+    fn plan_update(
+        &self,
+        id: &str,
+        patch: NodePatch,
+        cache: Option<&EmbedCache>,
+    ) -> Result<CreatedPlan> {
         let touches_text = patch.title.is_some()
             || patch.body.is_some()
             || patch.tags.is_some()
             || patch.code_refs.is_some();
-        let node = self.update_node(id, patch)?;
+        let node = self.update_node_with(id, patch, cache)?;
         let missing_refs = self.missing_refs(&node.code_refs);
         if !touches_text {
             return Ok(CreatedPlan {
@@ -3851,12 +3908,15 @@ impl Engine {
                 canon: Vec::new(),
             });
         }
-        let vec = self.embedder.embed_one(&embed_text(
-            &node.title,
-            node.body.as_deref(),
-            &node.tags,
-            &node.code_refs,
-        ))?;
+        let vec = self.embed_one_with(
+            &embed_text(
+                &node.title,
+                node.body.as_deref(),
+                &node.tags,
+                &node.code_refs,
+            ),
+            cache,
+        )?;
         self.plan_created(node, vec, missing_refs)
     }
 
@@ -5495,30 +5555,66 @@ impl Engine {
     }
 
     fn embed_node(&self, node: &Node) -> Result<()> {
-        self.embed_node_into(self.store.as_ref(), node)
+        self.embed_node_with(node, None)
     }
 
-    /// The one embedding recipe, aimed at an explicit store — the curated
-    /// store on every normal write, the history store for harvested nodes
-    /// (same composition, so history search rides the same pipeline).
-    fn embed_node_into(&self, store: &dyn Store, node: &Node) -> Result<()> {
-        let mut composed = embed_text(
+    /// [`Engine::embed_node`], taking vectors a write computed before the
+    /// lock wherever their texts match (0.9.11).
+    fn embed_node_with(&self, node: &Node, cache: Option<&EmbedCache>) -> Result<()> {
+        let texts = node_texts(
+            &self.store.config(),
             &node.title,
             node.body.as_deref(),
             &node.tags,
             &node.code_refs,
+            node.fields.as_ref(),
         );
-        // Indexed custom fields (0.9.0) ride the node-level vector; the
-        // per-graph fingerprint guard re-embeds when the indexed set changes.
-        let fields_text = field_embed_text(&store.config(), node);
-        if !fields_text.is_empty() {
-            composed.push('\n');
-            composed.push_str(&fields_text);
+        let vectors = self.embed_texts(&texts, cache)?;
+        self.store.upsert_embeddings(&node.id, &vectors)
+    }
+
+    /// Embed `texts`, taking each from `cache` when it holds exactly that
+    /// text under the ACTIVE model — anything else (a model swapped since
+    /// the cache was filled, a text the prediction missed) is embedded now.
+    /// A cache can only make a write faster, never different.
+    pub(crate) fn embed_texts(
+        &self,
+        texts: &[String],
+        cache: Option<&EmbedCache>,
+    ) -> Result<Vec<Vec<f32>>> {
+        let Some(cache) = cache.filter(|c| c.model == self.embed_model_id()) else {
+            return self.embedder.embed(texts);
+        };
+        let mut missing: Vec<String> = Vec::new();
+        for t in texts {
+            if !cache.vecs.contains_key(t) && !missing.contains(t) {
+                missing.push(t.clone());
+            }
         }
-        let mut texts = vec![composed];
-        texts.extend(claim_texts(&node.title, node.body.as_deref()));
-        let vectors = self.embedder.embed(&texts)?;
-        store.upsert_embeddings(&node.id, &vectors)
+        let fresh: std::collections::HashMap<String, Vec<f32>> = if missing.is_empty() {
+            Default::default()
+        } else {
+            let vecs = self.embedder.embed(&missing)?;
+            missing.into_iter().zip(vecs).collect()
+        };
+        Ok(texts
+            .iter()
+            .map(|t| {
+                cache
+                    .vecs
+                    .get(t)
+                    .or_else(|| fresh.get(t))
+                    .cloned()
+                    .expect("every text was cached or embedded")
+            })
+            .collect())
+    }
+
+    fn embed_one_with(&self, text: &str, cache: Option<&EmbedCache>) -> Result<Vec<f32>> {
+        Ok(self
+            .embed_texts(&[text.to_string()], cache)?
+            .pop()
+            .expect("one vector for one text"))
     }
 
     /// Bring stored vectors in line with the ACTIVE embedding model (PLAN §7A
@@ -6068,6 +6164,137 @@ fn ref_is_path(r: &str) -> bool {
 /// sentence, so a query matching one claim in a rich body finds the node).
 pub const EMBED_COMPOSITION: i64 = 3;
 
+/// Every text a node is embedded as, in storage order: the node-level
+/// composition (with the graph's indexed custom fields, 0.9.0) first, then
+/// one text per claim sentence.
+fn node_texts(
+    cfg: &crate::config::GraphConfig,
+    title: &str,
+    body: Option<&str>,
+    tags: &[String],
+    code_refs: &[String],
+    fields: Option<&serde_json::Map<String, serde_json::Value>>,
+) -> Vec<String> {
+    let mut composed = embed_text(title, body, tags, code_refs);
+    let fields_text = fields_embed_text(cfg, fields);
+    if !fields_text.is_empty() {
+        composed.push('\n');
+        composed.push_str(&fields_text);
+    }
+    let mut texts = vec![composed];
+    texts.extend(claim_texts(title, body));
+    texts
+}
+
+/// Vectors a checked write computed BEFORE taking the engine lock (0.9.11,
+/// Insight 00dxfvuv1j1f: ~144 of the ~175 ms a write held the lock at 1500
+/// notes was embedding). The write predicts every text the store and its
+/// checks will embed — the same scrub and tag normalization the store
+/// applies — and embeds them with the lock released; under the lock
+/// [`Engine::embed_texts`] takes a vector only for a byte-identical text
+/// under the same model, and embeds anything else on the spot. A wrong
+/// prediction, a model swapped mid-write or a field index changed meanwhile
+/// cost a little time, never a different vector.
+pub(crate) struct EmbedCache {
+    model: EmbedModelId,
+    vecs: std::collections::HashMap<String, Vec<f32>>,
+}
+
+impl EmbedCache {
+    /// Embed `texts` (duplicates once). `None` when embedding fails — the
+    /// write then embeds under the lock and reports the error there.
+    fn fill(embedder: &dyn Embedder, model: EmbedModelId, texts: Vec<String>) -> Option<Self> {
+        let mut unique: Vec<String> = Vec::with_capacity(texts.len());
+        for t in texts {
+            if !unique.contains(&t) {
+                unique.push(t);
+            }
+        }
+        let vecs = embedder.embed(&unique).ok()?;
+        (vecs.len() == unique.len()).then(|| Self {
+            model,
+            vecs: unique.into_iter().zip(vecs).collect(),
+        })
+    }
+
+    /// What a checked add will embed: the duplicate check's text, then the
+    /// stored node's texts as the store will shape the node.
+    pub(crate) fn for_add(
+        embedder: &dyn Embedder,
+        model: EmbedModelId,
+        cfg: &crate::config::GraphConfig,
+        n: &NewNode,
+    ) -> Option<Self> {
+        let title = crate::redact::scrub(&n.title);
+        let body = n.body.as_deref().map(crate::redact::scrub);
+        let fields = n
+            .fields
+            .as_ref()
+            .filter(|f| !f.is_empty())
+            .map(crate::redact::scrub_fields);
+        let mut texts = vec![embed_text(&title, body.as_deref(), &n.tags, &n.code_refs)];
+        texts.extend(node_texts(
+            cfg,
+            &title,
+            body.as_deref(),
+            &crate::store::normalize_tags(&n.tags),
+            &n.code_refs,
+            fields.as_ref(),
+        ));
+        Self::fill(embedder, model, texts)
+    }
+
+    /// What a checked update will embed, read off the stored node as the
+    /// patch will leave it. `None` when the patch touches no embedded text.
+    pub(crate) fn for_update(
+        embedder: &dyn Embedder,
+        model: EmbedModelId,
+        cfg: &crate::config::GraphConfig,
+        before: &Node,
+        patch: &NodePatch,
+    ) -> Option<Self> {
+        let touches_text = patch.title.is_some()
+            || patch.body.is_some()
+            || patch.tags.is_some()
+            || patch.code_refs.is_some()
+            || patch.fields.is_some();
+        if !touches_text {
+            return None;
+        }
+        let title = patch
+            .title
+            .as_deref()
+            .map(crate::redact::scrub)
+            .unwrap_or_else(|| before.title.clone());
+        let body = match &patch.body {
+            Some(b) => Some(crate::redact::scrub(b)),
+            None => before.body.clone(),
+        };
+        let tags = match &patch.tags {
+            Some(t) => crate::store::normalize_tags(t),
+            None => before.tags.clone(),
+        };
+        let code_refs = patch.code_refs.as_ref().unwrap_or(&before.code_refs);
+        let fields = match &patch.fields {
+            Some(p) => {
+                let resolved = Engine::resolve_fields_patch(before.fields.as_ref(), p);
+                (!resolved.is_empty()).then(|| crate::redact::scrub_fields(&resolved))
+            }
+            None => before.fields.clone(),
+        };
+        let mut texts = vec![embed_text(&title, body.as_deref(), &tags, code_refs)];
+        texts.extend(node_texts(
+            cfg,
+            &title,
+            body.as_deref(),
+            &tags,
+            code_refs,
+            fields.as_ref(),
+        ));
+        Self::fill(embedder, model, texts)
+    }
+}
+
 /// The text a node is embedded as — kept in one place so write-time similarity
 /// checks embed exactly what storage embeds. Tags and code_refs ride along so
 /// "everything about policy.rs" works as a semantic query, not only a keyword
@@ -6094,8 +6321,11 @@ fn embed_text(title: &str, body: Option<&str>, tags: &[String], code_refs: &[Str
 /// than inside it: the global [`EMBED_COMPOSITION`] stays honest for graphs
 /// without indexed fields, and the per-graph fingerprint guard
 /// ([`Engine::ensure_field_index`]) re-embeds when a graph's set changes.
-fn field_embed_text(cfg: &crate::config::GraphConfig, node: &Node) -> String {
-    let Some(fields) = &node.fields else {
+fn fields_embed_text(
+    cfg: &crate::config::GraphConfig,
+    fields: Option<&serde_json::Map<String, serde_json::Value>>,
+) -> String {
+    let Some(fields) = fields else {
         return String::new();
     };
     let mut out = String::new();

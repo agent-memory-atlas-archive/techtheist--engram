@@ -608,7 +608,7 @@ impl EngramArm {
     }
 }
 
-fn new_node(f: &Fact) -> NewNode {
+pub(crate) fn new_node(f: &Fact) -> NewNode {
     let now = || {
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)

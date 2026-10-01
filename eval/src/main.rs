@@ -161,6 +161,10 @@ OPTIONS:
                           and print every pair the shipped nomination rule
                           would newly queue, plus how the current title guard
                           reads the graph's dismissed sub-floor history
+    --writes N            time N checked writes (the MCP write path) into a
+                          --sizes background on a temp TepinDB store, with a
+                          reader thread recording how long it waited for the
+                          engine — the receipt for lock-hold changes
     --no-rerank           drop the cross-encoder — a diagnostic, not an option
     --flat-priors         zero every type's rank_prior — also a diagnostic
     --sample              print sample generated facts and exit
@@ -193,6 +197,7 @@ fn cli() -> anyhow::Result<()> {
     let mut sample = false;
     let mut chains_mode = false;
     let mut authority_mode = false;
+    let mut writes_mode: Option<usize> = None;
     let mut window_mode = false;
     let mut sessions_mode = false;
     let mut chain_count: Option<usize> = None;
@@ -259,6 +264,7 @@ fn cli() -> anyhow::Result<()> {
             }
             "--chains" => chains_mode = true,
             "--authority" => authority_mode = true,
+            "--writes" => writes_mode = Some(value()?.parse()?),
             "--twin-order" => cfg.twin_order = Some(value()?.parse()?),
             "--window" => window_mode = true,
             "--sessions" => sessions_mode = true,
@@ -324,6 +330,34 @@ fn cli() -> anyhow::Result<()> {
         engram_eval::sessions::print(&report);
         if let Some(path) = json_out {
             std::fs::write(&path, serde_json::to_string_pretty(&report)?)?;
+            println!("\nwrote {path}");
+        }
+        return Ok(());
+    }
+    if let Some(writes) = writes_mode {
+        let r = engram_eval::writes::run(&cfg, writes)?;
+        println!("engram-eval — checked writes, timed under a reader");
+        println!(
+            "models: {} / {} / {}   background {}   writes {} ({} created, {} matched)",
+            r.embedder, r.reranker, r.nli, r.background, r.writes, r.created, r.matched
+        );
+        let line = |name: &str, s: &engram_eval::writes::Stats| {
+            println!(
+                "  {name:<12} mean {:7.1}  p50 {:7.1}  p95 {:7.1}  p99 {:7.1}  max {:7.1}  ms",
+                s.mean, s.p50, s.p95, s.p99, s.max
+            )
+        };
+        line("write", &r.write_ms);
+        line("reader wait", &r.reader_wait_ms);
+        println!(
+            "  reader blocked {:.0} ms of {:.0} ms writing ({:.0}%), {} samples",
+            r.reader_blocked_ms,
+            r.writes_wall_ms,
+            100.0 * r.reader_blocked_ms / r.writes_wall_ms.max(1.0),
+            r.reader_samples
+        );
+        if let Some(path) = json_out {
+            std::fs::write(&path, serde_json::to_string_pretty(&r)?)?;
             println!("\nwrote {path}");
         }
         return Ok(());

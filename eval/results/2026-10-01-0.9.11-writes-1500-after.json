@@ -1,0 +1,26 @@
+{
+  "embedder": "bge-small-en-v1.5",
+  "reranker": "jina-reranker-v1-turbo-en",
+  "nli": "deberta-v3-small-tasksource-nli",
+  "background": 1500,
+  "writes": 95,
+  "created": 95,
+  "matched": 0,
+  "write_ms": {
+    "mean": 434.94013417894746,
+    "p50": 434.96487499999995,
+    "p95": 642.1635,
+    "p99": 690.159,
+    "max": 1097.9266249999998
+  },
+  "reader_wait_ms": {
+    "mean": 1.4743410425929377,
+    "p50": 0.000375,
+    "p95": 0.001042,
+    "p99": 62.05025,
+    "max": 157.008542
+  },
+  "reader_samples": 5353,
+  "reader_blocked_ms": 7892.1476010000015,
+  "writes_wall_ms": 41319.31274699999
+}
