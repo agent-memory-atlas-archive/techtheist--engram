@@ -56,11 +56,20 @@ unvalidated until re-tuned.
 
 ## Offline behavior
 
-First run needs the network once per model (the embedding model is ~30 MB,
-the NLI model ~172 MB). After that, everything is local. If a first run
+First run needs the network once per model (with the defaults: the
+embedding model ~130 MB, the reranker ~150 MB, the NLI model ~172 MB —
+about 450 MB in all). After that, everything is local. If a first run
 happens offline, the affected layer degrades gracefully and provisions
 itself on the next online start — `engram-alpha doctor` reports which models
 are cached.
+
+The core loads its models before it starts listening, so on a first run your
+assistant's first tool call can arrive while the downloads are still going.
+The MCP bridge waits 15 seconds for the core, then answers the call itself:
+the tool list straight away, and a tool call with an error saying the core
+is still starting — which models are ready and how many MB of the rest have
+arrived — and that nothing was run or written. Retry once the downloads
+finish; `~/.engram/core.log` shows the progress.
 
 Power knobs: `ENGRAM_MODEL_DIR`, `ENGRAM_RERANKER_DIR`, and
 `ENGRAM_NLI_DIR` override where each default model loads from — useful for

@@ -1749,7 +1749,83 @@ async fn run_mcp_fixed(raw_db: &Path, fake_embeddings: bool) -> anyhow::Result<(
             std::thread::sleep(std::time::Duration::from_millis(500));
         }
     });
-    engram_mcp::serve_stdio_bridge(engram_mcp::BridgeTarget::Fixed { resolve }).await
+    engram_mcp::serve_stdio_bridge_with(
+        engram_mcp::BridgeTarget::Fixed { resolve },
+        Some(startup_probe(fake_embeddings)),
+    )
+    .await
+}
+
+/// What a starting core is doing that a bridge can tell from outside it
+/// (0.9.11, Insight 00dxh3ev2j1f): the core loads every local model before it
+/// listens, and a first run downloads them into `~/.cache/engram` (~450 MB
+/// with the defaults). A tool call answered before the binding reads this,
+/// so an agent — or an external harness with a short timeout — learns
+/// "downloading, retry" instead of meeting a silent hold.
+fn startup_probe(fake_embeddings: bool) -> engram_mcp::StartupProbe {
+    Arc::new(move || {
+        if fake_embeddings {
+            return None;
+        }
+        use engram_core::cortex::Role;
+        let cfg = engram_core::cortex::load();
+        let (mut parts, mut downloading) = (Vec::new(), false);
+        for role in [Role::Embedding, Role::Reranker, Role::Nli] {
+            let spec = cfg.effective(role);
+            let (dir, files): (Option<PathBuf>, Vec<String>) =
+                if role == Role::Nli && is_default_spec(role, &spec) {
+                    (
+                        engram_core::nli::nli_model_dir(),
+                        engram_core::nli::NLI_MODEL_FILES
+                            .iter()
+                            .map(|f| f.to_string())
+                            .collect(),
+                    )
+                } else {
+                    (
+                        engram_core::cortex::cache_dir(&spec.name),
+                        engram_core::cortex::spec_files(role, &spec)
+                            .into_iter()
+                            .map(|(name, _)| name)
+                            .collect(),
+                    )
+                };
+            let Some(dir) = dir else { continue };
+            if files.iter().all(|f| dir.join(f).is_file()) {
+                parts.push(format!("{} ready", spec.name));
+                continue;
+            }
+            downloading = true;
+            // Finished files plus the `.part` curl is writing right now.
+            let bytes: u64 = std::fs::read_dir(&dir)
+                .map(|entries| {
+                    entries
+                        .flatten()
+                        .filter_map(|e| e.metadata().ok())
+                        .filter(|m| m.is_file())
+                        .map(|m| m.len())
+                        .sum()
+                })
+                .unwrap_or(0);
+            parts.push(if bytes > 0 {
+                format!("{} {} MB so far", spec.name, bytes / 1_000_000)
+            } else {
+                format!("{} waiting", spec.name)
+            });
+        }
+        let log = registry::engram_home()
+            .map(|h| format!(" Progress is logged in {}.", h.join("core.log").display()))
+            .unwrap_or_default();
+        Some(if downloading {
+            format!(
+                "First run: it is downloading its local models (about 450 MB with the \
+                 defaults) — {}.{log}",
+                parts.join("; ")
+            )
+        } else {
+            format!("It is loading its local models.{log}")
+        })
+    })
 }
 
 async fn run_mcp_roots(fake_embeddings: bool, wired_only: bool) -> anyhow::Result<()> {
@@ -1894,10 +1970,13 @@ async fn run_mcp_roots(fake_embeddings: bool, wired_only: bool) -> anyhow::Resul
             std::thread::sleep(std::time::Duration::from_millis(500));
         }
     });
-    engram_mcp::serve_stdio_bridge(engram_mcp::BridgeTarget::Roots {
-        fallback_root,
-        resolve,
-    })
+    engram_mcp::serve_stdio_bridge_with(
+        engram_mcp::BridgeTarget::Roots {
+            fallback_root,
+            resolve,
+        },
+        Some(startup_probe(fake_embeddings)),
+    )
     .await
 }
 
@@ -2263,6 +2342,14 @@ async fn run_core(args: CoreArgs) -> anyhow::Result<()> {
         return Ok(());
     }
     update::notify_on_newer_release();
+    // Test hook: stand in for a first run's model downloads, so the bridge's
+    // "still starting" answer can be exercised end to end without them.
+    if let Some(ms) = std::env::var("ENGRAM_TEST_CORE_START_DELAY_MS")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+    {
+        std::thread::sleep(std::time::Duration::from_millis(ms));
+    }
     let (hub, models) = build_core_hub(args.fake_embeddings)?;
     let db_display = registry::home_db_path()
         .map(|p| p.display().to_string())

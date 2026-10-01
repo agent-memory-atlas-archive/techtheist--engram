@@ -426,3 +426,54 @@ fn open_mcp_session_follows_a_wiped_store() {
     );
     bridge.kill();
 }
+
+/// Insight 00dxh3ev2j1f (0.9.11): an external evaluator with a 20 s timeout
+/// read a first run as a hang — the bridge answered initialize, then held
+/// every call while the core downloaded ~450 MB of models. Now a call waits
+/// only the grace and is answered: the tool list from the bridge itself, a
+/// tool call with an error result saying the core is still starting. Once
+/// the core is up, the same session works normally.
+#[test]
+fn a_bridge_answers_while_its_core_is_still_starting() {
+    let sb = Sandbox::new("starting", 19520);
+    let proj = sb.project("alpha");
+    let mut cmd = sb.cmd(
+        &["mcp", "--db", ".engram/graph.db", "--fake-embeddings"],
+        &proj,
+    );
+    cmd.env("ENGRAM_TEST_CORE_START_DELAY_MS", "8000")
+        .env("ENGRAM_BRIDGE_GRACE_SECS", "1");
+    let t0 = std::time::Instant::now();
+    let mut bridge = Bridge::spawn_cmd(cmd);
+
+    bridge.send(r#"{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}"#);
+    let listed = loop {
+        let line = bridge.recv();
+        if line.contains(r#""id":2"#) {
+            break line;
+        }
+    };
+    assert!(
+        listed.contains(r#""name":"brief""#),
+        "the bridge lists the tools itself: {listed}"
+    );
+    let early = bridge.call(3, "brief", "{}");
+    assert!(
+        early.contains(r#""isError":true"#) && early.contains("still starting"),
+        "a call before the core is up is answered, not held: {early}"
+    );
+    assert!(
+        t0.elapsed() < Duration::from_secs(7),
+        "both answers came within the grace, not after the core: {:?}",
+        t0.elapsed()
+    );
+
+    sb.wait_core_healthy(CORE_HEALTH_WINDOW);
+    let ok = eventually(Duration::from_secs(30), || {
+        let reply = bridge.call(4, "brief", "{}");
+        !reply.contains(r#""isError":true"#) && reply.contains("brief")
+    });
+    assert!(ok, "the same session works once the core is up");
+    bridge.kill();
+    let _ = sb.cmd(&["stop"], &proj).output();
+}

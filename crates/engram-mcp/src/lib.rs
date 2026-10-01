@@ -2015,9 +2015,38 @@ impl rmcp::Service<rmcp::RoleServer> for Passthrough {
                 self.info.clone(),
             ));
         }
-        // Every other early request (a tools/list right after initialize)
-        // holds until the session is bound to a project, so nothing lands in
-        // the wrong graph while roots are still being resolved.
+        // A tool call or a tool listing waits a short grace for the binding
+        // and is then ANSWERED (0.9.11, Insight 00dxh3ev2j1f): a first-run
+        // core downloads ~450 MB of models before it listens, and a client
+        // with a 20 s timeout read the old silent hold as a hang. The list
+        // is this crate's own (the core serves the same static router); a
+        // call gets an error result saying the core is still starting —
+        // nothing ran, nothing was written. A binding that FAILED still
+        // answers with its error, as before.
+        match &request {
+            rmcp::model::ClientRequest::CallToolRequest(_) => {
+                return match self.state.peer_within_grace().await? {
+                    Some(peer) => peer.send_request(request).await.map_err(proxy_err),
+                    None => Ok(rmcp::model::ServerResult::CallToolResult(
+                        CallToolResult::error(vec![ContentBlock::text(self.state.starting_note())]),
+                    )),
+                };
+            }
+            rmcp::model::ClientRequest::ListToolsRequest(_) => {
+                return match self.state.peer_within_grace().await? {
+                    Some(peer) => peer.send_request(request).await.map_err(proxy_err),
+                    None => Ok(rmcp::model::ServerResult::ListToolsResult(
+                        rmcp::model::ListToolsResult::with_all_items(
+                            Engram::tool_router().list_all(),
+                        ),
+                    )),
+                };
+            }
+            _ => {}
+        }
+        // Every other early request holds until the session is bound to a
+        // project, so nothing lands in the wrong graph while roots are still
+        // being resolved.
         let peer = self.state.peer_when_bound().await?;
         peer.send_request(request).await.map_err(proxy_err)
     }
@@ -2108,6 +2137,27 @@ pub type RootResolver =
 /// already answering the handshake.
 pub type FixedResolver = Arc<dyn Fn() -> anyhow::Result<ResolvedTarget> + Send + Sync>;
 
+/// What the machine core is doing while it starts, read from outside it (the
+/// core listens only after its models load) — e.g. which local models are
+/// still downloading. `None` when there is nothing more specific to say than
+/// "starting". Called on the bridge's async side: keep it to cheap disk reads.
+pub type StartupProbe = Arc<dyn Fn() -> Option<String> + Send + Sync>;
+
+/// How long a tool call or tool listing waits for the first binding before
+/// the bridge answers it itself (0.9.11; the user's number: 15 s — under the
+/// 20 s preflight timeout that read the old hold as a hang). Overridable for
+/// tests via `ENGRAM_BRIDGE_GRACE_SECS`.
+pub const BRIDGE_GRACE: std::time::Duration = std::time::Duration::from_secs(15);
+
+fn bridge_grace() -> std::time::Duration {
+    std::env::var("ENGRAM_BRIDGE_GRACE_SECS")
+        .ok()
+        .and_then(|s| s.trim().parse::<f64>().ok())
+        .filter(|s| s.is_finite() && *s >= 0.0)
+        .map(std::time::Duration::from_secs_f64)
+        .unwrap_or(BRIDGE_GRACE)
+}
+
 /// One live upstream MCP session. Generations order rebinds: a watcher or
 /// heartbeat that saw generation N stays quiet when the current one moved on.
 struct Upstream {
@@ -2150,9 +2200,58 @@ struct BridgeState {
     /// a silent close reads as "Failed to initialize server" with zero
     /// forensics on the client side).
     failed: std::sync::Mutex<Option<String>>,
+    /// See [`StartupProbe`] — what to tell a call answered before binding.
+    startup: Option<StartupProbe>,
+    /// See [`BRIDGE_GRACE`].
+    grace: std::time::Duration,
 }
 
 impl BridgeState {
+    /// The current upstream peer if the first binding lands within the
+    /// grace, `None` if it is still in flight — the caller answers itself.
+    /// A binding that failed answers with its error, as
+    /// [`peer_when_bound`] does.
+    async fn peer_within_grace(
+        &self,
+    ) -> Result<Option<rmcp::service::Peer<rmcp::RoleClient>>, ErrorData> {
+        if let Some((peer, _)) = self.current_peer() {
+            return Ok(Some(peer));
+        }
+        let mut rx = self.bound.subscribe();
+        let bound = async {
+            loop {
+                if *rx.borrow_and_update() > 0 {
+                    return;
+                }
+                if rx.changed().await.is_err() {
+                    return;
+                }
+            }
+        };
+        let _ = tokio::time::timeout(self.grace, bound).await;
+        if let Some((peer, _)) = self.current_peer() {
+            return Ok(Some(peer));
+        }
+        if let Some(why) = self.failed.lock().unwrap().clone() {
+            return Err(ErrorData::internal_error(why, None));
+        }
+        Ok(None)
+    }
+
+    /// The tool result for a call that arrived before the core was up.
+    fn starting_note(&self) -> String {
+        let detail = self
+            .startup
+            .as_ref()
+            .and_then(|probe| probe())
+            .map(|d| format!(" {d}"))
+            .unwrap_or_default();
+        format!(
+            "Engram's core is still starting, so this tool call was not run and nothing was \
+             written.{detail} Retry the call in a minute."
+        )
+    }
+
     fn current_peer(&self) -> Option<(rmcp::service::Peer<rmcp::RoleClient>, u64)> {
         self.slot
             .lock()
@@ -2671,6 +2770,15 @@ async fn delete_lease(client: &reqwest::Client, base_url: &str, id: &str) {
 /// through [`BridgeState::fail`] so held requests answer with the real
 /// error before the bridge exits.
 pub async fn serve_stdio_bridge(target: BridgeTarget) -> anyhow::Result<()> {
+    serve_stdio_bridge_with(target, None).await
+}
+
+/// [`serve_stdio_bridge`] with a [`StartupProbe`] for calls answered before
+/// the first binding.
+pub async fn serve_stdio_bridge_with(
+    target: BridgeTarget,
+    startup: Option<StartupProbe>,
+) -> anyhow::Result<()> {
     // The core is always on 127.0.0.1, but reqwest honors HTTP(S)_PROXY env
     // vars by default — under a corporate proxy the loopback connection gets
     // routed through it and dies with the proxy's HTML error page (issue #2).
@@ -2690,6 +2798,8 @@ pub async fn serve_stdio_bridge(target: BridgeTarget) -> anyhow::Result<()> {
         client_name: std::sync::Mutex::new(None),
         exit,
         failed: std::sync::Mutex::new(None),
+        startup,
+        grace: bridge_grace(),
     });
     // In both shapes the upstream doesn't exist yet when the stdio client's
     // initialize arrives (handshake-first), so it is answered from this
@@ -3664,6 +3774,51 @@ mod tests {
         assert!(edge_types(&["".into()]).is_err());
     }
 
+    /// 0.9.11: a call that arrives before the first binding waits only the
+    /// grace, then the bridge answers it itself — with what the startup
+    /// probe can say — instead of holding it for minutes; a failed binding
+    /// still answers with its error.
+    #[tokio::test]
+    async fn an_unbound_bridge_answers_after_the_grace() {
+        let (bound, _bound_rx) = tokio::sync::watch::channel(0u64);
+        let (exit, _exit_rx) = tokio::sync::mpsc::channel(4);
+        let state = Arc::new(BridgeState {
+            http: reqwest::Client::new(),
+            slot: std::sync::Mutex::new(None),
+            bound,
+            lease: std::sync::Mutex::new(None),
+            client_name: std::sync::Mutex::new(None),
+            exit,
+            failed: std::sync::Mutex::new(None),
+            startup: Some(Arc::new(|| Some("Downloading local models.".into()))),
+            grace: std::time::Duration::from_millis(80),
+        });
+        let t0 = std::time::Instant::now();
+        let peer = state.peer_within_grace().await.unwrap();
+        assert!(peer.is_none(), "nothing is bound yet");
+        assert!(t0.elapsed() >= std::time::Duration::from_millis(80));
+        assert!(t0.elapsed() < std::time::Duration::from_secs(5));
+        let note = state.starting_note();
+        assert!(note.contains("still starting"), "{note}");
+        assert!(note.contains("nothing was written"), "{note}");
+        assert!(note.contains("Downloading local models."), "{note}");
+
+        state.fail("engram bridge: no core".into());
+        let err = state.peer_within_grace().await.unwrap_err();
+        assert!(err.message.contains("no core"), "{err:?}");
+    }
+
+    /// The tools a bridge lists before it is bound are the core's own — the
+    /// same static router — so a client that caches the first list is not
+    /// misled.
+    #[test]
+    fn the_unbound_tool_list_is_the_full_router() {
+        let tools = Engram::tool_router().list_all();
+        for name in ["brief", "search", "add_note", "describe_ontology"] {
+            assert!(tools.iter().any(|t| t.name == name), "missing {name}");
+        }
+    }
+
     /// The silent-death fix (Windsurf field trace): a fatal binding failure
     /// must wake every request held in `peer_when_bound` with the real
     /// reason, immediately — not let them ride out the 30s cap and die
@@ -3680,6 +3835,8 @@ mod tests {
             client_name: std::sync::Mutex::new(None),
             exit,
             failed: std::sync::Mutex::new(None),
+            startup: None,
+            grace: BRIDGE_GRACE,
         });
         // A request already waiting on the binding…
         let held = {
@@ -5189,6 +5346,8 @@ mod transport_tests {
             client_name: std::sync::Mutex::new(None),
             exit,
             failed: std::sync::Mutex::new(None),
+            startup: None,
+            grace: BRIDGE_GRACE,
         });
         let info = state.connect(&url, None, BoundBy::Route).await.unwrap();
         let proxy = Passthrough {
