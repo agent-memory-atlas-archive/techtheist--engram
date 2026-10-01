@@ -1,0 +1,14 @@
+engram-eval --sweep-replay, 0.9.11 Checkup sweeps (items 1 + 7), 2026-10-01
+model: deberta-v3-small-tasksource-nli; copies of the live stores; titles omitted (local graphs)
+== engram graph
+graph:  (612 nodes)   model: deberta-v3-small-tasksource-nli
+  pending before 0   newly queued 0   sweep 11741 ms
+  dismissed sub-floor history 113   readmitted by the title guard 28 (named 26, unnamed 2)   would queue at the gate 4 (named-path 4, unnamed-path 0)
+  checkup conflicts: 1 click(s), 158 pairs judged, 0 queued (0 below the floor)   passed over: 48 linked, 13 raised, 11 inactive   10071 ms
+  checkup duplicates: 5 click(s), 1355 pairs judged, 0 queued (0 below the floor)   passed over: 253 linked, 76 raised, 232 inactive   81894 ms
+== eval graph
+graph:  (146 nodes)   model: deberta-v3-small-tasksource-nli
+  pending before 0   newly queued 0   sweep 16866 ms
+  dismissed sub-floor history 18   readmitted by the title guard 15 (named 15, unnamed 0)   would queue at the gate 0 (named-path 0, unnamed-path 0)
+  checkup conflicts: 1 click(s), 167 pairs judged, 0 queued (0 below the floor)   passed over: 14 linked, 3 raised, 9 inactive   20952 ms
+  checkup duplicates: 2 click(s), 433 pairs judged, 0 queued (0 below the floor)   passed over: 77 linked, 15 raised, 121 inactive   42870 ms

@@ -607,8 +607,13 @@ pub struct AuditSweep {
     pub already_linked: usize,
     /// Close pairs already raised as a suspect — pending or judged.
     pub already_raised: usize,
-    /// Close pairs with an archived note or an anchor on one side.
+    /// Close pairs with an archived note, a tombstone or an anchor on one
+    /// side.
     pub inactive: usize,
+    /// Pairs an earlier run already judged and passed (0.9.11) — unchanged
+    /// notes, same judge: read again they would spend budget on the same
+    /// answer.
+    pub already_judged: usize,
 }
 
 /// A nomination that an open Problem/Intent may already be answered by an

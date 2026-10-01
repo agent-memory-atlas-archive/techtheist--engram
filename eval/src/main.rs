@@ -466,6 +466,29 @@ fn cli() -> anyhow::Result<()> {
                 x.b_title
             );
         }
+        for c in &r.checkup {
+            println!(
+                "  checkup {}: {} click(s), {} pairs judged, {} queued ({} below the floor)   passed over: {} linked, {} raised, {} inactive   {:.0} ms",
+                c.sweep,
+                c.runs,
+                c.examined,
+                c.pairs.len(),
+                c.below_floor,
+                c.already_linked,
+                c.already_raised,
+                c.inactive,
+                c.ms
+            );
+            for p in &c.pairs {
+                println!(
+                    "  + [{:.2} {}]\n      {}\n      {}",
+                    p.similarity,
+                    p.hint.as_deref().unwrap_or("-"),
+                    p.a_title,
+                    p.b_title
+                );
+            }
+        }
         if let Some(path) = json_out {
             std::fs::write(&path, serde_json::to_string_pretty(&r)?)?;
             println!("\nwrote {path}");

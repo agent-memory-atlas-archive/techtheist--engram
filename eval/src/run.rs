@@ -663,6 +663,29 @@ pub struct SweepReplay {
     pub would_queue: usize,
     pub would_queue_named: usize,
     pub ms: f64,
+    /// The Checkup panel's two sweeps, clicked until they finish (0.9.11:
+    /// each click continues where the last one stopped), after the
+    /// background scan above.
+    pub checkup: Vec<CheckupReplay>,
+}
+
+/// One Checkup sweep replayed to completion on the copy.
+#[derive(Debug, Clone, Serialize)]
+pub struct CheckupReplay {
+    /// "conflicts" | "duplicates".
+    pub sweep: String,
+    /// Clicks it took to finish (each judges at most the shipped budget).
+    pub runs: usize,
+    pub examined: usize,
+    /// Pairs the last click passed over, by reason.
+    pub already_linked: usize,
+    pub already_raised: usize,
+    pub inactive: usize,
+    /// Pairs it queued, with the similarity and hint stored on each — the
+    /// ones under the look-alike floor came in through the title guard.
+    pub pairs: Vec<ReplayPair>,
+    pub below_floor: usize,
+    pub ms: f64,
 }
 
 pub fn sweep_replay(path: &str) -> anyhow::Result<SweepReplay> {
@@ -718,17 +741,54 @@ pub fn sweep_replay(path: &str) -> anyhow::Result<SweepReplay> {
         let started = std::time::Instant::now();
         let added = engine.scan_conflicts()?;
         let ms = started.elapsed().as_secs_f64() * 1000.0;
-        let pairs = store
-            .suspects_pending()?
-            .into_iter()
-            .filter(|s| !before.contains(&s.id))
-            .map(|s| ReplayPair {
-                a_title: s.a.title,
-                b_title: s.b.title,
-                similarity: s.similarity,
-                hint: s.nli_label,
-            })
-            .collect();
+        let pending = |seen: &std::collections::HashSet<String>| -> anyhow::Result<Vec<_>> {
+            Ok(store
+                .suspects_pending()?
+                .into_iter()
+                .filter(|s| !seen.contains(&s.id))
+                .collect::<Vec<_>>())
+        };
+        let to_pair = |s: engram_core::SuspectView| ReplayPair {
+            a_title: s.a.title,
+            b_title: s.b.title,
+            similarity: s.similarity,
+            hint: s.nli_label,
+        };
+        let new = pending(&before)?;
+        let mut seen = before.clone();
+        seen.extend(new.iter().map(|s| s.id.clone()));
+        let pairs = new.into_iter().map(to_pair).collect();
+        let mut checkup = Vec::new();
+        for kind in ["conflicts", "duplicates"] {
+            let started = std::time::Instant::now();
+            let (mut runs, mut examined) = (0, 0);
+            let last = loop {
+                let sweep = if kind == "conflicts" {
+                    engine.audit_conflicts()?
+                } else {
+                    engine.audit_duplicates()?
+                };
+                runs += 1;
+                examined += sweep.examined;
+                if !sweep.truncated || runs >= 100 {
+                    break sweep;
+                }
+            };
+            let found = pending(&seen)?;
+            seen.extend(found.iter().map(|s| s.id.clone()));
+            let below_floor = found.iter().filter(|s| s.similarity < floor).count();
+            checkup.push(CheckupReplay {
+                sweep: kind.to_string(),
+                runs,
+                examined,
+                already_linked: last.already_linked,
+                already_raised: last.already_raised,
+                inactive: last.inactive,
+                pairs: found.into_iter().map(to_pair).collect(),
+                below_floor,
+                ms: started.elapsed().as_secs_f64() * 1000.0,
+            });
+        }
         Ok(SweepReplay {
             graph: path.to_string(),
             model,
@@ -741,6 +801,7 @@ pub fn sweep_replay(path: &str) -> anyhow::Result<SweepReplay> {
             would_queue,
             would_queue_named,
             ms,
+            checkup,
         })
     })();
     let _ = std::fs::remove_file(&tmp);

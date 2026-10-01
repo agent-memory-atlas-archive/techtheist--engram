@@ -447,6 +447,8 @@ mod fast {
     pub struct LayaNli {
         model: LayaModel,
         question: Question,
+        /// The model directory's name (see [`Nli::model_id`]).
+        id: String,
     }
 
     impl LayaNli {
@@ -454,6 +456,7 @@ mod fast {
             Ok(Self {
                 model: LayaModel::from_dir(dir)?,
                 question: nli_question(),
+                id: crate::nli::dir_model_id(dir),
             })
         }
 
@@ -471,6 +474,10 @@ mod fast {
     }
 
     impl Nli for LayaNli {
+        fn model_id(&self) -> String {
+            self.id.clone()
+        }
+
         fn judge(&self, pairs: &[(String, String)]) -> Result<Vec<NliJudgment>> {
             let rows: Vec<(String, &Question)> = pairs
                 .iter()

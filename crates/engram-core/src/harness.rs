@@ -120,8 +120,8 @@ pub fn is_wired(repo: &Path, agent: &str) -> bool {
         // not a repo one. Two plugin generations read two different global
         // files — either counts.
         "windsurf" => {
-            home_file(".devin/mcp_config.json").is_some_and(&has_engram)
-                || windsurf_xdg_config().is_some_and(&has_engram)
+            home_file(".devin/mcp_config.json").is_some_and(has_engram)
+                || windsurf_xdg_config().is_some_and(has_engram)
         }
         // Devin CLI reads a three-tier config: project-local, project, then
         // the same user-level file the Windsurf JetBrains plugin reads — any
@@ -129,7 +129,7 @@ pub fn is_wired(repo: &Path, agent: &str) -> bool {
         "devin" => {
             has_engram(repo.join(".devin/mcp_config.local.json"))
                 || has_engram(repo.join(".devin/mcp_config.json"))
-                || windsurf_xdg_config().is_some_and(&has_engram)
+                || windsurf_xdg_config().is_some_and(has_engram)
         }
         _ => false,
     }

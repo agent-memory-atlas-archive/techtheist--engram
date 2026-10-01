@@ -74,6 +74,14 @@ pub trait Nli: Send + Sync {
         let forward = out.pop().expect("two judgments for two pairs");
         Ok(SymmetricJudgment { forward, backward })
     }
+
+    /// Which model this is — the model directory's name for an ONNX model.
+    /// A verdict remembered by a sweep is only reusable under the model that
+    /// made it (0.9.11); an empty id means "unknown", so remembered verdicts
+    /// still hold until the model reports a different one.
+    fn model_id(&self) -> String {
+        String::new()
+    }
 }
 
 /// Shared NLI runtime across stores (PLAN §7C hub) — same `Arc` sharing as
@@ -82,6 +90,18 @@ impl<T: Nli + ?Sized> Nli for std::sync::Arc<T> {
     fn judge(&self, pairs: &[(String, String)]) -> Result<Vec<NliJudgment>> {
         (**self).judge(pairs)
     }
+
+    fn model_id(&self) -> String {
+        (**self).model_id()
+    }
+}
+
+/// A directory's last path component — how a local ONNX model is named.
+#[cfg_attr(not(feature = "fastembed"), allow(dead_code))]
+pub(crate) fn dir_model_id(dir: &std::path::Path) -> String {
+    dir.file_name()
+        .map(|f| f.to_string_lossy().into_owned())
+        .unwrap_or_default()
 }
 
 /// Both directions of one pair, for callers that need entailment asymmetry
@@ -121,6 +141,10 @@ impl SymmetricJudgment {
 pub struct FakeNli;
 
 impl Nli for FakeNli {
+    fn model_id(&self) -> String {
+        "fake".into()
+    }
+
     fn judge(&self, pairs: &[(String, String)]) -> Result<Vec<NliJudgment>> {
         Ok(pairs
             .iter()
@@ -183,6 +207,8 @@ mod fast {
         entail_idx: usize,
         neutral_idx: usize,
         contra_idx: usize,
+        /// The model directory's name (see [`Nli::model_id`]).
+        id: String,
     }
 
     impl FastNli {
@@ -250,6 +276,7 @@ mod fast {
                 tokenizer,
                 session: Mutex::new(session),
                 need_token_type_ids,
+                id: super::dir_model_id(dir),
             })
         }
     }
@@ -267,6 +294,10 @@ mod fast {
                 out.extend(self.judge_batch(chunk)?);
             }
             Ok(out)
+        }
+
+        fn model_id(&self) -> String {
+            self.id.clone()
         }
     }
 

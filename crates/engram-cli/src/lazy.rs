@@ -178,6 +178,9 @@ impl Reranker for LazyReranker {
 
 pub struct LazyNli {
     slot: Slot<dyn Nli>,
+    /// Read once from the preloaded model: asking the slot would reload an
+    /// idle-unloaded model just to learn its name.
+    id: String,
 }
 
 impl LazyNli {
@@ -186,8 +189,10 @@ impl LazyNli {
             let cfg = engram_core::cortex::load();
             crate::load_nli(&cfg.effective(engram_core::cortex::Role::Nli))
         });
+        let id = model.model_id();
         Arc::new(Self {
             slot: Slot::preloaded(model, loader, "NLI", idle),
+            id,
         })
     }
 
@@ -202,6 +207,10 @@ impl Nli for LazyNli {
         pairs: &[(String, String)],
     ) -> engram_core::Result<Vec<engram_core::NliJudgment>> {
         self.slot.get()?.judge(pairs)
+    }
+
+    fn model_id(&self) -> String {
+        self.id.clone()
     }
 }
 

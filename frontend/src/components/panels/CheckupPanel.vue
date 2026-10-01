@@ -61,8 +61,9 @@ function emptySweep(kind: 'conflicts' | 'duplicates', sweep: AuditSweep): string
     const linked = sweep.already_linked
     const raised = sweep.already_raised ?? 0
     const inactive = sweep.inactive ?? 0
+    const remembered = sweep.already_judged ?? 0
     const passed = linked + raised + inactive
-    if (sweep.examined === 0 && passed === 0) {
+    if (sweep.examined === 0 && passed === 0 && remembered === 0) {
         return 'nothing to compare — no two notes are close enough to be a pair'
     }
     const parts: string[] = []
@@ -78,6 +79,7 @@ function emptySweep(kind: 'conflicts' | 'duplicates', sweep: AuditSweep): string
         ].filter(Boolean)
         parts.push(`${plural(passed, 'close pair')} already handled (${why.join(', ')})`)
     }
+    if (remembered > 0) parts.push(`${plural(remembered, 'pair')} judged on earlier runs`)
     return `nothing new — ${parts.join('; ')}`
 }
 
@@ -90,7 +92,14 @@ async function runSweep(kind: 'conflicts' | 'duplicates'): Promise<void> {
         sweepNote.value[kind] = sweep.queued
             ? `${sweep.queued} ${what}${sweep.queued > 1 ? 's' : ''} queued for judgment (${sweep.examined} pairs judged)`
             : emptySweep(kind, sweep)
-        if (sweep.truncated) sweepNote.value[kind] += ' — budget hit, run again to continue'
+        if (sweep.truncated) {
+            // Since 0.9.11 the core remembers what it judged, so "again"
+            // continues; an older core re-reads the same pairs every run.
+            sweepNote.value[kind] +=
+                sweep.already_judged == null
+                    ? ' — budget hit, run again to continue'
+                    : ' — budget hit, run again to judge the next pairs'
+        }
         if (sweep.queued) await store.loadSuspects()
     } catch (e) {
         sweepNote.value[kind] = e instanceof Error ? e.message : String(e)

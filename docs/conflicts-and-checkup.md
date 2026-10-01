@@ -58,9 +58,18 @@ know — usually something worth capturing.
 Above the claim box, one-click sweeps over the whole graph:
 
 - **Find hidden conflicts** — look-alike pairs the model reads as
-  contradictions.
+  contradictions, plus less similar pairs whose *titles* name the same
+  subject and contradict each other — the same second way in the write path
+  uses.
 - **Find duplicates** — pairs that state the same thing; judge as Replaces
   to merge their histories.
+
+Both read at most 300 pairs per click. A pair judged without being queued is
+remembered — until either note is edited or the logic model changes — so
+on a large graph each click continues where the last one stopped. When a
+sweep finds nothing it says why: how many pairs it judged, and how many close
+pairs were already linked, already raised, archived, or judged on an earlier
+run.
 - **Check open problems** — does an existing Decision or Resolution already
   answer an open Problem? Pairs that are already linked another way are
   flagged as such rather than re-suggested blindly.

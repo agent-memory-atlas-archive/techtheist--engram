@@ -469,6 +469,11 @@ export interface AuditSweep {
     already_linked?: number
     already_raised?: number
     inactive?: number
+    /**
+     * Pairs an earlier run judged and passed — unchanged notes, same judge
+     * (0.9.11): read once, never again, so a truncated sweep continues.
+     */
+    already_judged?: number
 }
 
 /** A nomination that an open Problem may already be answered (POST /audit/answered). */

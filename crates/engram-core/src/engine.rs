@@ -4740,16 +4740,19 @@ impl Engine {
 
     /// Conflict sweep (the Checkup panel's "Find hidden conflicts"): rescan
     /// at the standing similarity threshold, queueing only pairs the NLI
-    /// layer marks as contradictions. The floor stays at 0.85 deliberately:
-    /// MNLI-class models presuppose co-reference, and below that band
-    /// unrelated same-shaped titles read as confident contradictions (see
-    /// the dogfood finding of 2026-07-13 — 140 junk pairs at a 0.8 gate).
-    /// Reaching lower waits for a domain-calibrated model via the
-    /// judged-suspects eval corpus.
+    /// layer marks as contradictions. Above the floor the claim text is
+    /// judged; MNLI-class models presuppose co-reference, and below that band
+    /// unrelated same-shaped claims read as confident contradictions (the
+    /// dogfood finding of 2026-07-13 — 140 junk pairs at a 0.8 gate). Below
+    /// it (0.9.11) the sweep admits exactly what the write path admits since
+    /// 0.9.4: titles that name one subject and share a claim word, read as a
+    /// contradiction at `policy.conflict_nli_gate` — so the button reaches
+    /// what the background scan reaches, and further down the neighbour list.
     pub fn audit_conflicts(&self) -> Result<AuditSweep> {
         self.audit_sweep(
             "contradiction",
             self.store.config().policy.conflict_suspect_similarity,
+            AUDIT_NLI_PAIR_BUDGET,
         )
     }
 
@@ -4757,31 +4760,48 @@ impl Engine {
     /// entailment above a 0.80 similarity floor — two nodes stating the same
     /// thing. Queued as suspects; the judge's `replaces` verdict is the merge.
     pub fn audit_duplicates(&self) -> Result<AuditSweep> {
-        self.audit_sweep("entailment", 0.80)
+        self.audit_sweep("entailment", 0.80, AUDIT_NLI_PAIR_BUDGET)
     }
 
     /// Shared sweep: nominate unlinked, unraised look-alike pairs whose NLI
     /// hint matches `target`. NLI pair budget capped — an audit that takes a
     /// minute under the engine lock is worse than one that says "truncated,
-    /// run me again".
-    fn audit_sweep(&self, target: &'static str, floor: f64) -> Result<AuditSweep> {
-        const NLI_PAIR_BUDGET: usize = 300;
+    /// run me again". Since 0.9.11 "again" makes progress: each unordered
+    /// pair is judged once per run, and a pair judged without queueing is
+    /// remembered ([`SweepMemory`]) so the next run spends its budget on
+    /// pairs no run has read yet.
+    pub(crate) fn audit_sweep(
+        &self,
+        target: &'static str,
+        floor: f64,
+        budget: usize,
+    ) -> Result<AuditSweep> {
         let cfg = self.store.config();
-        self.require_nli()?;
-        let mut sweep = AuditSweep::default();
-        // Skips are counted per unordered pair: the scan meets every close
-        // pair from both sides.
-        let mut skipped = std::collections::HashSet::new();
-        let mut skip = |a: &str, b: &str, bucket: &mut usize| {
-            let key = if a < b {
-                (a.to_string(), b.to_string())
-            } else {
-                (b.to_string(), a.to_string())
-            };
-            if skipped.insert(key) {
-                *bucket += 1;
-            }
+        let nli = self.require_nli()?;
+        // Below the floor only the conflict sweep reads, and only through the
+        // title gate — the duplicate sweep's floor is already its band.
+        let title_gate = cfg
+            .policy
+            .conflict_nli_gate
+            .filter(|_| target == "contradiction");
+        let low = match title_gate {
+            Some(_) => crate::policy::CONFLICT_NLI_FLOOR.min(floor),
+            None => floor,
         };
+        let mut memory = SweepMemory::load(
+            self.store.as_ref(),
+            target,
+            &format!(
+                "{}|{:?}|{}",
+                nli.model_id(),
+                title_gate,
+                cfg.policy.nli_sweep_min_confidence
+            ),
+        )?;
+        let mut sweep = AuditSweep::default();
+        // The scan meets every close pair from both sides; whatever happened
+        // to it the first time (judged, queued, skipped) holds for the second.
+        let mut seen = std::collections::HashSet::new();
         'nodes: for node in self.store.scannable_nodes()? {
             let Some(vec) = self.store.embedding_of(&node.id)? else {
                 continue;
@@ -4791,33 +4811,74 @@ impl Engine {
                 if id == node.id {
                     continue;
                 }
-                if similarity < floor {
+                if similarity < low {
                     break; // distance-ordered
+                }
+                let key = if node.id < id {
+                    (node.id.clone(), id.clone())
+                } else {
+                    (id.clone(), node.id.clone())
+                };
+                if !seen.insert(key) {
+                    continue;
                 }
                 let Some(other) = self.store.get_node(&id)? else {
                     continue;
                 };
-                if is_anchor(&cfg, &other) || other.valid_until.is_some() {
-                    skip(&node.id, &other.id, &mut sweep.inactive);
+                // Below the floor a pair exists for this sweep only if the
+                // title guard admits it; the skip counters describe the close
+                // pairs above it.
+                let path = if similarity >= floor {
+                    None
+                } else {
+                    match title_pair_admission(&node.title, &other.title) {
+                        Some(path) => Some(path),
+                        None => continue,
+                    }
+                };
+                let passed_over = |bucket: &mut usize| {
+                    if path.is_none() {
+                        *bucket += 1;
+                    }
+                };
+                if is_anchor(&cfg, &other)
+                    || is_tombstone(&cfg, &other)
+                    || other.valid_until.is_some()
+                {
+                    passed_over(&mut sweep.inactive);
                     continue;
                 }
                 if self.store.pair_linked(&node.id, &other.id)? {
-                    skip(&node.id, &other.id, &mut sweep.already_linked);
+                    passed_over(&mut sweep.already_linked);
                     continue;
                 }
                 if self.store.suspect_between(&node.id, &other.id)? {
-                    skip(&node.id, &other.id, &mut sweep.already_raised);
+                    passed_over(&mut sweep.already_raised);
                     continue;
                 }
-                if sweep.examined >= NLI_PAIR_BUDGET {
+                let memo = pair_memo(&node, &other, path.unwrap_or("claim"));
+                if memory.contains(memo) {
+                    sweep.already_judged += 1;
+                    continue;
+                }
+                if sweep.examined >= budget {
                     sweep.truncated = true;
                     break 'nodes;
                 }
                 sweep.examined += 1;
-                let Some((label, score, direction)) = self.nli_hint(&node, &other) else {
-                    continue;
+                let hint = match path {
+                    None => self.nli_hint(&node, &other),
+                    Some(path) => self.nli_title_hint_for(path, &node, &other),
                 };
-                if label != target || score < cfg.policy.nli_sweep_min_confidence {
+                let Some((label, score, direction)) = hint else {
+                    continue; // the judge failed: nothing was read, nothing to remember
+                };
+                let gate = match path {
+                    None => cfg.policy.nli_sweep_min_confidence,
+                    Some(_) => title_gate.unwrap_or(f64::INFINITY),
+                };
+                if label != target || score < gate {
+                    memory.insert(memo);
                     continue;
                 }
                 let (newer, older) = if node.created_at >= other.created_at {
@@ -4832,11 +4893,9 @@ impl Engine {
                     Some((label, score, direction)),
                 )?;
                 sweep.queued += 1;
-                // Met again from the other side, this pair is this sweep's
-                // own find, not one it passed over.
-                skip(&node.id, &other.id, &mut 0);
             }
         }
+        memory.save(self.store.as_ref())?;
         if sweep.queued > 0 {
             self.notify(ChangeEvent::SuspectsChanged);
         }
@@ -6480,6 +6539,109 @@ impl Rung {
             Rung::None
         }
     }
+}
+
+/// NLI pairs one Checkup sweep run may judge. An audit that holds the
+/// engine for a minute is worse than one that says "run me again" — and
+/// since 0.9.11 running it again continues where the last run stopped.
+const AUDIT_NLI_PAIR_BUDGET: usize = 300;
+
+/// Remembered pairs per sweep kind; the oldest fall out past this (a pair
+/// read again costs one NLI call, never a wrong answer).
+const SWEEP_MEMORY_MAX: usize = 20_000;
+
+/// The pairs a Checkup sweep judged without queueing (0.9.11, Problem
+/// 00dxmtfmipga): before it, every run re-read the same first 300 pairs and
+/// "run again to continue" never continued. Kept in the store's kv meta per
+/// sweep kind, so it travels with `migrate` like the rest of meta. A pair is
+/// remembered by [`pair_memo`] — both notes' ids and content plus the read
+/// that judged it — so editing either note re-opens it, and the whole
+/// memory is dropped when its stamp (judge model, gates) changes: a verdict
+/// is only as reusable as the judge and the bar that produced it.
+struct SweepMemory {
+    key: String,
+    stamp: String,
+    order: Vec<u64>,
+    set: std::collections::HashSet<u64>,
+    dirty: bool,
+}
+
+impl SweepMemory {
+    fn load(store: &dyn Store, target: &str, stamp: &str) -> Result<Self> {
+        let key = format!("audit_sweep.passed.{target}");
+        let mut memory = Self {
+            key,
+            stamp: stamp.to_string(),
+            order: Vec::new(),
+            set: Default::default(),
+            dirty: false,
+        };
+        if let Some(raw) = store.kv_get(&memory.key)?
+            && let Some((head, pairs)) = raw.split_once('\n')
+            && head == memory.stamp
+        {
+            for memo in pairs
+                .split(',')
+                .filter_map(|h| u64::from_str_radix(h, 16).ok())
+            {
+                if memory.set.insert(memo) {
+                    memory.order.push(memo);
+                }
+            }
+        } else {
+            // No memory yet, or one a different judge or bar wrote: start
+            // over, and say so on the next save even if nothing is added.
+            memory.dirty = true;
+        }
+        Ok(memory)
+    }
+
+    fn contains(&self, memo: u64) -> bool {
+        self.set.contains(&memo)
+    }
+
+    fn insert(&mut self, memo: u64) {
+        if self.set.insert(memo) {
+            self.order.push(memo);
+            self.dirty = true;
+        }
+    }
+
+    fn save(&mut self, store: &dyn Store) -> Result<()> {
+        if !self.dirty {
+            return Ok(());
+        }
+        if self.order.len() > SWEEP_MEMORY_MAX {
+            let drop = self.order.len() - SWEEP_MEMORY_MAX;
+            for memo in self.order.drain(..drop) {
+                self.set.remove(&memo);
+            }
+        }
+        let pairs: Vec<String> = self.order.iter().map(|m| format!("{m:x}")).collect();
+        store.kv_set(&self.key, &format!("{}\n{}", self.stamp, pairs.join(",")))?;
+        self.dirty = false;
+        Ok(())
+    }
+}
+
+/// One unordered pair as a sweep read it: both ids with their content, in id
+/// order, and the read (`"claim"`, or the title guard's path) — a pair that
+/// crosses the similarity floor is read differently and so judged anew.
+fn pair_memo(a: &Node, b: &Node, read: &str) -> u64 {
+    let (a, b) = if a.id <= b.id { (a, b) } else { (b, a) };
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    let mut eat = |bytes: &[u8]| {
+        for &x in bytes.iter().chain(&[0u8]) {
+            h ^= u64::from(x);
+            h = h.wrapping_mul(0x0000_0100_0000_01b3);
+        }
+    };
+    for n in [a, b] {
+        eat(n.id.as_bytes());
+        eat(&content_hash(&n.title, n.body.as_deref()).to_le_bytes());
+    }
+    eat(read.as_bytes());
+    h
 }
 
 /// FNV-1a over a note's title and body: a sampling order that depends only
