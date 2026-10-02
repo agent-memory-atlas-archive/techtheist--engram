@@ -1,0 +1,13 @@
+0.9.11 item 8 — transplant probes held out from their own source note; the weak line refit on COPIES of
+this machine's two dogfood graphs (engine auto_tune from the shipped default 0.85, real bge-small-en-v1.5 +
+jina-reranker-v1-turbo-en), before = commit 1150500, after = the hold-out. Controls: 40 answerable oblique
+questions ("What do we know about <two long title words>?" over notes sampled by id) and 20 off-topic
+developer questions neither graph records. Scratch harness (eval/examples, uncommitted); titles omitted.
+
+engram graph (612 notes)  BEFORE: live 0.950 -> refit 0.950 (2 passes)  answerable strong  0/40  unanswerable strong 0/20
+                          AFTER:  live 0.950 -> refit 0.720 (4 passes)  answerable strong  9/40  unanswerable strong 0/20
+eval graph (146 notes)    BEFORE: live 0.902 -> refit 0.870 (2 passes)  answerable strong  5/40  unanswerable strong 0/20
+                          AFTER:  live 0.902 -> refit 0.821 (2 passes)  answerable strong  6/40  unanswerable strong 0/20
+
+Probe replay before the fix (engram graph, 24 probes): transplant tops 1.037 and 1.014 were each the probe's
+own source note; template probes topped out at 0.525; 20 answerable controls scored 0.26-0.83.

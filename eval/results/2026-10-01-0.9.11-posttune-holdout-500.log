@@ -1,0 +1,15 @@
+  500: weak line 0.896 -> 0.903 (fit 0.911, damped) from 24 phantom probes at q90, two families (weak line 0.903, converged)
+engram-eval — the shipped post-tune stack, measured end to end
+runtime: embedder=bge-small-en-v1.5  reranker=jina-reranker-v1-turbo-en  seed=1  limit=10
+
+graph 500 facts (530 edges) / 858 questions / 125 controls
+  auto-tune: weak line 0.896 -> 0.903 (fit 0.911, damped) from 24 phantom probes at q90, two families (weak line 0.903)
+  recall (with graph credit): R@1 0.72  R@5 0.86 (hybrid alone 0.84)  lex 1.00  para 0.98  obliq 0.60  weighted 0.952
+  attention: focus 0.58  noise 0.46  tok/query 260  standing 3036
+  recommendation regime: honest FP (controls unwarned) 0.00  controls empty/none 0.00  answerable warned 0.47
+
+Reading it: candidates are never cut — below the auto-tuned weak line the reply
+leads with "likely not in memory", so a warned answer to a never-written question
+counts as honest and only an unwarned one is a false positive.
+
+wrote eval/results/2026-10-01-0.9.11-posttune-holdout-500.json

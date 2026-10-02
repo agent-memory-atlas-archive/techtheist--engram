@@ -1,0 +1,22 @@
+  100: weak line 0.850 -> 0.844 (fit 0.837, damped) from 24 phantom probes at q90, two families (weak line 0.844, converged)
+  1500: weak line 0.897 -> 0.905 (fit 0.913, damped) from 24 phantom probes at q90, two families (weak line 0.905, converged)
+engram-eval — the shipped post-tune stack, measured end to end
+runtime: embedder=bge-small-en-v1.5  reranker=jina-reranker-v1-turbo-en  seed=1  limit=10
+
+graph 100 facts (106 edges) / 171 questions / 25 controls
+  auto-tune: weak line 0.850 -> 0.844 (fit 0.837, damped) from 24 phantom probes at q90, two families (weak line 0.844)
+  recall (with graph credit): R@1 0.80  R@5 0.96 (hybrid alone 0.95)  lex 1.00  para 1.00  obliq 0.89  weighted 0.989
+  attention: focus 0.64  noise 0.35  tok/query 196  standing 3047
+  recommendation regime: honest FP (controls unwarned) 0.00  controls empty/none 0.08  answerable warned 0.46
+
+graph 1500 facts (1590 edges) / 2571 questions / 375 controls
+  auto-tune: weak line 0.897 -> 0.905 (fit 0.913, damped) from 24 phantom probes at q90, two families (weak line 0.905)
+  recall (with graph credit): R@1 0.69  R@5 0.79 (hybrid alone 0.77)  lex 1.00  para 0.99  obliq 0.38  weighted 0.933
+  attention: focus 0.54  noise 0.53  tok/query 287  standing 3042
+  recommendation regime: honest FP (controls unwarned) 0.01  controls empty/none 0.00  answerable warned 0.47
+
+Reading it: candidates are never cut — below the auto-tuned weak line the reply
+leads with "likely not in memory", so a warned answer to a never-written question
+counts as honest and only an unwarned one is a false positive.
+
+wrote eval/results/2026-10-01-0.9.11-posttune-holdout-100-1500.json

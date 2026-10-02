@@ -8465,6 +8465,60 @@ fn the_weak_line_fit_depends_on_content_not_on_minted_ids() {
     assert_eq!(forward, backward, "same content, same line");
 }
 
+/// Rewards only a document that holds most of the query's words — the way
+/// the cross-encoder reads a transplant against the note it was cut from.
+struct OverlapReranker;
+impl crate::Reranker for OverlapReranker {
+    fn rank(&self, query: &str, documents: &[String]) -> Result<Vec<f32>> {
+        let words = |t: &str| -> std::collections::HashSet<String> {
+            t.split(|c: char| !c.is_alphanumeric())
+                .filter(|w| w.len() >= 3)
+                .map(str::to_lowercase)
+                .collect()
+        };
+        let q = words(query);
+        Ok(documents
+            .iter()
+            .map(|d| {
+                let d = words(d);
+                let shared = q.iter().filter(|w| d.contains(*w)).count();
+                if shared * 10 >= q.len() * 6 {
+                    6.0
+                } else {
+                    -6.0
+                }
+            })
+            .collect())
+    }
+}
+
+#[test]
+fn a_transplant_probe_cannot_be_answered_by_its_own_source() {
+    // engram Problem 00e353wiopga: on long real prose a two-word swap leaves
+    // a transplant pointing straight at the note it was cut from, the probe
+    // scores like a found answer, and the line climbs to its ceiling. Held
+    // out, the source cannot answer — on a graph where nothing ELSE answers
+    // a probe, the fitted line must come down, not go up.
+    let n = crate::policy::WEAK_LINE_MIN_NOTES as usize + 20;
+    let mut e = engine();
+    for i in 0..n {
+        let words: Vec<String> = (0..12).map(|k| format!("w{i}x{k}")).collect();
+        e.add_node(new_node(
+            NodeType::Insight,
+            &format!("t{i}alpha t{i}beta note"),
+            &format!("{} closes the window.", words.join(" ")),
+        ))
+        .unwrap();
+    }
+    e.set_reranker(Box::new(OverlapReranker));
+    e.auto_tune().unwrap();
+    let line = e.graph_config().policy.weak_evidence_top;
+    assert!(
+        line < crate::policy::WEAK_EVIDENCE_TOP,
+        "no probe is answerable here, so the line must move down: {line}"
+    );
+}
+
 #[test]
 fn weak_line_dial_is_silent_without_a_reranker_or_below_the_note_gate() {
     // Reranker present but the graph is too small to place a quantile on.

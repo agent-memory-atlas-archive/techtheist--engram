@@ -1429,7 +1429,7 @@ impl Engine {
         // fit is the max of the per-family quantiles: the line must clear
         // whichever register this graph's noise speaks loudest in.
         let total = cfg.policy.weak_line_probes;
-        let top_of = |probe: &str| -> Result<f64> {
+        let top_of = |probe: &str, source: Option<&str>| -> Result<f64> {
             let qv = self.embedder.embed_one(probe)?;
             // Probes calibrate against the WHOLE graph — a windowed noise
             // sample would fit a line to a slice of history.
@@ -1441,6 +1441,18 @@ impl Engine {
                 Default::default(),
                 &Default::default(),
             )?;
+            // A transplant is asked of the graph WITHOUT the note it was cut
+            // from (0.9.11, engram Problem 00e353wiopga). Swapping two words
+            // makes a short generated fact unanswerable, but a long real
+            // sentence keeps ~30 words pointing straight at its source: on
+            // this repo's graph two probes reached 1.04 and 1.01 against
+            // their own notes, pinned the line at its 0.95 ceiling and made
+            // every search read "weak". Held out, the source can no longer
+            // answer, and what the probe still reaches is the noise the line
+            // exists to clear.
+            if let Some(source) = source {
+                hits.retain(|h| h.id != source);
+            }
             if hits.is_empty() {
                 return Ok(0.0);
             }
@@ -1452,14 +1464,13 @@ impl Engine {
         for i in 0..total {
             if i % 2 == 0 {
                 let terms = (!vocab.is_empty()).then(|| vocab[(i / 2) % vocab.len()].as_str());
-                template_tops.push(top_of(&phantom_probe(i / 2, terms))?);
+                template_tops.push(top_of(&phantom_probe(i / 2, terms), None)?);
             } else {
                 let n = &notes[(i / 2) * 17 % notes.len()];
-                transplant_tops.push(top_of(&transplant_probe(
-                    i / 2,
-                    &n.title,
-                    n.body.as_deref(),
-                ))?);
+                transplant_tops.push(top_of(
+                    &transplant_probe(i / 2, &n.title, n.body.as_deref()),
+                    Some(&n.id),
+                )?);
             }
         }
         template_tops.sort_by(f64::total_cmp);
