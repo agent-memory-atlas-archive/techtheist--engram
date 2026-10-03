@@ -3,6 +3,80 @@
 Release notes for Engram Alpha. Each release's section below becomes the
 body of its GitHub Release (draft-release.yml lifts it automatically).
 
+## v0.9.11
+
+### The pane matches your IDE
+
+- **Inside VS Code or a JetBrains IDE, the pane takes the IDE's own theme**:
+  backgrounds, text, borders, accent, focus ring, hover tint, corner radii
+  and fonts, and it follows a theme switch live. VS Code supplies the theme
+  through the variables every webview receives; the JetBrains plugin reads
+  its look-and-feel and editor scheme through stable public API and pushes
+  them into the pane on load and on every theme or scheme change. Shades a
+  theme does not name are derived from the ones it does, so community themes
+  land coherent too. Text sizes and spacing stay the pane's own.
+- **Match IDE is the default inside an IDE.** It appears first in the theme
+  menu there and nowhere else; a choice made in the menu is remembered.
+- **Controls follow the host:** buttons and toggles take the IDE's button
+  corner instead of a pill, labels use the full foreground, text on the
+  accent uses the IDE's button text color, the settings gear is a flat
+  toolbar icon, and hover tints are drawn over a control's own surface.
+- **Three static themes:** Engram Purple, IDE Light and IDE Dark. The former
+  JetBrains Dark and Light skins migrate to IDE Dark and Light.
+
+### Checkup sweeps that finish
+
+- **"Find duplicates" and "Find hidden conflicts" make progress across
+  runs.** Each pair is judged once per run, and a pair judged without being
+  queued is remembered until either note changes or the judge model or its
+  threshold does. Each run spends its budget on pairs no run has read; on a
+  600-note graph "Find duplicates" now completes in five runs instead of
+  re-reading the same 300 pairs forever.
+- **An empty sweep says why:** how many pairs it judged and how many close
+  pairs were already linked, already raised, archived, or judged on an
+  earlier run.
+- **"Find hidden conflicts" reaches below the look-alike threshold** through
+  the same title check the write path uses (both titles name one subject,
+  share a claim word, and read as contradicting). Replayed on two real
+  graphs before shipping, it queued no false alarms.
+
+### Search verdicts that read "strong" again
+
+- **The weak line is calibrated on probes that cannot answer themselves.**
+  A calibration probe built from a real sentence is now asked of the graph
+  without the note it came from. On long-prose graphs that note used to
+  answer its own probe, which pinned the line at its ceiling and made
+  nearly every search read "weak". The post-tune ladder is unchanged at 500
+  and 1500 notes and keeps a false-positive rate of 0.00 at 100.
+
+### Steadier writes and first runs
+
+- **A checked write embeds with the engine released.** The vectors for the
+  duplicate check and for storage are computed before the lock is taken and
+  reused under it only when the text and model are unchanged. At 1500 notes,
+  readers waiting on the graph went from about half to a fifth of the time
+  writes ran, the longest wait from 355 to 157 ms, and a write got faster
+  (472 to 435 ms) because its text is no longer embedded twice.
+- **The MCP bridge answers while its core is starting.** A first run
+  downloads about 450 MB of local models before the core listens. After a
+  15-second grace (`ENGRAM_BRIDGE_GRACE_SECS`), the bridge lists the tools
+  itself and answers a tool call with an error saying the core is still
+  starting, which models are ready, and how much of the rest has arrived;
+  nothing runs or is written. Clients with short timeouts no longer read the
+  wait as a hang.
+
+### Smaller things
+
+- **Docs:** undo from the audit log is reflected in the trust guide and the
+  feature list, with a new screenshot of the session-undo preview; the
+  first-run model sizes are corrected (about 130, 150 and 172 MB); the pane
+  guide describes Match IDE.
+- **The browser demo previews undo** the way the core words it; applying an
+  undo still needs the local daemon.
+- **Eval:** `engram-eval --writes N` times checked writes under a reader
+  waiting for the engine; `--sweep-replay` also runs both Checkup sweeps to
+  completion on a copy of a real graph.
+
 ## v0.9.10
 
 ### Answers that say how far they can be trusted
