@@ -247,18 +247,21 @@ onBeforeUnmount(() => store.disconnect())
     align-items: center;
     justify-content: center;
     padding: 0.9rem;
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-control);
     border: 1px solid var(--border-default);
     background-color: var(--surface-glass);
     backdrop-filter: var(--glass-backdrop);
-    color: var(--text-secondary);
+    color: var(--control-text);
     cursor: pointer;
 }
 
 .burger:hover,
 .burger.active {
     color: var(--text-primary);
-    background-color: var(--node-hover-surface);
+    /* The hover tint is painted OVER the button's own surface: an IDE's
+       hover color is often translucent, and as a plain background it let
+       the canvas show through and the button all but vanished. */
+    background-image: linear-gradient(var(--node-hover-surface), var(--node-hover-surface));
 }
 
 .burger-icon {
@@ -390,7 +393,7 @@ onBeforeUnmount(() => store.disconnect())
 /* The one primary action in the bar — filled, unlike its ghost siblings. */
 .new-node {
     padding: 0.6rem 1.2rem;
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-control);
     border: 1px solid transparent;
     background-color: var(--interactive-primary);
     color: var(--text-inverse);

@@ -1385,7 +1385,7 @@ const twinOrder = computed({
 .mini {
     padding: 0.2rem 0.6rem;
     border: 1px solid var(--border-default);
-    border-radius: var(--radius-full, 999px);
+    border-radius: var(--radius-control);
     background: none;
     font-size: var(--text-caption);
     color: var(--text-secondary);
@@ -1417,7 +1417,7 @@ const twinOrder = computed({
 .bar-btn {
     padding: 0.3rem 0.9rem;
     border: 1px solid var(--border-default);
-    border-radius: var(--radius-full, 999px);
+    border-radius: var(--radius-control);
     background: var(--interactive-primary);
     font-size: var(--text-caption);
     font-weight: 600;
@@ -1463,7 +1463,7 @@ const twinOrder = computed({
     gap: 10px;
     width: min(560px, calc(100vw - 48px));
     padding: 16px 18px;
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
 }
 
 .modal-title {

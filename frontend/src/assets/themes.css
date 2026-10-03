@@ -47,84 +47,7 @@
     --accent-wash: 1;
 }
 
-/* ── JetBrains dark (New UI / Darcula) ───────────────────────────────── */
-[data-theme="jetbrains-dark"] {
-    --surface-base: #191a1c;
-    --surface-elevated: #26282c;
-    --surface-sunken: #141517;
-    --surface-muted: #303338;
-    --surface-overlay: rgb(0 0 0 / 55%);
-
-    --text-primary: #bcbec3;
-    --text-secondary: #9ba0a8;
-    --text-tertiary: #6f737a;
-    --text-inverse: #191a1c;
-
-    --border-subtle: #2b2d31;
-    --border-default: #37393e;
-    --border-strong: #4e5157;
-
-    --interactive-primary: #548af7;
-    --interactive-primary-hover: #6ea0ff;
-    --interactive-ghost-hover: rgb(84 138 247 / 14%);
-
-    --focus-ring: #548af7;
-    --focus-ring-offset: var(--surface-base);
-
-    --canvas-bg: #191a1c;
-    --canvas-glow-1: transparent;
-    --canvas-glow-2: transparent;
-    --canvas-dots: #33363b;
-
-    --node-hover-surface: #2d3035;
-
-    /* glass OFF */
-    --surface-glass: var(--surface-elevated);
-    --glass-backdrop: none;
-
-    /* IDE themes stay flat: the accent-strip wash is barely-there. */
-    --accent-wash: 0.2;
-}
-
-/* ── JetBrains light ─────────────────────────────────────────────────── */
-[data-theme="jetbrains-light"] {
-    --surface-base: #fff;
-    --surface-elevated: #fff;
-    --surface-sunken: #f7f8fa;
-    --surface-muted: #ebecf0;
-    --surface-overlay: rgb(0 0 0 / 30%);
-
-    --text-primary: #1d1f23;
-    --text-secondary: #4b4f57;
-    --text-tertiary: #818594;
-    --text-inverse: #fff;
-
-    --border-subtle: #ebecf0;
-    --border-default: #d3d5db;
-    --border-strong: #b9bcc4;
-
-    --interactive-primary: #3574f0;
-    --interactive-primary-hover: #2f65d6;
-    --interactive-ghost-hover: rgb(53 116 240 / 10%);
-
-    --focus-ring: #3574f0;
-    --focus-ring-offset: var(--surface-base);
-
-    --canvas-bg: #f7f8fa;
-    --canvas-glow-1: transparent;
-    --canvas-glow-2: transparent;
-    --canvas-dots: #d3d5db;
-
-    --node-hover-surface: #f2f3f7;
-
-    --surface-glass: var(--surface-elevated);
-    --glass-backdrop: none;
-
-    /* IDE themes stay flat: the accent-strip wash is barely-there. */
-    --accent-wash: 0.2;
-}
-
-/* ── VS Code dark ────────────────────────────────────────────────────── */
+/* ── IDE dark — the VS Code dark palette (also Match IDE's fallback) ───── */
 [data-theme="vscode-dark"] {
     --surface-base: #191a1b;
     --surface-elevated: #232527;
@@ -162,7 +85,7 @@
     --accent-wash: 0.2;
 }
 
-/* ── VS Code light ───────────────────────────────────────────────────── */
+/* ── IDE light — the VS Code light palette ───────────────────────────── */
 [data-theme="vscode-light"] {
     --surface-base: #fff;
     --surface-elevated: #fff;
@@ -199,3 +122,116 @@
     /* IDE themes stay flat: the accent-strip wash is barely-there. */
     --accent-wash: 0.2;
 }
+
+/* ── Match IDE (0.9.11) ──────────────────────────────────────────────────
+ * The pane takes its colors, corners and fonts from the IDE hosting it.
+ * Two layers. The --ide-* inputs come from, in order: a JetBrains host
+ * (--ide-host-*, injected by the plugin from the live IDE theme — see
+ * src/services/ideTheme.ts), a VS Code webview (the --vscode-* variables
+ * every webview receives and updates live on a theme switch), and the
+ * static IDE palettes below as the last fallback. The semantic tokens then
+ * read only the inputs, deriving what an IDE theme does not name (muted
+ * surfaces, subtle borders, hover tints) with color-mix(), so any theme —
+ * Darcula, Islands, Dracula, Solarized — lands coherent. The resolved id
+ * ends in -dark / -light, which the type colors key on.
+ */
+[data-theme="ide-dark"] {
+    --ide-static-bg: #191a1c;
+    --ide-static-elevated: #26282c;
+    --ide-static-canvas: #1e1f22;
+    --ide-static-fg: #cbd1d8;
+    --ide-static-fg-muted: #82878d;
+    --ide-static-border: #37393e;
+    --ide-static-accent: #548af7;
+    --ide-static-focus: #548af7;
+    --ide-shade: #000;
+    --ide-sunken-mix: 82%;
+    --surface-overlay: rgb(0 0 0 / 55%);
+}
+
+[data-theme="ide-light"] {
+    --ide-static-bg: #f7f8fa;
+    --ide-static-elevated: #fff;
+    --ide-static-canvas: #fff;
+    --ide-static-fg: #1f1f1f;
+    --ide-static-fg-muted: #717171;
+    --ide-static-border: #d4d4d4;
+    --ide-static-accent: #3574f0;
+    --ide-static-focus: #3574f0;
+    --ide-shade: #000;
+    --ide-sunken-mix: 96%;
+    --surface-overlay: rgb(0 0 0 / 30%);
+}
+
+/* stylelint-disable custom-property-pattern -- VS Code names its webview variables in camelCase */
+[data-theme="ide-dark"],
+[data-theme="ide-light"] {
+    --ide-bg: var(--ide-host-bg, var(--vscode-sideBar-background, var(--vscode-editor-background, var(--ide-static-bg))));
+    --ide-elevated: var(--ide-host-elevated, var(--vscode-editorWidget-background, var(--vscode-menu-background, var(--ide-static-elevated))));
+    --ide-canvas: var(--ide-host-canvas, var(--vscode-editor-background, var(--ide-static-canvas)));
+    --ide-fg: var(--ide-host-fg, var(--vscode-foreground, var(--ide-static-fg)));
+    --ide-fg-muted: var(--ide-host-fg-muted, var(--vscode-descriptionForeground, var(--ide-static-fg-muted)));
+    --ide-border: var(--ide-host-border, var(--vscode-panel-border, var(--vscode-widget-border, var(--ide-static-border))));
+    --ide-accent: var(--ide-host-accent, var(--vscode-button-background, var(--ide-static-accent)));
+    --ide-accent-hover: var(--ide-host-accent-hover, var(--vscode-button-hoverBackground, color-mix(in srgb, var(--ide-accent) 85%, #fff)));
+    --ide-hover: var(--ide-host-hover, var(--vscode-list-hoverBackground, color-mix(in srgb, var(--ide-accent) 14%, transparent)));
+    --ide-focus: var(--ide-host-focus, var(--vscode-focusBorder, var(--ide-static-focus)));
+    --ide-accent-fg: var(--ide-host-accent-fg, var(--vscode-button-foreground, #fff));
+    --ide-icon: var(--ide-host-icon, var(--vscode-icon-foreground, var(--ide-fg)));
+
+    --surface-base: var(--ide-bg);
+    --surface-elevated: var(--ide-elevated);
+    --surface-sunken: color-mix(in srgb, var(--ide-bg) var(--ide-sunken-mix), var(--ide-shade));
+    --surface-muted: color-mix(in srgb, var(--ide-fg) 10%, var(--ide-bg));
+
+    --text-primary: var(--ide-fg);
+    --text-secondary: color-mix(in srgb, var(--ide-fg) 90%, var(--ide-bg));
+    --text-tertiary: var(--ide-fg-muted);
+    /* Text ON the accent — the IDE's own button label color (white in
+       VS Code and the New UI, light or dark theme alike). */
+    --text-inverse: var(--ide-accent-fg);
+
+    --border-subtle: color-mix(in srgb, var(--ide-border) 55%, var(--ide-bg));
+    --border-default: color-mix(in srgb, var(--ide-border) var(--ide-host-border-mix, 100%), var(--ide-bg));
+    --border-strong: color-mix(in srgb, var(--ide-fg) 32%, var(--ide-bg));
+
+    --interactive-primary: var(--ide-accent);
+    --interactive-primary-hover: var(--ide-accent-hover);
+    --interactive-ghost-hover: var(--ide-hover);
+
+    --focus-ring: var(--ide-focus);
+    --focus-ring-offset: var(--surface-base);
+
+    --canvas-bg: var(--ide-canvas);
+    --canvas-glow-1: transparent;
+    --canvas-glow-2: transparent;
+    --canvas-dots: color-mix(in srgb, var(--ide-fg) 14%, var(--ide-canvas));
+
+    /* The IDE's own hover highlight (VS Code list hover, JetBrains action
+       button hover), so a hovered button lights the way the IDE's do. */
+    --node-hover-surface: var(--ide-hover);
+
+    --surface-glass: var(--surface-elevated);
+    --glass-backdrop: none;
+    --accent-wash: 0.2;
+
+    /* Controls: the IDE's button corner and full-strength labels. */
+    --radius-control: var(--ide-host-radius-control, var(--radius-md));
+    --control-text: var(--ide-fg);
+    --tool-icon-bg: transparent;
+    --tool-icon-border: transparent;
+    --tool-icon-color: var(--ide-icon);
+    --tool-icon-hover-bg: var(--ide-hover);
+    --tool-icon-hover-color: var(--ide-icon);
+
+    /* Corners: the host's (JetBrains reads its arcs; VS Code draws ~2–6 px). */
+    --radius-sm: var(--ide-host-radius-sm, 2px);
+    --radius-md: var(--ide-host-radius-md, 4px);
+    --radius-lg: var(--ide-host-radius-lg, 6px);
+    --radius-xl: var(--ide-host-radius-xl, 8px);
+
+    /* Fonts: the IDE's UI font and its editor font; sizes stay the pane's. */
+    --font-sans: var(--ide-host-font, var(--vscode-font-family, "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif));
+    --font-mono: var(--ide-host-mono, var(--vscode-editor-font-family, "JetBrains Mono", ui-monospace, monospace));
+}
+/* stylelint-enable custom-property-pattern */

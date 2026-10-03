@@ -544,11 +544,11 @@ const STRUCT_CAP = 8
 <style scoped>
 .toggle {
     padding: 0.6rem 1.2rem;
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-control);
     border: 1px solid var(--border-default);
     background-color: var(--surface-glass);
     backdrop-filter: var(--glass-backdrop);
-    color: var(--text-secondary);
+    color: var(--control-text);
     font-size: var(--text-label);
     font-weight: 600;
     cursor: pointer;
@@ -557,7 +557,7 @@ const STRUCT_CAP = 8
 .toggle:hover,
 .toggle.active {
     color: var(--text-primary);
-    background-color: var(--node-hover-surface);
+    background-image: linear-gradient(var(--node-hover-surface), var(--node-hover-surface));
 }
 
 .nli-off {
@@ -750,7 +750,7 @@ const STRUCT_CAP = 8
     flex: none;
     margin-left: auto;
     padding: 0.3rem 0.8rem;
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-control);
     border: 1px solid color-mix(in srgb, var(--interactive-primary) 55%, transparent);
     background-color: color-mix(in srgb, var(--interactive-primary) 12%, transparent);
     color: var(--interactive-primary);

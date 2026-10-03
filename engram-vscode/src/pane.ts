@@ -25,6 +25,9 @@ export function paneOptions(
  * the extension (not the daemon), so we:
  *   - point a <base> at the webview-served pane folder (assets are relative),
  *   - inject the daemon URL as `window.__ENGRAM_API__` for the SPA's API calls,
+ *   - mark the host as `window.__ENGRAM_HOST__ = "vscode"` so the pane offers
+ *     (and defaults to) Match IDE, which reads the `--vscode-*` theme
+ *     variables every webview receives and follows theme switches live,
  *   - inject the workspace folder name as `window.__ENGRAM_PROJECT__` — the
  *     webview document has no real URL to carry the `?project=` deep link,
  *     so the pane reads the global instead and opens on this repo's graph,
@@ -51,7 +54,7 @@ export function buildPaneHtml(webview: vscode.Webview, extensionUri: vscode.Uri)
     const injected = `
     <base href="${baseHref}">
     <meta http-equiv="Content-Security-Policy" content="${csp}">
-    <script nonce="${n}">window.__ENGRAM_API__ = ${JSON.stringify(api)};${
+    <script nonce="${n}">window.__ENGRAM_HOST__ = "vscode"; window.__ENGRAM_API__ = ${JSON.stringify(api)};${
         project ? ` window.__ENGRAM_PROJECT__ = ${JSON.stringify(project)};` : ''
     }</script>`
 

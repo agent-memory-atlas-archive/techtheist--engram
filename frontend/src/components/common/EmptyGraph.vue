@@ -133,7 +133,7 @@ async function apply(): Promise<void> {
 .save {
     padding: 0.4rem 1.2rem;
     border: 1px solid transparent;
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-control);
     background: var(--interactive-primary);
     color: var(--text-inverse);
     font-size: var(--text-caption);

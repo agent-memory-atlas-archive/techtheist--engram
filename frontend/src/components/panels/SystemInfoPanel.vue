@@ -36,7 +36,7 @@ const projectsStore = useProjectsStore()
 // skins. Sources are 512/256px; the panel caps it at 256 and lets it shrink.
 const theme = useThemeStore()
 const heroIcon = computed(() =>
-    `${import.meta.env.BASE_URL}${theme.current.endsWith('light') ? 'engram-dark-512.png' : 'engram-light-512.png'}`,
+    `${import.meta.env.BASE_URL}${theme.applied.endsWith('light') ? 'engram-dark-512.png' : 'engram-light-512.png'}`,
 )
 const { projects } = storeToRefs(projectsStore)
 
@@ -790,7 +790,7 @@ function wiringStatus(w: { wired: boolean; prerename: boolean }): { status: Stat
 .refresh {
     padding: 0.4rem 1rem;
     border: 1px solid var(--border-default);
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-control);
     background: transparent;
     color: var(--text-secondary);
     font-size: var(--text-caption);
@@ -1009,7 +1009,7 @@ function wiringStatus(w: { wired: boolean; prerename: boolean }): { status: Stat
     flex: none;
     margin-left: auto;
     padding: 0.2rem 0.7rem;
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-control);
     border: 1px solid var(--border-default);
     background: transparent;
     color: var(--text-tertiary);

@@ -143,7 +143,7 @@ function message(e: unknown): string {
                     type="button"
                     @click="theme.set(t.id)"
                 >
-                    <span class="swatch" :data-theme="t.id" aria-hidden="true" />
+                    <span class="swatch" :data-theme="theme.swatchOf(t.id)" aria-hidden="true" />
                     <span class="theme-name">{{ t.label }}</span>
                     <span v-if="t.id === theme.current" class="check" aria-hidden="true">✓</span>
                 </button>
@@ -222,26 +222,36 @@ function message(e: unknown): string {
     place-items: center;
     width: 3.6rem;
     height: 3.6rem;
-    border-radius: var(--radius-full);
-    color: var(--text-secondary);
+    border-radius: var(--radius-control);
+    /* The tool-icon tokens: a glass disc by default, a flat toolbar icon
+       under Match IDE (tokens.css / themes.css). */
+    border-color: var(--tool-icon-border);
+    background-color: var(--tool-icon-bg);
+    color: var(--tool-icon-color);
     cursor: pointer;
     transition:
         color var(--duration-fast) var(--ease-default),
-        transform var(--duration-normal) var(--ease-spring);
+        background-color var(--duration-fast) var(--ease-default);
 }
 
 .gear:hover {
-    color: var(--text-primary);
+    background-color: var(--tool-icon-hover-bg);
+    color: var(--tool-icon-hover-color);
 }
 
 .gear.active {
     color: var(--interactive-primary);
-    transform: rotate(60deg);
 }
 
+/* Only the glyph turns — the button's hover square stays put. */
 .gear-icon {
     width: 2rem;
     height: 2rem;
+    transition: transform var(--duration-normal) var(--ease-spring);
+}
+
+.gear.active .gear-icon {
+    transform: rotate(60deg);
 }
 
 .menu {

@@ -17,8 +17,9 @@ One shape can't serve every question, so the canvas ships three:
 | ![Orbit layout](../.screenshots/layout-orbit-example.png) | |
 
 Skyline reads like a history, Archipelago separates concerns into islands,
-Orbit puts the load-bearing nodes in the middle of their neighborhoods. Themes match where you work (Engram Purple,
-JetBrains dark/light, VS Code dark/light), a click-to-center minimap handles
+Orbit puts the load-bearing nodes in the middle of their neighborhoods. Inside VS Code or a JetBrains IDE the pane matches your IDE's own theme —
+colors, corners and fonts, following a theme switch live; elsewhere pick
+Engram Purple, IDE Light or IDE Dark. A click-to-center minimap handles
 big graphs, and a health strip keeps the counts that matter — suspected
 conflicts, stale nodes, provisional writes — in the corner of your eye.
 

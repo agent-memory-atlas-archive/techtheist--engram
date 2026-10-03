@@ -16,6 +16,21 @@
     --node-intent: #0ea5e9; /* sky     */
     --node-anchor: #64748b; /* slate   */
 
+    /*
+     * Controls (0.9.11): buttons and toggles round like pills by default;
+     * Match IDE squares them to the IDE's button corner and gives their
+     * labels the IDE's full foreground. Chips, badges and dots keep
+     * --radius-full.
+     */
+    --radius-control: var(--radius-full);
+    --control-text: var(--text-secondary);
+    /* Icon-only toolbar buttons (the settings gear). */
+    --tool-icon-bg: var(--surface-glass);
+    --tool-icon-border: var(--border-default);
+    --tool-icon-color: var(--text-secondary);
+    --tool-icon-hover-bg: var(--surface-glass);
+    --tool-icon-hover-color: var(--text-primary);
+
     /* provisional vs trusted (confidence) accents */
     --trust-provisional: #f59e0b;
     --trust-trusted: #22c55e;

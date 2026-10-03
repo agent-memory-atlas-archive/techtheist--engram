@@ -1,7 +1,12 @@
 package dev.techtheist.engram.toolWindow
 
+import com.intellij.ide.ui.LafManager
+import com.intellij.ide.ui.LafManagerListener
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.editor.colors.EditorColorsListener
+import com.intellij.openapi.editor.colors.EditorColorsManager
+import com.intellij.openapi.editor.colors.EditorColorsScheme
 import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
@@ -29,6 +34,9 @@ import java.time.Duration
 import javax.swing.BoxLayout
 import javax.swing.JButton
 import javax.swing.JComponent
+import org.cef.browser.CefBrowser
+import org.cef.browser.CefFrame
+import org.cef.handler.CefLoadHandlerAdapter
 
 /**
  * The Engram tool window contents. Hosts the Vue pane (served by the local
@@ -62,6 +70,36 @@ internal class EngramPanel(
             attachBrowser()
             showOfflineCard(hasBinary = EngramBackend.findBinary() != null)
             scheduleHealthCheck(immediate = true)
+            followIdeTheme()
+        }
+    }
+
+    /**
+     * Match IDE (0.9.11): re-push the theme whenever the IDE's look-and-feel
+     * or its editor color scheme changes, so the pane follows a switch live.
+     */
+    private fun followIdeTheme() {
+        val bus = ApplicationManager.getApplication().messageBus.connect(this)
+        bus.subscribe(
+            LafManagerListener.TOPIC,
+            object : LafManagerListener {
+                override fun lookAndFeelChanged(source: LafManager) = pushIdeTheme()
+            },
+        )
+        bus.subscribe(
+            EditorColorsManager.TOPIC,
+            object : EditorColorsListener {
+                override fun globalSchemeChange(scheme: EditorColorsScheme?) = pushIdeTheme()
+            },
+        )
+    }
+
+    /** Hand the pane the current IDE theme. Safe from any thread. */
+    private fun pushIdeTheme() {
+        ApplicationManager.getApplication().invokeLater {
+            if (disposed || loadedUrl == null) return@invokeLater
+            val b = browser ?: return@invokeLater
+            b.cefBrowser.executeJavaScript(IdeTheme.script(), b.cefBrowser.url ?: "", 0)
         }
     }
 
@@ -76,6 +114,15 @@ internal class EngramPanel(
             .setOffScreenRendering(false)
             .build()
         Disposer.register(this, b)
+        // Every finished page load gets the IDE theme (Match IDE, 0.9.11).
+        b.jbCefClient.addLoadHandler(
+            object : CefLoadHandlerAdapter() {
+                override fun onLoadEnd(browser: CefBrowser?, frame: CefFrame?, httpStatusCode: Int) {
+                    if (frame?.isMain == true) pushIdeTheme()
+                }
+            },
+            b.cefBrowser,
+        )
         browser = b
         add(b.component, CARD_PANE)
     }
@@ -145,11 +192,15 @@ internal class EngramPanel(
      * default graph silently on an unknown value.
      */
     private fun deepLinkUrl(base: String): String {
+        // `ide=jetbrains` tells the pane its host (it offers and defaults to
+        // Match IDE); `ide_dark` sets the first paint's brightness before the
+        // theme payload arrives on load end.
+        val host = "ide=jetbrains&ide_dark=" + (if (IdeTheme.isDark()) "1" else "0")
         val folder = project?.basePath?.let { Path.of(it).fileName?.toString() }
             ?.takeIf { it.isNotEmpty() }
             ?: project?.name
-            ?: return base
-        return "$base/?project=" + URLEncoder.encode(folder, StandardCharsets.UTF_8)
+            ?: return "$base/?$host"
+        return "$base/?$host&project=" + URLEncoder.encode(folder, StandardCharsets.UTF_8)
     }
 
     private fun retryNow() {

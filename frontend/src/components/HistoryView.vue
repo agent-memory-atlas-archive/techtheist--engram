@@ -232,7 +232,7 @@ async function remove(s: HistorySession): Promise<void> {
     min-width: 0; /* grid item: nowrap lane titles must not blow the track */
     min-height: 0;
     padding: 12px;
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
 }
 
 .lanes-head {
@@ -267,7 +267,7 @@ async function remove(s: HistorySession): Promise<void> {
     width: 100%;
     padding: 8px 10px;
     border: none;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     background: transparent;
     color: inherit;
     text-align: left;
@@ -387,7 +387,7 @@ async function remove(s: HistorySession): Promise<void> {
 .bubble {
     max-width: 72%;
     padding: 10px 12px;
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
 }
 
 .turn.user .bubble {
@@ -464,7 +464,7 @@ async function remove(s: HistorySession): Promise<void> {
     height: fit-content;
     margin: 14vh auto 0;
     padding: 22px 26px;
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
 }
 
 .off-title {
@@ -502,7 +502,7 @@ async function remove(s: HistorySession): Promise<void> {
     margin-bottom: 8px;
     padding: 8px 10px;
     border: 1px solid rgb(148 163 184 / 25%);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     font-size: var(--text-caption, 11px);
     color: var(--text-secondary);
 }

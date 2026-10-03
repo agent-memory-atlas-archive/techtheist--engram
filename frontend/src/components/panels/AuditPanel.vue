@@ -521,7 +521,7 @@ function fmtDate(secs: number): string {
 .more {
     padding: 0.4rem 1rem;
     border: 1px solid var(--border-default);
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-control);
     background: transparent;
     color: var(--text-secondary);
     font-size: var(--text-caption);

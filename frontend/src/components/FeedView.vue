@@ -656,7 +656,7 @@ const currentNode = computed(() =>
     gap: 0.5rem;
     padding: 0.4rem 1rem;
     border: 1px solid var(--border-default);
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-control);
     background: transparent;
     color: var(--text-secondary);
     font-size: var(--text-caption);
@@ -683,7 +683,7 @@ const currentNode = computed(() =>
     width: 2.6rem;
     height: 2.6rem;
     border: 1px solid var(--border-default);
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-control);
     background: transparent;
     color: var(--text-secondary);
     font-size: var(--text-body-sm);
@@ -1031,7 +1031,7 @@ const currentNode = computed(() =>
     gap: 0.7rem;
     max-width: calc(100vw - 3.2rem);
     padding: 0.6rem 1.1rem;
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-control);
     box-shadow: var(--shadow-md);
     transform: translateX(-50%);
 }
@@ -1056,7 +1056,7 @@ const currentNode = computed(() =>
 .action {
     padding: 0.4rem 1.2rem;
     border: 1px solid transparent;
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-control);
     background: var(--interactive-primary);
     color: var(--text-inverse);
     font-size: var(--text-caption);
