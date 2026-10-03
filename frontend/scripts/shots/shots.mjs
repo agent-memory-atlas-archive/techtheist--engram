@@ -158,10 +158,29 @@ export const shots = [
         viewport: [1280, 800],
         act: async (page) => {
             await fromSettings('Audit log')(page)
-            // One expanded entry shows the field-level record.
-            await page.locator(`${PANEL} .entry-head`).first().click()
+            // An expanded entry an assistant session wrote: its field-level
+            // record, then "Undo session" — the preview of what undoing that
+            // whole session would take back, and what it would skip.
+            const heads = page.locator(`${PANEL} .entry-head`)
+            await heads.first().waitFor() // the journal loads after the drawer opens
+            const count = await heads.count()
+            for (let i = 0; i < count; i++) {
+                await heads.nth(i).click()
+                const undoSession = page.locator(PANEL).getByRole('button', { name: 'Undo session' })
+                const found = await undoSession
+                    .waitFor({ state: 'visible', timeout: 600 })
+                    .then(() => true, () => false)
+                if (found) {
+                    await undoSession.click()
+                    await page.locator(`${PANEL} .undo-summary`).first().waitFor()
+                    return
+                }
+                await heads.nth(i).click()
+            }
+            throw new Error('no audit entry written by a session — nothing to preview')
         },
         clip: PANEL,
+        settle: 500,
     },
 
     // ---- new in this pass ------------------------------------------------

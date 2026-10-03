@@ -19,6 +19,7 @@
 import type { EngramApi, StreamHandlers } from '@/types/api'
 import type {
     AgentSettings,
+    AuditEntry,
     AuditPage,
     ConfigPreset,
     ExportGraph,
@@ -27,6 +28,7 @@ import type {
     ModelSelection,
     NewNode,
     SystemInfo,
+    UndoReport,
 } from '@/types/graph'
 import * as engine from './engine'
 import { HOME, LAUNCH } from './engine'
@@ -56,6 +58,46 @@ export function setApiProject(id: string | null): void {
 }
 
 /** A gesture that only exists next to a real filesystem. */
+/** What undoing a journal row means, in the core's words (engine.rs undo_effect). */
+function undoEffect(r: AuditEntry): string {
+    const noun = r.entity === 'edge' ? 'link' : 'note'
+    if (r.before == null) return `removes the ${noun}`
+    if (r.after == null) return `brings the ${noun} back`
+    return `restores the ${noun} as it was`
+}
+
+/**
+ * A dry-run UndoReport over the rows `pick` selects, newest first: a row whose
+ * entity a NEWER row outside the selection touched since is skipped with the
+ * core's note, everything else would be undone.
+ */
+function undoPreview(journal: AuditEntry[], pick: (r: AuditEntry) => boolean): UndoReport {
+    const undoable = (r: AuditEntry) =>
+        (r.entity === 'node' || r.entity === 'edge') && r.action !== 'imported' && (r.before != null || r.after != null)
+    const rows = journal.filter((r) => undoable(r) && pick(r)).sort((a, b) => b.seq - a.seq)
+    const chosen = new Set(rows.map((r) => r.seq))
+    const report: UndoReport = { dry_run: true, undone: [], skipped: [] }
+    for (const r of rows) {
+        const item = {
+            seq: r.seq,
+            action: r.action,
+            entity: r.entity,
+            entity_id: r.entity_id,
+            title: r.title,
+            effect: undoEffect(r),
+        }
+        const newer = journal
+            .filter((o) => o.seq > r.seq && o.entity_id === r.entity_id && undoable(o) && !chosen.has(o.seq))
+            .sort((a, b) => b.seq - a.seq)[0]
+        if (newer) {
+            report.skipped.push({ ...item, note: `changed since: #${newer.seq} (${newer.action}) is newer — undo it first` })
+        } else {
+            report.undone.push(item)
+        }
+    }
+    return report
+}
+
 function unavailable(what: string): never {
     throw new Error(`${what} needs the local daemon — this is the browser demo. Run engram-alpha serve to do it for real.`)
 }
@@ -425,9 +467,17 @@ export const api: EngramApi = {
         return ok(page)
     },
 
-    /** The demo journal keeps no before/after snapshots to undo from. */
-    auditUndo: () => unavailable('Undo'),
-    auditUndoSession: () => unavailable('Undo'),
+    /**
+     * Undo (0.9.10) previews in the demo exactly as the core words it — the
+     * dry run the pane shows before anything changes — but applying it needs
+     * the daemon: the demo's journal is rebuilt from the seed, not replayed.
+     */
+    auditUndo: (seq: number, dryRun = true) =>
+        dryRun ? ok(undoPreview(engine.state().journal, (r) => r.seq === seq)) : unavailable('Undo'),
+    auditUndoSession: (sessionId: string, dryRun = true) =>
+        dryRun
+            ? ok(undoPreview(engine.state().journal, (r) => !!sessionId && r.session_id === sessionId))
+            : unavailable('Undo'),
 
     exportGraph: () => {
         const g: ExportGraph = {

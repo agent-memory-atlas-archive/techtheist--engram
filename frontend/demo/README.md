@@ -39,7 +39,8 @@ a different product. CI runs that check before publishing.
 
 **Real** — `demo/engine.ts` is a small memory engine: CRUD on nodes and
 edges, approve / pin / reconfirm, supersession archiving its older
-generation, suspect judging, the decay preview, the audit journal, ontology
+generation, suspect judging, the decay preview, the audit journal and its
+undo previews (applying an undo needs the daemon), ontology
 renames as bulk retypes, import/export, and a generated session brief. Trust
 is a direct port of `engram_core::policy::trust`, so the numbers move for the
 reasons the daemon would move them. State persists to `sessionStorage`.

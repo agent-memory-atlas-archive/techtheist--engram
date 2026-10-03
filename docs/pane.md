@@ -161,7 +161,7 @@ An append-only audit journal records every node and edge mutation — created,
 updated, approved, archived — with before/after values, which session did
 it, over which transport, and what the daemon knew at the time.
 
-<img src="../.screenshots/engram-alpha-audit-log-feature.png" width="240" alt="The Audit log with expanded field-level records">
+<img src="../.screenshots/engram-alpha-audit-log-feature.png" width="240" alt="The Audit log: an assistant-written note expanded to its field-level record and session, with the Undo session preview listing what undoing that session would take back">
 
 When you come back from vacation to a graph that looks different, *"what
 changed and who wrote this"* has an exact answer.

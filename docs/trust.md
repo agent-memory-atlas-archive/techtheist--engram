@@ -79,7 +79,10 @@ To fix it, in the pane:
      re-captured.
 
 Every one of these steps is journaled in **Audit**. If a single session
-produced the bad note, the audit view shows everything that session wrote.
+produced the bad note, the audit view shows everything that session wrote —
+and **Undo session** takes all of it back, newest first, after a preview of
+what it will undo and what it will skip (see
+[The pane](./pane.md#every-change-on-the-record)).
 
 ## Stale, and what happens to it
 

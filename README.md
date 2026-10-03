@@ -126,8 +126,10 @@ and updating: [Getting started](./docs/getting-started.md).
   time doesn't validate, retrieval doesn't validate, and stable knowledge
   falls only to judged evidence. Pins are yours alone. → [Trust & decay](./docs/trust.md)
 - **Every change on the record** — an append-only audit journal with
-  before/after values and session attribution, and an optional sealed
-  recording of your assistant sessions that search can fall through to.
+  before/after values and session attribution, where any change — or
+  everything one session wrote — can be undone after a preview; and an
+  optional sealed recording of your assistant sessions that search can fall
+  through to.
   → [The pane](./docs/pane.md)
 - **Memory that tracks the code** — nodes point at code; refs that stop
   resolving badge their nodes as drifted, with a repair-or-retire contract.
