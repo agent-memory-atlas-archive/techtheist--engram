@@ -1,0 +1,470 @@
+{
+  "embedder": "bge-small-en-v1.5",
+  "reranker": "jina-reranker-v1-turbo-en",
+  "embeddings_are_fake": false,
+  "seed": 1,
+  "limit": 10,
+  "sizes": [
+    {
+      "graph": 500,
+      "points": [
+        {
+          "keyword_weight": 0.15,
+          "knee_cliff": 0.25,
+          "is_default": true,
+          "report": {
+            "graph": 500,
+            "edges": 530,
+            "questions": 858,
+            "controls": 125,
+            "weak_line": 0.9034722645705796,
+            "auto_tune_note": "weak line 0.896 -> 0.903 (fit 0.911, damped) from 24 phantom probes at q90, two families",
+            "standing_tokens": 3036,
+            "overall": {
+              "queries": 858,
+              "recall_at_1": 0.7214452214452215,
+              "recall_at_3": 0.7843822843822844,
+              "recall_at_5": 0.844988344988345,
+              "recall_at_10": 0.8927738927738927,
+              "mrr": 0.7691475191475193,
+              "tokens_mean": 260.34615384615387,
+              "twin_confusion": 0.0,
+              "neighbor_only": 0.022144522144522144,
+              "focus": 0.5769653417066661,
+              "noise": 0.4639499389499377,
+              "history_reach": 0.0,
+              "history_reach_at_5": 0.844988344988345,
+              "history_only": 0.0,
+              "history_distance": 0.0
+            },
+            "assisted": {
+              "queries": 858,
+              "recall_at_1": 0.7249417249417249,
+              "recall_at_3": 0.7948717948717948,
+              "recall_at_5": 0.8601398601398601,
+              "recall_at_10": 0.914918414918415,
+              "mrr": 0.7776034151034151,
+              "tokens_mean": 260.34615384615387,
+              "twin_confusion": 0.0,
+              "neighbor_only": 0.022144522144522144,
+              "focus": 0.5769653417066661,
+              "noise": 0.46170958670958523,
+              "history_reach": 0.0,
+              "history_reach_at_5": 0.8601398601398601,
+              "history_only": 0.0,
+              "history_distance": 0.0
+            },
+            "by_phrasing": [
+              {
+                "phrasing": "lexical",
+                "score": {
+                  "queries": 286,
+                  "recall_at_1": 0.9965034965034965,
+                  "recall_at_3": 1.0,
+                  "recall_at_5": 1.0,
+                  "recall_at_10": 1.0,
+                  "mrr": 0.9982517482517482,
+                  "tokens_mean": 79.07692307692308,
+                  "twin_confusion": 0.0,
+                  "neighbor_only": 0.0,
+                  "focus": 0.8474334962116944,
+                  "noise": 0.11628926628926632,
+                  "history_reach": 0.0,
+                  "history_reach_at_5": 1.0,
+                  "history_only": 0.0,
+                  "history_distance": 0.0
+                }
+              },
+              {
+                "phrasing": "paraphrase",
+                "score": {
+                  "queries": 286,
+                  "recall_at_1": 0.9685314685314685,
+                  "recall_at_3": 0.9825174825174825,
+                  "recall_at_5": 0.9825174825174825,
+                  "recall_at_10": 0.9825174825174825,
+                  "mrr": 0.9755244755244755,
+                  "tokens_mean": 192.03146853146853,
+                  "twin_confusion": 0.0,
+                  "neighbor_only": 0.0,
+                  "focus": 0.628040727880206,
+                  "noise": 0.3582084582084583,
+                  "history_reach": 0.0,
+                  "history_reach_at_5": 0.9825174825174825,
+                  "history_only": 0.0,
+                  "history_distance": 0.0
+                }
+              },
+              {
+                "phrasing": "oblique",
+                "score": {
+                  "queries": 286,
+                  "recall_at_1": 0.2097902097902098,
+                  "recall_at_3": 0.4020979020979021,
+                  "recall_at_5": 0.5979020979020979,
+                  "recall_at_10": 0.7622377622377622,
+                  "mrr": 0.3590340215340217,
+                  "tokens_mean": 509.9300699300699,
+                  "twin_confusion": 0.0,
+                  "neighbor_only": 0.0,
+                  "focus": 0.11613079043429207,
+                  "noise": 0.9106310356310379,
+                  "history_reach": 0.0,
+                  "history_reach_at_5": 0.5979020979020979,
+                  "history_only": 0.0,
+                  "history_distance": 0.0
+                }
+              }
+            ],
+            "weighted_recall": 0.951923076923077,
+            "controls_unwarned": 0.0,
+            "controls_empty": 0.0,
+            "answerable_warned": 0.47202797202797203
+          }
+        },
+        {
+          "keyword_weight": 0.15,
+          "knee_cliff": 0.4,
+          "is_default": false,
+          "report": {
+            "graph": 500,
+            "edges": 530,
+            "questions": 858,
+            "controls": 125,
+            "weak_line": 0.9034722645705796,
+            "auto_tune_note": "weak line 0.896 -> 0.903 (fit 0.911, damped) from 24 phantom probes at q90, two families",
+            "standing_tokens": 3036,
+            "overall": {
+              "queries": 858,
+              "recall_at_1": 0.7226107226107226,
+              "recall_at_3": 0.789044289044289,
+              "recall_at_5": 0.8531468531468531,
+              "recall_at_10": 0.9044289044289044,
+              "mrr": 0.7732461982461983,
+              "tokens_mean": 331.539627039627,
+              "twin_confusion": 0.0,
+              "neighbor_only": 0.02097902097902098,
+              "focus": 0.4665520213896148,
+              "noise": 0.5613081363081328,
+              "history_reach": 0.0,
+              "history_reach_at_5": 0.8531468531468531,
+              "history_only": 0.0,
+              "history_distance": 0.0
+            },
+            "assisted": {
+              "queries": 858,
+              "recall_at_1": 0.7261072261072261,
+              "recall_at_3": 0.7983682983682984,
+              "recall_at_5": 0.8671328671328671,
+              "recall_at_10": 0.9254079254079254,
+              "mrr": 0.7811193436193437,
+              "tokens_mean": 331.539627039627,
+              "twin_confusion": 0.0,
+              "neighbor_only": 0.02097902097902098,
+              "focus": 0.4665520213896148,
+              "noise": 0.5592102342102305,
+              "history_reach": 0.0,
+              "history_reach_at_5": 0.8671328671328671,
+              "history_only": 0.0,
+              "history_distance": 0.0
+            },
+            "by_phrasing": [
+              {
+                "phrasing": "lexical",
+                "score": {
+                  "queries": 286,
+                  "recall_at_1": 0.9965034965034965,
+                  "recall_at_3": 1.0,
+                  "recall_at_5": 1.0,
+                  "recall_at_10": 1.0,
+                  "mrr": 0.9982517482517482,
+                  "tokens_mean": 140.56293706293707,
+                  "twin_confusion": 0.0,
+                  "neighbor_only": 0.0,
+                  "focus": 0.7556345283298747,
+                  "noise": 0.21238067488067472,
+                  "history_reach": 0.0,
+                  "history_reach_at_5": 1.0,
+                  "history_only": 0.0,
+                  "history_distance": 0.0
+                }
+              },
+              {
+                "phrasing": "paraphrase",
+                "score": {
+                  "queries": 286,
+                  "recall_at_1": 0.9790209790209791,
+                  "recall_at_3": 0.9965034965034965,
+                  "recall_at_5": 0.9965034965034965,
+                  "recall_at_10": 0.9965034965034965,
+                  "mrr": 0.9877622377622378,
+                  "tokens_mean": 325.1363636363636,
+                  "twin_confusion": 0.0,
+                  "neighbor_only": 0.0,
+                  "focus": 0.4385750895421791,
+                  "noise": 0.5463689088689103,
+                  "history_reach": 0.0,
+                  "history_reach_at_5": 0.9965034965034965,
+                  "history_only": 0.0,
+                  "history_distance": 0.0
+                }
+              },
+              {
+                "phrasing": "oblique",
+                "score": {
+                  "queries": 286,
+                  "recall_at_1": 0.20279720279720279,
+                  "recall_at_3": 0.3986013986013986,
+                  "recall_at_5": 0.6048951048951049,
+                  "recall_at_10": 0.7797202797202797,
+                  "mrr": 0.3573440448440449,
+                  "tokens_mean": 528.9195804195804,
+                  "twin_confusion": 0.0,
+                  "neighbor_only": 0.0,
+                  "focus": 0.1021414291535426,
+                  "noise": 0.9188811188811215,
+                  "history_reach": 0.0,
+                  "history_reach_at_5": 0.6048951048951049,
+                  "history_only": 0.0,
+                  "history_distance": 0.0
+                }
+              }
+            ],
+            "weighted_recall": 0.958916083916084,
+            "controls_unwarned": 0.0,
+            "controls_empty": 0.0,
+            "answerable_warned": 0.47202797202797203
+          }
+        },
+        {
+          "keyword_weight": 0.05,
+          "knee_cliff": 0.25,
+          "is_default": false,
+          "report": {
+            "graph": 500,
+            "edges": 530,
+            "questions": 858,
+            "controls": 125,
+            "weak_line": 0.8960942323235557,
+            "auto_tune_note": "weak line 0.890 -> 0.896 (fit 0.903, damped) from 24 phantom probes at q90, two families",
+            "standing_tokens": 3036,
+            "overall": {
+              "queries": 858,
+              "recall_at_1": 0.7237762237762237,
+              "recall_at_3": 0.7972027972027972,
+              "recall_at_5": 0.8426573426573427,
+              "recall_at_10": 0.8951048951048951,
+              "mrr": 0.7734866984866988,
+              "tokens_mean": 259.35897435897436,
+              "twin_confusion": 0.0,
+              "neighbor_only": 0.02564102564102564,
+              "focus": 0.5760056945579606,
+              "noise": 0.46347356347356233,
+              "history_reach": 0.0,
+              "history_reach_at_5": 0.8426573426573427,
+              "history_only": 0.0,
+              "history_distance": 0.0
+            },
+            "assisted": {
+              "queries": 858,
+              "recall_at_1": 0.7261072261072261,
+              "recall_at_3": 0.8053613053613053,
+              "recall_at_5": 0.8566433566433567,
+              "recall_at_10": 0.9207459207459208,
+              "mrr": 0.7807770932770937,
+              "tokens_mean": 259.35897435897436,
+              "twin_confusion": 0.0,
+              "neighbor_only": 0.02564102564102564,
+              "focus": 0.5760056945579606,
+              "noise": 0.4608706108706096,
+              "history_reach": 0.0,
+              "history_reach_at_5": 0.8566433566433567,
+              "history_only": 0.0,
+              "history_distance": 0.0
+            },
+            "by_phrasing": [
+              {
+                "phrasing": "lexical",
+                "score": {
+                  "queries": 286,
+                  "recall_at_1": 0.9825174825174825,
+                  "recall_at_3": 1.0,
+                  "recall_at_5": 1.0,
+                  "recall_at_10": 1.0,
+                  "mrr": 0.9912587412587412,
+                  "tokens_mean": 80.2132867132867,
+                  "twin_confusion": 0.0,
+                  "neighbor_only": 0.0,
+                  "focus": 0.8455282270640302,
+                  "noise": 0.11823176823176826,
+                  "history_reach": 0.0,
+                  "history_reach_at_5": 1.0,
+                  "history_only": 0.0,
+                  "history_distance": 0.0
+                }
+              },
+              {
+                "phrasing": "paraphrase",
+                "score": {
+                  "queries": 286,
+                  "recall_at_1": 0.958041958041958,
+                  "recall_at_3": 0.9790209790209791,
+                  "recall_at_5": 0.9825174825174825,
+                  "recall_at_10": 0.9825174825174825,
+                  "mrr": 0.9694055944055944,
+                  "tokens_mean": 188.35314685314685,
+                  "twin_confusion": 0.0,
+                  "neighbor_only": 0.0,
+                  "focus": 0.6307593730550873,
+                  "noise": 0.3554931179931181,
+                  "history_reach": 0.0,
+                  "history_reach_at_5": 0.9825174825174825,
+                  "history_only": 0.0,
+                  "history_distance": 0.0
+                }
+              },
+              {
+                "phrasing": "oblique",
+                "score": {
+                  "queries": 286,
+                  "recall_at_1": 0.23776223776223776,
+                  "recall_at_3": 0.4370629370629371,
+                  "recall_at_5": 0.5874125874125874,
+                  "recall_at_10": 0.7797202797202797,
+                  "mrr": 0.3816669441669443,
+                  "tokens_mean": 509.5104895104895,
+                  "twin_confusion": 0.0,
+                  "neighbor_only": 0.0,
+                  "focus": 0.11595978433692403,
+                  "noise": 0.9088869463869486,
+                  "history_reach": 0.0,
+                  "history_reach_at_5": 0.5874125874125874,
+                  "history_only": 0.0,
+                  "history_distance": 0.0
+                }
+              }
+            ],
+            "weighted_recall": 0.950874125874126,
+            "controls_unwarned": 0.0,
+            "controls_empty": 0.0,
+            "answerable_warned": 0.4696969696969697
+          }
+        },
+        {
+          "keyword_weight": 0.05,
+          "knee_cliff": 0.4,
+          "is_default": false,
+          "report": {
+            "graph": 500,
+            "edges": 530,
+            "questions": 858,
+            "controls": 125,
+            "weak_line": 0.8960942323235557,
+            "auto_tune_note": "weak line 0.890 -> 0.896 (fit 0.903, damped) from 24 phantom probes at q90, two families",
+            "standing_tokens": 3036,
+            "overall": {
+              "queries": 858,
+              "recall_at_1": 0.7237762237762237,
+              "recall_at_3": 0.803030303030303,
+              "recall_at_5": 0.8519813519813519,
+              "recall_at_10": 0.9067599067599068,
+              "mrr": 0.7772597772597776,
+              "tokens_mean": 329.73193473193476,
+              "twin_confusion": 0.0,
+              "neighbor_only": 0.024475524475524476,
+              "focus": 0.46648993196292293,
+              "noise": 0.5603174603174569,
+              "history_reach": 0.0,
+              "history_reach_at_5": 0.8519813519813519,
+              "history_only": 0.0,
+              "history_distance": 0.0
+            },
+            "assisted": {
+              "queries": 858,
+              "recall_at_1": 0.7261072261072261,
+              "recall_at_3": 0.8100233100233101,
+              "recall_at_5": 0.8648018648018648,
+              "recall_at_10": 0.9312354312354313,
+              "mrr": 0.7839512339512342,
+              "tokens_mean": 329.73193473193476,
+              "twin_confusion": 0.0,
+              "neighbor_only": 0.024475524475524476,
+              "focus": 0.46648993196292293,
+              "noise": 0.5578699078699041,
+              "history_reach": 0.0,
+              "history_reach_at_5": 0.8648018648018648,
+              "history_only": 0.0,
+              "history_distance": 0.0
+            },
+            "by_phrasing": [
+              {
+                "phrasing": "lexical",
+                "score": {
+                  "queries": 286,
+                  "recall_at_1": 0.9825174825174825,
+                  "recall_at_3": 1.0,
+                  "recall_at_5": 1.0,
+                  "recall_at_10": 1.0,
+                  "mrr": 0.9912587412587412,
+                  "tokens_mean": 137.0909090909091,
+                  "twin_confusion": 0.0,
+                  "neighbor_only": 0.0,
+                  "focus": 0.7567635105414686,
+                  "noise": 0.21113747363747348,
+                  "history_reach": 0.0,
+                  "history_reach_at_5": 1.0,
+                  "history_only": 0.0,
+                  "history_distance": 0.0
+                }
+              },
+              {
+                "phrasing": "paraphrase",
+                "score": {
+                  "queries": 286,
+                  "recall_at_1": 0.9615384615384616,
+                  "recall_at_3": 0.993006993006993,
+                  "recall_at_5": 0.9965034965034965,
+                  "recall_at_10": 0.9965034965034965,
+                  "mrr": 0.9775641025641026,
+                  "tokens_mean": 323.22027972027973,
+                  "twin_confusion": 0.0,
+                  "neighbor_only": 0.0,
+                  "focus": 0.439772508288864,
+                  "noise": 0.5454170829170844,
+                  "history_reach": 0.0,
+                  "history_reach_at_5": 0.9965034965034965,
+                  "history_only": 0.0,
+                  "history_distance": 0.0
+                }
+              },
+              {
+                "phrasing": "oblique",
+                "score": {
+                  "queries": 286,
+                  "recall_at_1": 0.23426573426573427,
+                  "recall_at_3": 0.4370629370629371,
+                  "recall_at_5": 0.5979020979020979,
+                  "recall_at_10": 0.7972027972027972,
+                  "mrr": 0.3830308580308581,
+                  "tokens_mean": 528.8846153846154,
+                  "twin_confusion": 0.0,
+                  "neighbor_only": 0.0,
+                  "focus": 0.10222047434767027,
+                  "noise": 0.9170551670551694,
+                  "history_reach": 0.0,
+                  "history_reach_at_5": 0.5979020979020979,
+                  "history_only": 0.0,
+                  "history_distance": 0.0
+                }
+              }
+            ],
+            "weighted_recall": 0.9582167832167833,
+            "controls_unwarned": 0.0,
+            "controls_empty": 0.0,
+            "answerable_warned": 0.4696969696969697
+          }
+        }
+      ]
+    }
+  ]
+}

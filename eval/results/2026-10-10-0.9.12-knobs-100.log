@@ -1,0 +1,59 @@
+   Compiling engram-core v0.9.12 (/Users/techtheist/IdeaProjects/engram/crates/engram-core)
+   Compiling engram-eval v0.9.12 (/Users/techtheist/IdeaProjects/engram/eval)
+    Finished `release` profile [optimized] target(s) in 17.35s
+     Running `target/release/engram-eval --knobs --sizes 100 --distractors 0 --json eval/results/2026-10-10-0.9.12-knobs-100.json`
+  100: point 1/24: keyword_weight=0.15 knee_cliff=off
+  100: point 2/24: keyword_weight=0.15 knee_cliff=0.15
+  100: point 3/24: keyword_weight=0.15 knee_cliff=0.2
+  100: point 4/24: keyword_weight=0.15 knee_cliff=0.25
+  100: point 5/24: keyword_weight=0.15 knee_cliff=0.3
+  100: point 6/24: keyword_weight=0.15 knee_cliff=0.4
+  100: point 7/24: keyword_weight=0.1 knee_cliff=off
+  100: point 8/24: keyword_weight=0.1 knee_cliff=0.15
+  100: point 9/24: keyword_weight=0.1 knee_cliff=0.2
+  100: point 10/24: keyword_weight=0.1 knee_cliff=0.25
+  100: point 11/24: keyword_weight=0.1 knee_cliff=0.3
+  100: point 12/24: keyword_weight=0.1 knee_cliff=0.4
+  100: point 13/24: keyword_weight=0.05 knee_cliff=off
+  100: point 14/24: keyword_weight=0.05 knee_cliff=0.15
+  100: point 15/24: keyword_weight=0.05 knee_cliff=0.2
+  100: point 16/24: keyword_weight=0.05 knee_cliff=0.25
+  100: point 17/24: keyword_weight=0.05 knee_cliff=0.3
+  100: point 18/24: keyword_weight=0.05 knee_cliff=0.4
+  100: point 19/24: keyword_weight=0 knee_cliff=off
+  100: point 20/24: keyword_weight=0 knee_cliff=0.15
+  100: point 21/24: keyword_weight=0 knee_cliff=0.2
+  100: point 22/24: keyword_weight=0 knee_cliff=0.25
+  100: point 23/24: keyword_weight=0 knee_cliff=0.3
+  100: point 24/24: keyword_weight=0 knee_cliff=0.4
+engram-eval — knob sweep: keyword weight x knee cliff, post-tune stack
+runtime: embedder=bge-small-en-v1.5  reranker=jina-reranker-v1-turbo-en  seed=1  limit=10
+
+graph 100 facts
+     kw  knee    R@1   R@5   lex  para obliq    wtd  focus noise  tok/q   weak     FP warned
+   0.15   off   0.79  0.97  1.00  1.00  0.91  0.991   0.24  0.75    324  0.844   0.00   0.46
+   0.15  0.15   0.79  0.94  1.00  1.00  0.82  0.982   0.69  0.33    163  0.844   0.00   0.46
+   0.15  0.20   0.80  0.96  1.00  1.00  0.88  0.988   0.66  0.34    183  0.844   0.00   0.46
+   0.15  0.25   0.80  0.96  1.00  1.00  0.89  0.989   0.64  0.35    196  0.844   0.00   0.46  <- shipped
+   0.15  0.30   0.79  0.96  1.00  1.00  0.89  0.989   0.62  0.37    206  0.844   0.00   0.46
+   0.15  0.40   0.79  0.97  1.00  1.00  0.91  0.991   0.56  0.43    235  0.844   0.00   0.46
+   0.10   off   0.79  0.97  1.00  1.00  0.91  0.991   0.25  0.75    321  0.850   0.00   0.46
+   0.10  0.15   0.80  0.94  1.00  1.00  0.82  0.982   0.69  0.33    162  0.850   0.00   0.46
+   0.10  0.20   0.80  0.96  1.00  1.00  0.88  0.988   0.66  0.34    182  0.850   0.00   0.46
+   0.10  0.25   0.80  0.96  1.00  1.00  0.89  0.989   0.65  0.35    195  0.850   0.00   0.46
+   0.10  0.30   0.79  0.96  1.00  1.00  0.89  0.989   0.63  0.37    206  0.850   0.00   0.46
+   0.10  0.40   0.79  0.97  1.00  1.00  0.91  0.991   0.56  0.43    233  0.850   0.00   0.46
+   0.05   off   0.80  0.98  1.00  1.00  0.93  0.993   0.26  0.74    321  0.850   0.00   0.46
+   0.05  0.15   0.80  0.95  1.00  1.00  0.84  0.984   0.69  0.33    162  0.850   0.00   0.46
+   0.05  0.20   0.80  0.96  1.00  1.00  0.89  0.989   0.66  0.34    182  0.850   0.00   0.46
+   0.05  0.25   0.80  0.97  1.00  1.00  0.91  0.991   0.65  0.35    195  0.850   0.00   0.46
+   0.05  0.30   0.80  0.97  1.00  1.00  0.91  0.991   0.63  0.37    205  0.850   0.00   0.46
+   0.05  0.40   0.80  0.98  1.00  1.00  0.93  0.993   0.57  0.43    233  0.850   0.00   0.46
+   0.00   off   0.78  0.97  1.00  1.00  0.91  0.991   0.26  0.74    320  0.850   0.00   0.46
+   0.00  0.15   0.79  0.94  1.00  1.00  0.82  0.982   0.69  0.33    161  0.850   0.00   0.46
+   0.00  0.20   0.78  0.96  1.00  1.00  0.88  0.988   0.66  0.34    182  0.850   0.00   0.46
+   0.00  0.25   0.78  0.96  1.00  1.00  0.89  0.989   0.65  0.35    194  0.850   0.00   0.46
+   0.00  0.30   0.78  0.96  1.00  1.00  0.89  0.989   0.63  0.37    204  0.850   0.00   0.46
+   0.00  0.40   0.78  0.97  1.00  1.00  0.91  0.991   0.57  0.43    231  0.850   0.00   0.46
+
+wrote eval/results/2026-10-10-0.9.12-knobs-100.json

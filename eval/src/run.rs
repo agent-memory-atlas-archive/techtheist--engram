@@ -1841,62 +1841,16 @@ pub fn posttune(cfg: &Config) -> anyhow::Result<PostTuneReport> {
                 None => break,
             }
         }
-        let weak_line = engram.engine().graph_config().policy.weak_evidence_top;
+        let report = measure_posttune(&engram, &c, cfg, &twins, tuned);
         eprintln!(
-            "  {size}: {} (weak line {weak_line:.3}, converged)",
-            tuned.as_deref().unwrap_or("auto-tune left the defaults")
+            "  {size}: {} (weak line {:.3}, converged)",
+            report
+                .auto_tune_note
+                .as_deref()
+                .unwrap_or("auto-tune left the defaults"),
+            report.weak_line
         );
-
-        let (outcomes, _) = measure(&engram, &c, cfg.limit, &twins);
-        let mut unwarned = 0usize;
-        let mut empty = 0usize;
-        for q in &c.unanswerable {
-            let r = engram.retrieve(&q.text, cfg.limit);
-            let answered = match &r.delivery {
-                Delivery::Ranked(keys) => !keys.is_empty(),
-                Delivery::Dump(_) => true,
-            };
-            if !answered {
-                empty += 1;
-            } else if r.top_score.unwrap_or(0.0) >= weak_line {
-                unwarned += 1;
-            }
-        }
-        let warned = outcomes
-            .iter()
-            .filter(|o| o.returned > 0 && o.top_score.unwrap_or(0.0) < weak_line)
-            .count();
-
-        let overall = score(&outcomes);
-        let assisted_outcomes = crate::metrics::assisted(&outcomes);
-        let mut assisted = score(&assisted_outcomes);
-        // Assisted ranks are pre-filled, so neighbour-only would read as
-        // zero; carry the real figure like the arms table does. The walk's
-        // two rank-defined columns need the same treatment.
-        assisted.neighbor_only = overall.neighbor_only;
-        assisted.history_only = overall.history_only;
-        assisted.history_distance = overall.history_distance;
-        let split = by_phrasing(&assisted_outcomes);
-
-        sizes.push(PostTuneSizeReport {
-            graph: c.facts.len(),
-            edges: engram.edges_written,
-            questions: outcomes.len(),
-            controls: c.unanswerable.len(),
-            weak_line,
-            auto_tune_note: tuned,
-            standing_tokens: engram.standing_cost(),
-            overall,
-            assisted,
-            weighted_recall: cfg.phrasing.weighted_recall(&split),
-            by_phrasing: split
-                .into_iter()
-                .map(|(phrasing, score)| PhrasingScore { phrasing, score })
-                .collect(),
-            controls_unwarned: unwarned as f64 / c.unanswerable.len().max(1) as f64,
-            controls_empty: empty as f64 / c.unanswerable.len().max(1) as f64,
-            answerable_warned: warned as f64 / outcomes.len().max(1) as f64,
-        });
+        sizes.push(report);
     }
 
     Ok(PostTuneReport {
@@ -1911,6 +1865,170 @@ pub fn posttune(cfg: &Config) -> anyhow::Result<PostTuneReport> {
         limit: cfg.limit,
         history: cfg.history,
         collision: cfg.collision,
+        sizes,
+    })
+}
+
+/// One post-tune measurement of an already-built, already-converged arm:
+/// recall split by phrasing, attention, and the recommendation regime's FP
+/// against the weak line the arm currently carries. Shared by `--posttune`
+/// and the `--knobs` sweep, so every grid point reads exactly like a
+/// shipped-stack receipt.
+fn measure_posttune(
+    engram: &EngramArm,
+    c: &Corpus,
+    cfg: &Config,
+    twins: &HashMap<String, Vec<String>>,
+    tuned: Option<String>,
+) -> PostTuneSizeReport {
+    let weak_line = engram.engine().graph_config().policy.weak_evidence_top;
+
+    let (outcomes, _) = measure(engram, c, cfg.limit, twins);
+    let mut unwarned = 0usize;
+    let mut empty = 0usize;
+    for q in &c.unanswerable {
+        let r = engram.retrieve(&q.text, cfg.limit);
+        let answered = match &r.delivery {
+            Delivery::Ranked(keys) => !keys.is_empty(),
+            Delivery::Dump(_) => true,
+        };
+        if !answered {
+            empty += 1;
+        } else if r.top_score.unwrap_or(0.0) >= weak_line {
+            unwarned += 1;
+        }
+    }
+    let warned = outcomes
+        .iter()
+        .filter(|o| o.returned > 0 && o.top_score.unwrap_or(0.0) < weak_line)
+        .count();
+
+    let overall = score(&outcomes);
+    let assisted_outcomes = crate::metrics::assisted(&outcomes);
+    let mut assisted = score(&assisted_outcomes);
+    // Assisted ranks are pre-filled, so neighbour-only would read as
+    // zero; carry the real figure like the arms table does. The walk's
+    // two rank-defined columns need the same treatment.
+    assisted.neighbor_only = overall.neighbor_only;
+    assisted.history_only = overall.history_only;
+    assisted.history_distance = overall.history_distance;
+    let split = by_phrasing(&assisted_outcomes);
+
+    PostTuneSizeReport {
+        graph: c.facts.len(),
+        edges: engram.edges_written,
+        questions: outcomes.len(),
+        controls: c.unanswerable.len(),
+        weak_line,
+        auto_tune_note: tuned,
+        standing_tokens: engram.standing_cost(),
+        overall,
+        assisted,
+        weighted_recall: cfg.phrasing.weighted_recall(&split),
+        by_phrasing: split
+            .into_iter()
+            .map(|(phrasing, score)| PhrasingScore { phrasing, score })
+            .collect(),
+        controls_unwarned: unwarned as f64 / c.unanswerable.len().max(1) as f64,
+        controls_empty: empty as f64 / c.unanswerable.len().max(1) as f64,
+        answerable_warned: warned as f64 / outcomes.len().max(1) as f64,
+    }
+}
+
+// ------------------------------------------------------------- knob sweep
+
+/// One grid point of the `--knobs` sweep: the shipped post-tune stack with
+/// the keyword weight and the knee cliff moved, auto-tune re-converged.
+#[derive(Debug, Clone, Serialize)]
+pub struct KnobPoint {
+    pub keyword_weight: f64,
+    /// `None` = the knee trim off.
+    pub knee_cliff: Option<f64>,
+    pub is_default: bool,
+    pub report: PostTuneSizeReport,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct KnobSizeReport {
+    pub graph: usize,
+    pub points: Vec<KnobPoint>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct KnobsReport {
+    pub embedder: String,
+    pub reranker: String,
+    pub embeddings_are_fake: bool,
+    pub seed: u64,
+    pub limit: usize,
+    pub sizes: Vec<KnobSizeReport>,
+}
+
+/// The 0.9.12 knob sweep: keyword weight x knee cliff over the SHIPPED
+/// post-tune stack. Each corpus is embedded once; per point the policy is
+/// re-pointed, the weak line reset to its default and auto-tune converged
+/// again (the line reads the delivered curve, so it must follow the knobs
+/// the way a real graph's would), then measured exactly like `--posttune`.
+/// Research only — nothing here ships without a receipt and a ruling.
+pub fn knobs(cfg: &Config, kws: &[f64], cliffs: &[Option<f64>]) -> anyhow::Result<KnobsReport> {
+    use engram_core::policy::{KNEE_MIN_CLIFF, SEARCH_KEYWORD_WEIGHT, WEAK_EVIDENCE_TOP};
+    let model = cfg.embed_model.as_deref();
+    let (_, embedder_name) = embedder(model);
+    let mut sizes = Vec::new();
+    for &size in &cfg.sizes {
+        let c = cfg.corpus(size);
+        let twins = twin_map(&c);
+        let engram = EngramArm::build(
+            &c,
+            embedder(model).0,
+            if cfg.no_rerank { None } else { reranker().0 },
+        )?;
+        let total = kws.len() * cliffs.len();
+        let mut points = Vec::new();
+        for &kw in kws {
+            for &cliff in cliffs {
+                eprintln!(
+                    "  {size}: point {}/{total}: keyword_weight={kw} knee_cliff={}",
+                    points.len() + 1,
+                    cliff.map_or("off".to_string(), |c| c.to_string())
+                );
+                engram.tune(|p| {
+                    p.keyword_weight = kw;
+                    p.knee_cliff = cliff;
+                    p.weak_evidence_top = WEAK_EVIDENCE_TOP;
+                })?;
+                let mut tuned = None;
+                for _ in 0..16 {
+                    match engram.engine().auto_tune()? {
+                        Some(note) => tuned = Some(note),
+                        None => break,
+                    }
+                }
+                let report = measure_posttune(&engram, &c, cfg, &twins, tuned);
+                points.push(KnobPoint {
+                    keyword_weight: kw,
+                    knee_cliff: cliff,
+                    is_default: (kw - SEARCH_KEYWORD_WEIGHT).abs() < 1e-9
+                        && cliff.is_some_and(|c| (c - KNEE_MIN_CLIFF).abs() < 1e-9),
+                    report,
+                });
+            }
+        }
+        sizes.push(KnobSizeReport {
+            graph: c.facts.len(),
+            points,
+        });
+    }
+    Ok(KnobsReport {
+        embeddings_are_fake: embedder_name.contains("(fake)"),
+        embedder: embedder_name,
+        reranker: if cfg.no_rerank {
+            "disabled (--no-rerank)".to_string()
+        } else {
+            reranker().1
+        },
+        seed: cfg.seed,
+        limit: cfg.limit,
         sizes,
     })
 }

@@ -1,0 +1,19 @@
+   Compiling engram-core v0.9.12 (/Users/techtheist/IdeaProjects/engram/crates/engram-core)
+   Compiling engram-eval v0.9.12 (/Users/techtheist/IdeaProjects/engram/eval)
+    Finished `release` profile [optimized] target(s) in 17.98s
+     Running `target/release/engram-eval --knobs --knob-kw 0.15,0.05 --knob-cliff 0.25,0.4 --sizes 500 --distractors 0 --json eval/results/2026-10-10-0.9.12-knobs-500.json`
+  500: point 1/4: keyword_weight=0.15 knee_cliff=0.25
+  500: point 2/4: keyword_weight=0.15 knee_cliff=0.4
+  500: point 3/4: keyword_weight=0.05 knee_cliff=0.25
+  500: point 4/4: keyword_weight=0.05 knee_cliff=0.4
+engram-eval — knob sweep: keyword weight x knee cliff, post-tune stack
+runtime: embedder=bge-small-en-v1.5  reranker=jina-reranker-v1-turbo-en  seed=1  limit=10
+
+graph 500 facts
+     kw  knee    R@1   R@5   lex  para obliq    wtd  focus noise  tok/q   weak     FP warned
+   0.15  0.25   0.72  0.86  1.00  0.98  0.60  0.952   0.58  0.46    260  0.903   0.00   0.47  <- shipped
+   0.15  0.40   0.73  0.87  1.00  1.00  0.60  0.959   0.47  0.56    332  0.903   0.00   0.47
+   0.05  0.25   0.73  0.86  1.00  0.98  0.59  0.951   0.58  0.46    259  0.896   0.00   0.47
+   0.05  0.40   0.73  0.86  1.00  1.00  0.60  0.958   0.47  0.56    330  0.896   0.00   0.47
+
+wrote eval/results/2026-10-10-0.9.12-knobs-500.json

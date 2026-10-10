@@ -78,6 +78,12 @@ OPTIONS:
                           recommendation regime (a warned answer to a
                           never-written question counts as honest). The arms
                           table's \"engram (post-tune)\" row comes from this
+    --knobs               research sweep (0.9.12): keyword weight x knee cliff
+                          over the shipped post-tune stack, auto-tune
+                          re-converged per point; same columns as --posttune
+    --knob-kw L           keyword weights for --knobs [default: 0.15,0.1,0.05,0]
+    --knob-cliff L        knee cliffs for --knobs, `off` = no knee trim
+                          [default: off,0.15,0.2,0.25,0.3,0.4]
     --floor               sweep a delivery floor over the engram arm: per
                           candidate floor, what abstention on unanswerable
                           questions costs in recall, and what trimming the
@@ -212,6 +218,16 @@ fn cli() -> anyhow::Result<()> {
     let mut tricks_mode = false;
     let mut qpp_mode = false;
     let mut posttune_mode = false;
+    let mut knobs_mode = false;
+    let mut knob_kw: Vec<f64> = vec![0.15, 0.10, 0.05, 0.0];
+    let mut knob_cliff: Vec<Option<f64>> = vec![
+        None,
+        Some(0.15),
+        Some(0.20),
+        Some(0.25),
+        Some(0.30),
+        Some(0.40),
+    ];
     let mut cascade_mode = false;
     let mut budget_mode = false;
     let mut sweep_mode = false;
@@ -280,6 +296,22 @@ fn cli() -> anyhow::Result<()> {
             "--tricks" => tricks_mode = true,
             "--qpp" => qpp_mode = true,
             "--posttune" => posttune_mode = true,
+            "--knobs" => knobs_mode = true,
+            "--knob-kw" => {
+                knob_kw = value()?
+                    .split(',')
+                    .map(|v| v.trim().parse())
+                    .collect::<Result<_, _>>()?
+            }
+            "--knob-cliff" => {
+                knob_cliff = value()?
+                    .split(',')
+                    .map(|v| match v.trim() {
+                        "off" => Ok(None),
+                        x => x.parse().map(Some),
+                    })
+                    .collect::<Result<_, _>>()?
+            }
             "--cascade" => cascade_mode = true,
             "--rerank-full" => cfg.rerank_full = true,
             "--budget" => budget_mode = true,
@@ -431,6 +463,15 @@ fn cli() -> anyhow::Result<()> {
     if cascade_mode {
         let report = engram_eval::cascade::cascade(&cfg)?;
         print_cascade(&report);
+        if let Some(path) = json_out {
+            std::fs::write(&path, serde_json::to_string_pretty(&report)?)?;
+            println!("\nwrote {path}");
+        }
+        return Ok(());
+    }
+    if knobs_mode {
+        let report = engram_eval::run::knobs(&cfg, &knob_kw, &knob_cliff)?;
+        print_knobs(&report);
         if let Some(path) = json_out {
             std::fs::write(&path, serde_json::to_string_pretty(&report)?)?;
             println!("\nwrote {path}");
@@ -860,6 +901,66 @@ fn print_longmem(r: &engram_eval::longmem::LmeReport) {
          register, disclosed. An `_abs` answer under the calibrated \"likely not in\n\
          memory\" line counts as honest; only an unwarned one is a false positive."
     );
+}
+
+fn print_knobs(r: &engram_eval::run::KnobsReport) {
+    println!("engram-eval — knob sweep: keyword weight x knee cliff, post-tune stack");
+    println!(
+        "runtime: embedder={}  reranker={}  seed={}  limit={}",
+        r.embedder, r.reranker, r.seed, r.limit
+    );
+    if r.embeddings_are_fake {
+        println!("!! FAKE EMBEDDINGS — these numbers describe plumbing, not meaning");
+    }
+    for s in &r.sizes {
+        println!("\ngraph {} facts", s.graph);
+        println!(
+            "  {:>5} {:>5}  {:>5} {:>5} {:>5} {:>5} {:>5} {:>6}  {:>5} {:>5} {:>6}  {:>5} {:>6} {:>6}",
+            "kw",
+            "knee",
+            "R@1",
+            "R@5",
+            "lex",
+            "para",
+            "obliq",
+            "wtd",
+            "focus",
+            "noise",
+            "tok/q",
+            "weak",
+            "FP",
+            "warned"
+        );
+        for p in &s.points {
+            let t = &p.report;
+            let at = |ph: Phrasing| {
+                t.by_phrasing
+                    .iter()
+                    .find(|ps| ps.phrasing == ph)
+                    .map(|ps| ps.score.recall_at_5)
+                    .unwrap_or_default()
+            };
+            println!(
+                "  {:>5.2} {:>5}  {:>5.2} {:>5.2} {:>5.2} {:>5.2} {:>5.2} {:>6.3}  {:>5.2} {:>5.2} {:>6.0}  {:>5.3} {:>6.2} {:>6.2}{}",
+                p.keyword_weight,
+                p.knee_cliff
+                    .map_or("off".to_string(), |c| format!("{c:.2}")),
+                t.assisted.recall_at_1,
+                t.assisted.recall_at_5,
+                at(Phrasing::Lexical),
+                at(Phrasing::Paraphrase),
+                at(Phrasing::Oblique),
+                t.weighted_recall,
+                t.overall.focus,
+                t.overall.noise,
+                t.overall.tokens_mean,
+                t.weak_line,
+                t.controls_unwarned,
+                t.answerable_warned,
+                if p.is_default { "  <- shipped" } else { "" }
+            );
+        }
+    }
 }
 
 fn print_posttune(r: &engram_eval::run::PostTuneReport) {
