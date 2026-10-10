@@ -414,6 +414,43 @@ impl Engram {
     /// The selector this session is bound to (`None` = the launch project).
     /// Every hub-level call that reports "the current project" must pass
     /// this — the engine alone can't tell the hub which project it is.
+    /// The first line of a scoped `brief` (0.9.12, Problem 00e354dmopga).
+    /// A rebind is how a session recovers from a binding its client got
+    /// wrong, so it stays — but moving AWAY from a project the session was
+    /// really working in (reading a sibling's brief, say) silently sends the
+    /// next write there. That move leads with a warning naming both graphs
+    /// and the call that goes back. Leaving a fallback binding (home,
+    /// unwired, the default project) or re-briefing the same project is the
+    /// recovery itself and stays a plain confirmation.
+    fn rebind_line(&self, to: &str, from: &str, from_rung: BoundBy) -> String {
+        let label = |id: &str| {
+            if id == registry::HOME_PROJECT {
+                "the home graph".to_string()
+            } else {
+                format!("'{}'", self.hub.project_name(id))
+            }
+        };
+        let fallback = matches!(
+            from_rung,
+            BoundBy::Home | BoundBy::Unwired | BoundBy::DefaultProject
+        );
+        if to == from || fallback {
+            return format!("_Session bound to {}._", label(to));
+        }
+        let back = self
+            .hub
+            .project_root(from)
+            .unwrap_or_else(|| self.hub.project_name(from));
+        format!(
+            "**Warning — this session's writes now go to {to_label}**, no longer to {from_label}. \
+             A scoped brief rebinds; it is not a read-only peek. If you only meant to read \
+             {to_label}, go back now with brief(project: \"{back}\") — reads of a sibling \
+             take `project` on search/list_open/get_node without moving the session.",
+            to_label = label(to),
+            from_label = label(from),
+        )
+    }
+
     fn session_bound(&self) -> Option<Arc<str>> {
         self.binding.read().unwrap().bound.clone()
     }
@@ -1197,8 +1234,16 @@ impl Engram {
                 &self.session_id,
                 Some(format!("project {id} via brief")),
             );
-            {
+            let leaving = {
                 let mut binding = self.binding.write().unwrap();
+                let leaving = (
+                    binding
+                        .bound
+                        .as_deref()
+                        .map(str::to_string)
+                        .unwrap_or_else(|| self.hub.current().id.clone()),
+                    binding.bound_by,
+                );
                 binding.engine = engine.clone();
                 binding.bound = Some(id.as_str().into());
                 // The agent chose this binding itself: the fallback write
@@ -1207,7 +1252,8 @@ impl Engram {
                 // Dropping the old trace journals mcp_session_ended in the
                 // graph this session is leaving.
                 binding.trace = trace;
-            }
+                leaving
+            };
             self.hub.session_bind(&self.session_id, Some(&id));
             self.hub.session_meta(
                 &self.session_id,
@@ -1216,7 +1262,7 @@ impl Engram {
             );
             let max_chars = engine.lock().unwrap().brief_chars(a.max_chars);
             let brief = self.hub.brief_for(Some(&id), max_chars).map_err(map_err)?;
-            let text = format!("_Session rebound to project '{id}'._\n\n{brief}");
+            let text = format!("{}\n\n{brief}", self.rebind_line(&id, &leaving.0, leaving.1));
             return Ok(CallToolResult::success(vec![ContentBlock::text(text)]));
         }
         // Unscoped = THIS SESSION's project plus the home-graph section. The
@@ -5595,9 +5641,15 @@ mod scoped_transport_tests {
             .await
             .unwrap();
         let text = format!("{:?}", bound.content);
+        // Leaving a real project for a sibling WARNS (0.9.12): the next
+        // write goes to beta, and the line names the way back.
         assert!(
-            text.contains("Session rebound to project"),
-            "a scoped brief confirms the rebind: {text}"
+            text.contains("this session's writes now go to 'beta'"),
+            "a scoped brief that moves the session warns: {text}"
+        );
+        assert!(
+            text.contains("no longer to") && text.contains("go back now with brief(project:"),
+            "the warning names the graph left and the call that returns: {text}"
         );
         assert!(
             text.contains("beta owns this decision"),
@@ -5620,6 +5672,26 @@ mod scoped_transport_tests {
         assert!(
             text.contains("beta owns this decision"),
             "after the rebind the session's default project IS beta: {text}"
+        );
+
+        // Re-briefing the project the session is already on is a plain
+        // confirmation, never a warning.
+        let again = unscoped
+            .peer()
+            .call_tool(
+                CallToolRequestParams::new("brief").with_arguments(
+                    serde_json::json!({ "project": "beta" })
+                        .as_object()
+                        .cloned()
+                        .unwrap(),
+                ),
+            )
+            .await
+            .unwrap();
+        let text = format!("{:?}", again.content);
+        assert!(
+            text.contains("Session bound to 'beta'") && !text.contains("Warning"),
+            "the same project re-briefed stays quiet: {text}"
         );
 
         // The census follows the rebind: no live session still claims the

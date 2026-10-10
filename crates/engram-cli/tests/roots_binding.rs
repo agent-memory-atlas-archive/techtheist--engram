@@ -945,7 +945,7 @@ fn home_directory_cwd_never_becomes_a_project() {
     );
     let ok = bridge.brief_project(4, "home");
     assert!(
-        ok.contains("Session rebound"),
+        ok.contains("Session bound to the home graph"),
         "brief(project) rebinds: {ok}"
     );
     bridge.add_note(5, "note after binding home deliberately");
