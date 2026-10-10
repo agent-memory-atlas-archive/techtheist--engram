@@ -3,7 +3,9 @@
 # the hookSpecificOutput JSON envelope — plain stdout is dropped there. Devin
 # CLI and Codex CLI share this contract, so setup installs this same wrapper
 # for both (as engram-brief.sh), next to the portable brief script (as
-# engram-brief-text.sh) — one implementation of daemon discovery.
+# engram-brief-text.sh) — one implementation of daemon discovery. Cursor's
+# sessionStart hook takes a flat {"additional_context": …} instead: run it
+# with the argument `cursor`.
 #
 # A memory hook must never break a session: every failure path exits 0 with
 # no output.
@@ -21,14 +23,22 @@ fi
 BRIEF="$("$DIR/engram-brief-text.sh" 2>/dev/null)" || true
 [ -n "${BRIEF:-}" ] || exit 0
 
+if [ "${1:-}" = "cursor" ]; then
+    OPEN='{"additional_context":"'
+    CLOSE='"}'
+else
+    OPEN='{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"'
+    CLOSE='"}}'
+fi
+
 # JSON-escape with awk: backslash first, then quotes; tabs escaped, carriage
 # returns dropped, newlines re-joined as \n between records.
-printf '%s' "$BRIEF" | awk '
-BEGIN { printf "{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"" }
+printf '%s' "$BRIEF" | awk -v pre="$OPEN" -v post="$CLOSE" '
+BEGIN { printf "%s", pre }
 {
     gsub(/\\/, "\\\\"); gsub(/"/, "\\\""); gsub(/\t/, "\\t"); gsub(/\r/, "")
     if (NR > 1) printf "\\n"
     printf "%s", $0
 }
-END { print "\"}}" }'
+END { print post }'
 exit 0

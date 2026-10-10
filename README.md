@@ -65,7 +65,7 @@ would have prevented it.
   via JSON export, not a binary blob.
 - **One memory, every agent.** The core speaks MCP, so **Claude Code, Codex
   (CLI and desktop app), Gemini CLI, OpenCode, Kilo, Google Antigravity, Bob
-  (IDE and Shell), Windsurf, and Devin CLI** share the same per-repo graph.
+  (IDE and Shell), Windsurf, Devin CLI, and Cursor** share the same per-repo graph.
   A decision captured by one assistant is recalled by the next.
 - **Graph-first.** The graph is the product surface, not hidden plumbing.
   Reviewing, judging, and repairing memory all happen in the pane — in the

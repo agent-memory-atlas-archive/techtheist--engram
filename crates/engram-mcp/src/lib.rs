@@ -1262,7 +1262,10 @@ impl Engram {
             );
             let max_chars = engine.lock().unwrap().brief_chars(a.max_chars);
             let brief = self.hub.brief_for(Some(&id), max_chars).map_err(map_err)?;
-            let text = format!("{}\n\n{brief}", self.rebind_line(&id, &leaving.0, leaving.1));
+            let text = format!(
+                "{}\n\n{brief}",
+                self.rebind_line(&id, &leaving.0, leaving.1)
+            );
             return Ok(CallToolResult::success(vec![ContentBlock::text(text)]));
         }
         // Unscoped = THIS SESSION's project plus the home-graph section. The

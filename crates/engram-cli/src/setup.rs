@@ -123,6 +123,7 @@ impl Setup {
                 "bob" => self.wire_bob()?,
                 "windsurf" => self.wire_windsurf()?,
                 "devin" => self.wire_devin()?,
+                "cursor" => self.wire_cursor()?,
                 other => anyhow::bail!("unknown agent: {other}"),
             }
         }
@@ -648,7 +649,92 @@ impl Setup {
         self.write_instructions("AGENTS.md")
     }
 
-    /// The two brief-hook scripts for a JSON-envelope harness (Devin, Codex):
+    /// Cursor (0.9.12). Three moves, the Devin shape: (1) the project MCP
+    /// config `.cursor/mcp.json` with an explicit --db — Cursor's docs don't
+    /// promise MCP roots, and a pinned store binds whatever the client
+    /// sends; personal absolute paths, so it is git-ignored when setup
+    /// creates it; (2) skills under `.cursor/skills` — unless
+    /// `.claude/skills/engram` already exists, which Cursor reads too and a
+    /// second copy would only duplicate; (3) a `sessionStart` hook in
+    /// `.cursor/hooks.json` whose `additional_context` puts the brief in the
+    /// session's initial context. Cursor reads AGENTS.md, so the capture
+    /// discipline travels the shared instructions block.
+    fn wire_cursor(&self) -> anyhow::Result<()> {
+        let mcp = self.repo.join(".cursor/mcp.json");
+        let created = !mcp.exists();
+        self.write_mcp_servers(".cursor/mcp.json", "cursor", true)?;
+        if created {
+            self.ensure_gitignore_line(
+                ".cursor/mcp.json",
+                "Cursor project MCP config (personal, absolute paths)",
+            )?;
+        }
+        if !self.mcp_only {
+            if self.repo.join(".claude/skills/engram").exists() {
+                say("cursor: Cursor reads .claude/skills — the engram skill there serves it");
+            } else {
+                self.install_skills(".cursor/skills", "cursor")?;
+            }
+            self.install_cursor_brief_hook()?;
+        }
+        self.write_instructions("AGENTS.md")
+    }
+
+    /// The Cursor sessionStart hook: the envelope scripts under
+    /// `.cursor/hooks/` (the wrapper run with `cursor`, Cursor's flat
+    /// `additional_context` output) and their registration in
+    /// `.cursor/hooks.json`. An existing parseable hooks file is merged —
+    /// other hooks survive the round-trip; one already running the brief is
+    /// left alone; an unparseable one gets the snippet printed instead.
+    fn install_cursor_brief_hook(&self) -> anyhow::Result<()> {
+        self.write_envelope_brief_scripts(".cursor/hooks")?;
+        let entry = serde_json::json!({ "command": "./.cursor/hooks/engram-brief.sh cursor" });
+        let path = self.repo.join(".cursor/hooks.json");
+        let mut doc = match fs::read_to_string(&path) {
+            Err(_) => serde_json::json!({ "version": 1, "hooks": {} }),
+            Ok(current) if current.contains("engram-brief") => {
+                say("cursor: .cursor/hooks.json already runs the brief hook — leaving it");
+                return Ok(());
+            }
+            Ok(current) => match serde_json::from_str::<serde_json::Value>(&current) {
+                Ok(v) if v.is_object() && v.get("hooks").is_none_or(|h| h.is_object()) => v,
+                _ => {
+                    say(
+                        "cursor: .cursor/hooks.json isn't a hooks object — add this under hooks.sessionStart:",
+                    );
+                    println!("    {entry}");
+                    return Ok(());
+                }
+            },
+        };
+        let hooks = doc
+            .as_object_mut()
+            .expect("checked is_object")
+            .entry("hooks")
+            .or_insert_with(|| serde_json::json!({}));
+        let session_start = hooks
+            .as_object_mut()
+            .expect("checked hooks is an object")
+            .entry("sessionStart")
+            .or_insert_with(|| serde_json::json!([]));
+        match session_start.as_array_mut() {
+            Some(list) => list.push(entry),
+            None => {
+                say("cursor: .cursor/hooks.json has a non-array sessionStart — add this to it:");
+                println!("    {entry}");
+                return Ok(());
+            }
+        }
+        if doc.get("version").is_none() {
+            doc["version"] = serde_json::json!(1);
+        }
+        fs::write(&path, serde_json::to_string_pretty(&doc)? + "\n")?;
+        say("cursor: brief hook installed (.cursor/hooks + hooks.json sessionStart)");
+        Ok(())
+    }
+
+    /// The two brief-hook scripts for a JSON-envelope harness (Devin, Codex,
+    /// Cursor):
     /// the shared portable brief script plus the envelope wrapper, installed
     /// under `<dir>/` as engram-brief-text.sh / engram-brief.sh.
     fn write_envelope_brief_scripts(&self, hooks_dir_rel: &str) -> anyhow::Result<()> {

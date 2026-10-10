@@ -84,6 +84,7 @@ engram-alpha setup --cli kilo --skill aggressive
 | `bob` | `.bob/mcp.json` (project-level, explicit `--db` — Bob IDE and BobShell share it; to wire globally add the entry to `~/.bob/mcp.json` or `~/.bob/mcp_settings.json` by hand) | `AGENTS.md` + a `SessionStart` brief hook in `.bob/settings.json` (Bob IDE 2.0.2+ / BobShell 2.0.1+ run lifecycle hooks; older Bobs still get briefed through `AGENTS.md`) |
 | `windsurf` | `${XDG_CONFIG_HOME:-~/.config}/devin/mcp_config.json` **and** `~/.devin/mcp_config.json` (global — Windsurf/Cascade reads one machine-wide config, but which file depends on the plugin generation, so setup writes the same db-less entry into both; the server follows your open workspace via MCP roots) | `AGENTS.md` + `.windsurf/rules/engram.md` (an `always_on` rule that binds the session first — Windsurf has no hooks) + `.windsurf/skills/` |
 | `devin` | `.devin/mcp_config.local.json` (project-local, highest-precedence tier, explicit `--db`; git-ignored — it carries personal absolute paths) | `AGENTS.md` + `.devin/skills/` + a `SessionStart` hook in `.devin/hooks.v1.json` that injects the brief |
+| `cursor` | `.cursor/mcp.json` (project-level, explicit `--db`; git-ignored when setup creates it — it carries personal absolute paths; an existing team file is never rewritten, the entry is printed for you to add) | `AGENTS.md` + `.cursor/skills/` (skipped when `.claude/skills/engram` exists — Cursor reads that too) + a `sessionStart` hook in `.cursor/hooks.json` that injects the brief (merged into an existing hooks file) |
 
 Windsurf support is freshly added and still being field-tested — reports
 welcome. One Windsurf-specific note: its JetBrains plugin spawns the MCP
@@ -129,6 +130,7 @@ that harness's transcripts.
 | Bob (IDE + Shell) | ✓ | ✓ auto (hook — IDE 2.0.2+ / Shell 2.0.1+) | — | ✓ |
 | Windsurf / Cascade | ✓ ** | — | — | — *** |
 | Devin CLI | ✓ | ✓ auto (hook) | — | — |
+| Cursor | ✓ | ✓ auto (hook) | — | — |
 
 \* Kilo's adapter is verified against fixture transcripts, not yet against a
 live install — reports welcome.

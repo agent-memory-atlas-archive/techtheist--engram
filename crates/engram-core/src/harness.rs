@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
-pub const AGENTS: [&str; 9] = [
+pub const AGENTS: [&str; 10] = [
     "claude",
     "codex",
     "gemini",
@@ -17,6 +17,7 @@ pub const AGENTS: [&str; 9] = [
     "bob",
     "windsurf",
     "devin",
+    "cursor",
 ];
 
 /// Which assistants look installed on this machine (binary on PATH or a
@@ -65,6 +66,9 @@ pub fn detect_agents() -> Vec<&'static str> {
     // the CLI being installed.
     if on_path("devin") {
         found.push("devin");
+    }
+    if on_path("cursor") || dir(".cursor") || Path::new("/Applications/Cursor.app").exists() {
+        found.push("cursor");
     }
     found
 }
@@ -130,6 +134,11 @@ pub fn is_wired(repo: &Path, agent: &str) -> bool {
             has_engram(repo.join(".devin/mcp_config.local.json"))
                 || has_engram(repo.join(".devin/mcp_config.json"))
                 || windsurf_xdg_config().is_some_and(has_engram)
+        }
+        // Cursor: the project config wins; the user-level one also counts.
+        "cursor" => {
+            has_engram(repo.join(".cursor/mcp.json"))
+                || home_file(".cursor/mcp.json").is_some_and(has_engram)
         }
         _ => false,
     }
