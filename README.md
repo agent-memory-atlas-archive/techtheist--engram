@@ -16,10 +16,12 @@
 
 > The most feature-rich inspectable long-term graph memory for software development with AI agents — built on reproducible research.
 
-Engram is the **reasoning and decision layer** for AI coding assistants: why
-we chose this, what bit us, what's still open — kept as a graph you can see,
-edit, and own. It lives in a file inside your repo, every model that reads it
-runs on your machine, and one core serves every assistant you use.
+Your AI assistant forgets everything between sessions: why you picked this
+library, which approach already failed, what's still unfinished. Engram
+remembers it for them. It keeps the **reasoning behind your project** as a
+graph your assistant reads before it acts and adds to as it works, and that
+you can see, edit, and own. It is one file inside your repo, every model it
+uses runs on your machine, and one memory serves every assistant you use.
 
 **[Open the live demo →](https://techtheist.github.io/engram/demo/)**
 
@@ -46,19 +48,41 @@ runs on your machine, and one core serves every assistant you use.
 ![The Feed screen: the same memory as a scrollable timeline — the centered card opens its full story, with the judgment bar at the bottom](.screenshots/layout-feed.png)
 </details>
 
-<details>
-<summary><b>Why a graph, not a notes file</b> <i>(click to expand)</i></summary>
+## When Engram helps, and when a notes file is enough
 
-A flat memory file is whole below about forty notes and overtaken by
-retrieval after that. Engram's graph is *active*: superseded knowledge is
-archived behind a `replaces` edge instead of silently contradicting the new
-canon, look-alike claims get flagged and judged, contradictions become
-visible `conflicts-with` edges, deliberately removed knowledge leaves a
-Tombstone so nobody re-learns it, and trust fades on scratch that never gets
-re-confirmed while pinned decisions never fade at all. The payoff shows up
-the second time something goes wrong: the graph already holds the
-**Problem**, the **Resolution** that answered it, and the **Caution** that
-would have prevented it.
+A `CLAUDE.md` or `AGENTS.md` file is a fine memory for a small project: the
+assistant reads the whole thing every session, and nothing gets lost. It
+stops working as the project's history grows:
+
+- **It gets too long to read.** A file the assistant loads every session has
+  to stay short. In our benchmarks a 3,000-token notes file holds up to about
+  40 notes and loses to search by 100; even a very diligent 30,000-token one
+  falls apart past ~200. Engram searches instead and hands over only what the
+  task needs: about 300 tokens per question at 1,500 notes.
+- **Old decisions linger.** When you change your mind, the old line in the
+  file keeps contradicting the new one. In Engram the new decision
+  **replaces** the old one, and the old one leaves search results while
+  staying in history.
+- **Contradictions hide.** Engram checks each new note against what's
+  already there and flags conflicts for you or the assistant to decide.
+- **Removed things come back.** A deliberately dropped feature or idea leaves
+  a Tombstone, so no later session suggests it again.
+- **Every assistant needs its own file.** One Engram graph serves Claude
+  Code, Codex, Cursor and the rest at once.
+
+So: under a few dozen decisions, keep the notes file. Once the project has a
+history, with changed minds, gotchas, and more than one assistant, Engram is
+the memory that keeps up.
+
+<details>
+<summary><b>What makes the graph different</b> <i>(click to expand)</i></summary>
+
+The graph is *active*: replaced knowledge is archived behind a `replaces`
+edge, look-alike claims are flagged and judged, contradictions become visible
+`conflicts-with` edges, and trust fades on scratch nobody re-confirmed while
+pinned decisions never fade. The payoff shows up the second time something
+goes wrong: the graph already holds the **Problem**, the **Resolution** that
+answered it, and the **Caution** that would have prevented it.
 
 - **Local-first.** Your memory is a file inside your repo. Embeddings and
   every scan run on your machine: no cloud, no keys, fully offline. Portable
@@ -101,30 +125,27 @@ and updating: [Getting started](./docs/getting-started.md).
 ## What you get
 
 - **A graph you can read and edit** — three layouts, tags and filters,
-  full by-hand editing, and a scrollable timeline of the same memory with
-  version markers and judgment actions on the card. Hard delete is
-  deliberately user-only. → [The pane](./docs/pane.md)
-- **An assistant that starts briefed** — a session-start digest of conflicts
-  to judge, open work, and standing decisions; mid-session hybrid search
-  where every hit carries its conflicts and supersessions first.
-  → [Recall & capture](./docs/recall-and-capture.md)
-- **Silent capture, accountable review** — writes are quiet, and every one
-  comes back checked: duplicates merge instead of piling up, and writes near
-  superseded, conflicted, or tombstoned knowledge are warned. The Review
-  drawer is where you approve what you vouch for.
-  → [Recall & capture](./docs/recall-and-capture.md)
-- **A memory that argues back** — a local NLI model checks claims against
-  your canon with receipts, sweeps the graph for hidden conflicts and
-  duplicates, and queues look-alike pairs for judgment. Models nominate;
-  you (or your assistant) judge. → [Conflicts & Checkup](./docs/conflicts-and-checkup.md)
-- **Retrieval that knows its own confidence** — a benchmark-calibrated floor
-  trims weak hits, and every reply carries a `strong` / `weak` / `none`
-  verdict so your assistant admits silence instead of inventing memory.
-  Search takes time windows too (`after` / `before`, or a recorded
-  version). → [Measured, not promised](#measured-not-promised)
-- **Trust that stays honest** — computed live from deliberate acts only:
-  time doesn't validate, retrieval doesn't validate, and stable knowledge
-  falls only to judged evidence. Pins are yours alone. → [Trust & decay](./docs/trust.md)
+  editing by hand, and a timeline view of the same memory. Only you can
+  hard-delete. → [The pane](./docs/pane.md)
+- **An assistant that starts briefed** — every session opens with a short
+  digest: conflicts to settle, open work, standing decisions. During the
+  session it searches before it decides, and each result arrives with the
+  notes that contradict or replaced it. → [Recall & capture](./docs/recall-and-capture.md)
+- **Quiet writing, checked writing** — the assistant saves without chatter,
+  and every save is checked: duplicates merge, and a save that lands near
+  replaced, disputed, or deliberately removed knowledge gets a warning. You
+  approve what you vouch for. → [Recall & capture](./docs/recall-and-capture.md)
+- **A memory that argues back** — a small local model checks new claims
+  against what the graph already says, and sweeps for hidden conflicts and
+  duplicates. The model only nominates; you or your assistant decide.
+  → [Conflicts & Checkup](./docs/conflicts-and-checkup.md)
+- **Search that admits when it doesn't know** — every answer says how sure
+  it is (`strong` / `weak` / `none`), so the assistant says "I don't have
+  that" instead of making something up. Search can also be scoped in time
+  ("last week", a release). → [Measured, not promised](#measured-not-promised)
+- **Trust you can follow** — a note gains trust only when someone confirms
+  it, never just from being read; old scratch fades, and only you can pin.
+  → [Trust & decay](./docs/trust.md)
 - **Every change on the record** — an append-only audit journal with
   before/after values and session attribution, where any change — or
   everything one session wrote — can be undone after a preview; and an
@@ -162,15 +183,14 @@ projects should keep — but every part of it is
 
 ## Measured, not promised
 
-Engram ships its own offline evaluation harness — an invented-subject corpus
-nothing can answer from pretraining, substring grading with no LLM judge,
-seeded and reproducible — and since 0.8.0 the retrieval defaults are outputs
-of benchmark runs published next to the code.
+Engram ships its own offline benchmark. It asks about invented subjects no
+model could know from training, grades answers without an LLM judge, and
+reruns identically from a seed. Since 0.8.0 every retrieval default is the
+output of a run published next to the code.
 
-- **~9× the recall per token of a conventional vector stack.** At 1,500
-  realistic notes, Engram answers from ~300 delivered tokens per query what
-  pure-vector RAG needs ~2,700 for, at equal recall@5 and ahead on the
-  phrasing-weighted headline (0.93 vs 0.91).
+- **~9× less text for the same answers.** At 1,500 realistic notes, Engram
+  finds the answer in ~300 tokens per question where plain vector search
+  needs ~2,700, at equal recall@5 and slightly ahead overall (0.93 vs 0.91).
 - **Where a maintained memory file loses, measured.** A 3,000-token
   CLAUDE.md is whole below ~40 notes and overtaken by retrieval at 100; an
   unusually diligent 30,000-token one wins up to ~200 notes, then falls off
@@ -186,7 +206,7 @@ of benchmark runs published next to the code.
   (real multi-session chats, MIT) runs as-is under a chat ontology defined
   purely as data: rag's recall@1 matched at 8% of its delivered tokens, and
   the 30 never-answerable questions drew **zero** confident answers.
-- **Rejected mechanisms stay on the record** — spreading activation, a
+- **What didn't work stays on the record** — spreading activation, a
   deciding cross-encoder, deeper reranking — because a benchmark that only
   reports wins is an advertisement.
 
