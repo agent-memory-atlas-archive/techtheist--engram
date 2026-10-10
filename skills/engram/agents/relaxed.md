@@ -1,75 +1,46 @@
 ## Engram — durable project memory (MCP server: `engram`)
 
-This project keeps a local, user-owned knowledge graph of its *reasoning*:
-Decisions and their reasons, Principles, Cautions that bit us, Problems and
-Resolutions, Insights, open Intents, Anchors that cluster them. Not code
-structure — the code holds that.
-What good capture buys: the next session starts already knowing why things
-are the way they are, and the user sees and curates everything in the pane.
+This project keeps a local, user-owned graph of its *reasoning*: Decisions and
+their reasons, Principles, Cautions, Problems and Resolutions, Insights, open
+Intents, Anchors that group them. Not code structure — the code holds that.
+The user sees and curates every node in the pane.
 
-**Recall.** Call the `brief` tool once at session start and read it before
-planning — unless the session already opens with an injected "# Engram brief"
-(a session-start hook provides it); then read that and skip the tool call.
-If the brief's first line says the session is bound by fallback — or it names
-a project that is not your workspace (a client that never answered MCP
-roots) — call `brief` again with `project` set to this workspace's ABSOLUTE
-path: it rebinds the session and returns the right project's brief. A write
-refused as "bound to the home graph by fallback" means the same (a resumed or
-restarted session starts unbound): bind, then retry; every write verdict names
-the `project` it landed in. How memory behaves (ontology, custom fields,
-brief, history recording, policy knobs, models) is configured over the core's
-HTTP API on the user's ask, never on your own: `GET /guide` on the core (port
-in `.engram/daemon.json`) is the manual — read it first.
-Before any non-trivial decision, `search` the graph; hits carry their 1-hop
-neighbors — read `conflicts-with` / `replaces` edges first, and pass
-`parents`/`children` to `get_node` when you need the reasoning chain. For
-history: `timeline` walks a node's replaces chain, `audit` pages the mutation
-journal. For whole-graph reviews or exports (a decisions.md), page
-`list_nodes` — complete nodes with full bodies; batch cleanups and multi-note
-captures go through `update_nodes` / `add_notes`. A hit marked `stale: true` has decayed trust: verify it before
-relying on it, and refresh it with `update_node` if it's still accurate.
+**Recall.** Read the brief at session start — an injected "# Engram brief" if
+the session opened with one, otherwise call `brief` once. Its first line names
+the graph: if it is not this workspace, call `brief` with `project` set to the
+workspace's ABSOLUTE path. That call rebinds the session — later writes go
+there; if a reply warns your writes moved and you only meant to read, go back
+with the call it names (for read-only looks, pass `project` to `search` /
+`list_open` / `get_node`). A write refused as "bound … by fallback" means:
+bind, then retry. Before any non-trivial decision, `search`: respect its
+`confidence` verdict and each hit's `standing`, read `conflicts-with` /
+`replaces` neighbors first, and reformulate (name the thing, use the note's
+words, scope in time) before concluding the graph is silent.
 
 **Capture.** Capture sparingly — only clearly durable, high-value knowledge: key Decisions with their reasons, stated Principles, hard-won Cautions, Problems with their Resolutions. A dozen good nodes beat fifty mirrored doc lines; when in doubt, don't write.
-Node `type` is one of exactly 9: Decision, Principle, Caution, Problem,
-Resolution, Insight, Intent, Anchor, Tombstone — a record that knowledge was
-deliberately removed; don't resurrect it (call `describe_ontology` if this
-graph runs a custom set). Write shapes: `add_note {"type": "Decision", "title":
-"...", "body": "..."}`; `link {"from": "<id>", "to": "<id>", "type":
-"because"}`; `add_notes {"notes": [...]}` items carry NO links — `link` the
-returned ids in a second pass.
-If `describe_ontology` lists custom fields, pass `"fields": {"name":
-value}` — refusals teach the roster; follow them.
-Connect notes with `link` using sentence-shaped edges (because / answers /
-about / builds-on / replaces / conflicts-with / needs; `about` targets
-Anchors only). Every write's response is a verdict, not a receipt: on
-`{matched, created: false}` merge into the match with `update_node` instead
-of duplicating; on `warnings` you are near contradicted or superseded canon —
-check it before piling on; on `suspects` the write queued unjudged look-alike
-pairs — judge each immediately with `resolve_suspect` (conflict | replaces |
-dismiss) and tell the user when one genuinely contradicts standing canon (the
-one exception to silent capture). When several notes share a subject,
-create/reuse an Anchor and attach them — anchors never accrue by themselves.
-Batch the writing at natural stopping points, never the noticing: every real
-decision gets captured unprompted — a feature request usually hides one
-(library picked, shape chosen, tradeoff accepted). Don't narrate writes.
-Never store secrets, credentials, or volatile implementation detail (line
-numbers, transient state).
+Types: exactly the graph's set (default 9: Decision, Principle, Caution,
+Problem, Resolution, Insight, Intent, Anchor, Tombstone — a record of a
+deliberate removal; don't resurrect it); `describe_ontology` if the brief
+teaches a custom one. Title = the claim; body = the why in 1–3 sentences.
+Shapes: `add_note {"type": "Decision", "title": "...", "body": "..."}`;
+`add_notes {"notes": [...]}` items carry NO links — `link {"from": "<id>",
+"to": "<id>", "type": "because"}` the returned ids in a second pass, with
+sentence-shaped verbs (because / answers / about → Anchors only / builds-on /
+replaces / conflicts-with / needs). Every write
+reply is a verdict: `matched` → `update_node` the match; `suspects` → judge
+each now with `resolve_suspect` (conflict | replaces | dismiss) and tell the
+user about a genuine contradiction; `warnings` → read the flagged canon
+(`tombstoned` = deliberately removed: don't re-add). Write silently at natural
+stopping points; never store secrets, credentials or line numbers.
 
-**Maintain.** Judge the brief's suspected conflicts with `resolve_suspect`:
-contradiction → conflict; fresher restatement → replaces; complementary (a
-Resolution implementing an Intent) → dismiss, then ensure the `answers` edge
-exists; a hint of `inherited` means the newer note contradicts something the
-other builds on — dismiss if it still stands on its own. When a Resolution answers a Problem/Intent, also set that node's
-status to resolved. `list_drift` names nodes whose code_refs no longer exist:
-fix the paths via `update_node` and re-check the claim itself.
+**Maintain.** Judge the brief's suspects first. A Resolution that answers a
+Problem/Intent → set that node resolved. Several notes saying one thing →
+`merge_nodes`. `list_drift` → fix moved paths and re-check the claim. Stale
+hits: verify; still true → `update_node`. `approve_node` only on the user's
+explicit word. Settings (ontology, fields, history, knobs, models) change only
+on the user's ask, over the core's HTTP API — read `GET /guide` first.
 
-**Trust.** `approve_node` is restricted: only on the user's explicit demand,
-or after verifying a node's content word-by-word. Routine "still relevant"
-signals are `update_node`, never approval.
-
-The user sees and curates the graph at http://127.0.0.1:8787 — one machine
-core serves every project; `engram-alpha serve` in the repo root ensures it
-is up, registers the repo, and exits on its own (the real port lives in
-`.engram/daemon.json`). If the engram tools disconnect mid-session, don't
-drop captures — the core serves the same operations over HTTP (`POST
-/nodes` etc. with `"source": "claude"`), or tell the user to reconnect.
+The pane is at http://127.0.0.1:8787 (real port in `.engram/daemon.json`);
+`engram-alpha serve` in the repo root starts the core and exits. If the tools
+disconnect, don't drop captures — `POST /nodes` on the core with
+`"source": "claude"`, or ask the user to reconnect.

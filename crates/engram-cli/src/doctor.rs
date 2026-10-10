@@ -61,6 +61,9 @@ pub fn run(db: &Path) -> anyhow::Result<()> {
     println!("wiring");
     check_wiring(&mut r, &repo, &db_abs);
 
+    println!("skills");
+    check_skills(&mut r, &repo);
+
     println!("version");
     check_version(&mut r);
 
@@ -80,6 +83,28 @@ pub fn run(db: &Path) -> anyhow::Result<()> {
 /// explicit diagnostic gesture, so the network round-trip is expected here
 /// (`serve` throttles the same query to once a day). An unreachable GitHub
 /// is a note, not a warning: offline is a supported condition.
+/// Installed skills / instruction blocks against this binary's text (0.9.12):
+/// a dry run of the refresh `serve` and `setup` apply.
+fn check_skills(r: &mut Report, repo: &Path) {
+    use crate::skillsync::State;
+    let found = crate::skillsync::refresh(repo, false);
+    if found.is_empty() {
+        return r.ok("no engram skills installed in this repo (or symlinked ones)");
+    }
+    for f in &found {
+        let rel = f.path.strip_prefix(repo).unwrap_or(&f.path).display();
+        match &f.state {
+            State::Current => r.ok(&format!("{rel}: current")),
+            State::Refreshed { from, .. } => r.warn(&format!(
+                "{rel}: from {from} — `engram-alpha serve` or `setup` updates it"
+            )),
+            State::Edited => r.ok(&format!(
+                "{rel}: edited by hand — updates leave it alone (delete it and run setup for the current text)"
+            )),
+        }
+    }
+}
+
 fn check_version(r: &mut Report) {
     match crate::update::newer_release() {
         Ok(Some(tag)) => r.warn(&format!(

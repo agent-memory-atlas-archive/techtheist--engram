@@ -5,198 +5,80 @@ description: Read and write the project's durable reasoning memory (decisions, p
 
 # Engram — project memory (Aggressive)
 
-Engram is a local, user-owned graph of *why things are the way they are* in this project: decisions and their reasons, gotchas that bit us, problems and how they were solved, stable preferences. Not code structure, not implementation detail — the codebase already holds those.
+Engram is a local, user-owned graph of *why this project is the way it is*: decisions and their reasons, gotchas, problems and their fixes, conventions. Not code structure — the code holds that. The user sees every node in the pane, so quality and honest edges matter more than volume: a noisy graph stops being trusted, and an untrusted graph stops being read.
 
-**What good capture buys.** A session that recalls well starts where the last one stopped: settled decisions don't get relitigated, known rakes don't get stepped on twice, and "why is it like this?" gets a real answer instead of archaeology. A session that captures well pays that forward. And because the graph is a pane the user curates — not hidden plumbing — every node you write is something they will *see*. That's also the failure mode to respect: a graph that's noisy or wrong stops being trusted, and an untrusted graph stops being read. Quality of nodes, honesty of edges, and closed loops matter more than volume.
+**Aggressive: Engram is the spine of the project's decision history.** Every real decision, realization and gotcha belongs in the graph; err on the side of writing — decay prunes episodic scratch nobody re-confirms. Don't mirror Claude Code's own memory (CLAUDE.md, auto-memory): project reasoning goes to Engram, user preferences and workflow stay there.
 
-**This is the Aggressive variant: Engram is the spine of the project's decision history.** Every real decision, realization, and gotcha belongs in the graph. Err on the side of writing — trust decay prunes episodic scratch that never gets re-confirmed, so an unneeded node costs little, while a missing one costs a repeated mistake.
+## Recall
 
-Claude Code already has memory of its own (CLAUDE.md, auto-memory) — **don't mirror it**. Engram is additional and holds the project's *reasoning graph* — the durable why that outlives any session or tool. In Aggressive mode, project decisions go to **Engram first**; leave user preferences and session workflow to Claude Code's memory, and code structure to the code.
-
-You interact with it through the `engram` MCP tools. Three jobs: **recall** (read before you act), **capture** (write durable knowledge after you act), and **maintenance** (keep what's already there honest).
-
-## Recall — brief first, then search
-
-- **At the start of a session**, call `brief` once: a compact digest of the canon — unresolved conflicts, suspects to judge, recent changes, the open worklist, principles, decisions, cautions. Every record carries its node id; act on ids directly. **If the session already opens with an injected "# Engram brief"** (the session-start hook provides it), that IS the brief — read it and don't call the tool again.
-- Before any **non-trivial decision**, call `search` with a natural-language description of what you're about to do. Hits carry their **1-hop neighbors, `conflicts-with`/`replaces` first** — read those especially. Every hit also carries a **`standing`** verdict — `canon` (the user endorsed it), `confirmed`, `unverified` (a lead, not a fact), `stale` (verify first), `contested` (an open judged conflict — tell the user), `superseded` (read the replacement it names), `tombstone` — so weigh a hit by its standing, not by its rank alone. A reply with a `tombstone_note` has a **Tombstone** among its hits: a record that knowledge was deliberately removed, not live canon — never read "Removed: X" as a memory of X. Search takes a `detail` level — start `compact` (id/title/score only) when scanning broadly, default snippet when working, `full` (bodies attached) only for the hits you'll actually act on: expand on demand instead of paying for depth up front. If a prior Decision or Caution covers your situation, follow it or, if you're about to contradict it, surface that to the user.
-- **Respect the reply's `confidence` verdict.** `strong` — the top hit cleared the calibrated line; act on it. `weak` — likely not in memory: nothing cleared this graph's calibrated line (auto-tune fits it per graph), so the hits are the nearest candidates rather than a found answer — they are never cut, but verify against the code or the user before relying on one. `none` — the graph is silent: say so instead of inventing a memory, and capture the fact once this session establishes it. Weak tail hits and the noise past the score cliff are already trimmed before delivery, so what arrives is what deserves your attention.
-- **On a `weak` or `none` verdict, reformulate before concluding absence.** One phrasing is one probe, and the graph's register is rarely the user's: try two or three angles before deciding the memory isn't there — **entity-first** (name the thing: "tepin store lock", not "why won't the daemon start"), **paraphrased into the graph's vocabulary** (the words a note would have used, not the words the question used), and **date-anchored** (`after: "last week"`, or `during_version` when you roughly know the cycle). Each is one cheap call. Only after that is "the graph is silent" an honest answer rather than a failed first guess.
-- **Scope in time when the question is temporal.** `search` takes `after` / `before` — a day (`2026-08-14`), an ISO instant, or a relative expression the daemon resolves (`today`, `yesterday`, `last week`, `last 3 days`, `2 hours ago`, `a month ago`, `this year`) — plus `during_version` (`"0.8.4"`, resolved from the graph's own recorded version switches) and `order` (`chronological` to read how something developed, `recent` for the current value of something that changed). **Don't compute dates yourself** — pass the expression and let the daemon resolve it against one clock. The window filters before the confidence verdict, so a scoped verdict describes the scoped set, and the same grammar works on `scope: "memory"` and `scope: "history"`. Hits carry `created_at`, so a result's place in time is always visible.
-- Use `get_node` / `traverse` to pull the reasoning around a hit (e.g. a Decision and the Principle it stands on).
-- For **history**: `timeline` walks a node's `replaces` chain oldest-first, each retired generation carrying the note that explains why it was replaced. `audit` pages the mutation journal — "what changed while I was away", "who wrote this".
-- For **whole-graph work**: `list_nodes` pages complete nodes (full bodies, filters by type/status/tag) — the lossless read for reviews and exports like a decisions.md; `update_nodes` / `add_notes` batch a curation sweep or a multi-note capture into one call (same per-item dupe checks and warnings).
-- `list_open` shows the live worklist (open Problems and Intents) — check it when picking up work.
-
-## Session history — the layer beneath memory
-
-Since 0.8.4 the daemon can record coding-assistant conversations (this one included) into a hidden per-project history layer — raw dialogue, encrypted at rest, never mixed with curated memory. Recording is opt-in (off by default); the user turns it on in the pane, and when it is off the history surfaces simply return nothing.
-
-- When a `search`'s confidence verdict says the answer is likely **not in memory**, the response may carry a separate `history` section labeled "from session history": snippets of past conversations with handles. Treat them as leads, not knowledge — call `expand_history(session, turn)` to read the surrounding exchange before relying on one.
-- If a fact from history matters going forward, **capture it as a proper note** — promotion into the curated graph is the only way history becomes knowledge.
-- Curated hits may carry a `born_in` line: the recorded exchange the note was captured in. Expand it when the user asks how a decision actually happened.
-- `list_sessions` browses the recordings (newest first, per-harness filter, and `after` / `before` in the same time grammar as `search`) when no search hit points the way — that last part answers "what was I working on last Tuesday" with no search hit at all. Any listed session is an `expand_history` away.
-- With `order: "recent"`, repeated statements of the same thing fold under their newest form, the older ones nested as `prior`. Read the head as what is true now and the `prior` list as how it got there — nothing is dropped, only nested.
-- `scope: "history"` on `search` reads only the recordings; `scope: "memory"` never falls through. The user controls all of this (per-harness toggles, exclusion, deletion) in the pane's settings.
-
-## Maintenance — keep the graph honest
-
-- **Judge suspects early.** When the brief lists Suspected conflicts, resolve them with `resolve_suspect` before diving into work. The scan only finds look-alikes; you are the judge:
-  - The two claims contradict → `conflict`.
-  - The newer restates the older with fresher truth → `replaces` (archives the older).
-  - The hint says `inherited` → the newer note contradicts or replaces something the other one builds on, needs, or holds because of. Follow that edge: if the other note is now wrong too → `conflict` (or update it); if it still stands on its own → `dismiss`.
-  - They're **complementary** — most often a Resolution or Decision next to the Intent/Problem it *implements* → `dismiss`, then make sure the real relationship exists (`answers` edge) and the implemented item is closed.
-- **Merge duplicates.** When several notes state the same knowledge (not just one `matched` pair), consolidate with `merge_nodes`: it unions tags and code_refs, rehomes the victims' live edges onto the survivor, and archives each victim behind a `replaces` edge. Compose the merged `body` yourself — the victims' text is not appended automatically.
-- **Bury, don't delete.** When something is killed on purpose with no successor (a feature, a dependency, a decision that turned out wrong), retire it yourself, traceably: `add_note` a Tombstone titled `Removed: <title>` whose body says what died and *why*, then `link` `{"from": "<tombstone-id>", "to": "<victim-id>", "type": "replaces"}` — the victim is archived behind the tombstone. A Tombstone is not a superseded note: superseded means *a successor exists, follow it*; tombstoned means *re-adding this is the error*. Hard delete stays user-only.
-- **Close the loop.** Whenever a Resolution `answers` a Problem or Intent, also set the answered node's `status` to `resolved` (`update_node`) — unless work genuinely remains. Open worklist items that are actually done pollute every future brief.
-- **Repair drift.** `list_drift` names nodes whose path-shaped `code_refs` no longer exist — the code moved and the memory didn't. For each: fix the paths via `update_node`, and *re-read the claim* — if the code change invalidated the knowledge itself, supersede or `conflicts-with` it instead of just fixing the path.
-- **Version tracking** (when the brief opens with "Current working version"): every new version-bound note is stamped automatically — you never pass `version` for live capture (only for digesting historical material). When the project moves on — a release is cut, a version bump lands — call `set_version` with the new one; `set_version(null)` unsets it between versions.
-- **Handoff notes.** Something the NEXT session must see before anything else — an unfinished cutover, a warning, a "start here"? Write an open Intent tagged `handoff` (volatile): the brief guarantees it top placement. When you ACT on a handoff note, mark it resolved (`update_node`) — that is what stops it from re-appearing; forgotten ones burn by decay.
-- **Stale hits** (`stale: true`): trust has decayed — verify before relying. Still true → `update_node` refreshes it; wrong → supersede or `conflicts-with`.
-
-## Cold start — the graph is empty
-
-When `brief` reports a cold start (empty graph), **offer the user a one-time
-seeding pass** — this is the one capture that must not be silent. With their
-go-ahead: read the project's existing canon (README, plan/design docs, recent
-git history) and batch-capture the durable knowledge as provisional nodes —
-key Decisions with their `because` reasons, stated Principles and conventions,
-known Cautions, open Intents — attached to Anchors where several notes share a
-subject. Seed thoroughly — decisions, conventions, gotchas, open threads; trust decay will prune episodic scratch that never gets re-confirmed. Point the user at the pane to review the seeded graph. If
-they decline, don't ask again; capture knowledge as it emerges.
-
-**But first**: if the project plainly *should* have memory (an `.engram/` directory exists, the pane has nodes, or history says so), an empty brief means something is wrong — usually the wrong working directory or DB path. Check you're in the repo root and what `.engram/daemon.json` says before seeding; never seed a duplicate graph next to a real one.
-
-## Subagents
-
-Subagents share your MCP connection: any subagent with tool access can `search`, `get_node`, `list_nodes`, even call `brief`. Two things they don't get: the session-start brief (hooks don't fire for them) and this skill's guidance — a subagent starts cold and writes under *your* session id in the audit journal. So:
-- **Recall flows down.** Do the recall yourself and pass the relevant node ids/excerpts into the subagent's prompt; for a research subagent, telling it to call `brief` first is fine.
-- **Capture flows up.** Prefer having subagents *return* findings for you to capture at the stopping point — several parallel agents each writing their own overlapping notes is how the suspect queue fills with noise. If a long-running subagent must write its own findings, put the verdict protocol in its prompt explicitly (merge on `matched`, judge `suspects` immediately, never store secrets).
-
-## Multi-project memory — `project`, the home graph, and `all`
-
-Since v0.6.0 one hub serves every registered project plus a user-level **home graph**; the brief ends with a roster of what's reachable, and `list_projects` has the details. Most tools take an optional `project`:
-
-- **Omit it** for this project (the default, almost always right).
-- **A name/id** reads or writes THAT project's graph. Etiquette: knowledge *about a sibling project* belongs in **its** graph (`add_note(project: "<name>")`) — this project's graph records only what *this* project decided about the sibling. Never fan one insight into several graphs; `all` writes are refused for exactly that reason.
-- **`home`** is the user-level graph for knowledge that transcends projects — global principles, the user's standing preferences. "Remember this globally / everywhere" means a home write. Home canon rides along in every project's brief.
-- **`all`** on `search` / `check_claim` reads across every graph: foreign hits carry `project` provenance and rank under a locality prior (local canon wins ties). When retelling a foreign hit, attribute it ("in tepindb's graph…").
-- **Wrong project?** If the brief or tool results name a project that is not your workspace (a client that never answered MCP roots), call `brief` with `project` set to the workspace ABSOLUTE path — it rebinds this session and returns that project's brief. Session-scoped; registered projects only; it never changes any global setting. A write refused as "bound to the home graph by fallback" means the same thing: a resumed or restarted session starts unbound — bind, then retry. Every write verdict names the `project` it landed in; read it.
-
-Edges never cross graphs — if nodes in different graphs relate, say so in body text, don't force a link. Promotion of recurring Principles/Cautions into home is the *user's* gesture (the pane's Checkup nominates); don't copy canon into home unprompted.
-
-## Changing how memory behaves (on the user's ask)
-
-Everything the pane's Settings can do, the core's HTTP API can do — and the MCP tools deliberately cannot. When the user asks to change a setting (turn history recording on or off, add a custom field, reshape or rename the ontology, apply a preset, tune a trust or retrieval knob, swap a model, set the default agent project, encryption), or when a graph is a cold start and you are reviewing the settings with them, first read the manual: `GET /guide` on the core (port in `.engram/daemon.json`, base `http://127.0.0.1:<port>`, scope every graph route as `/projects/<name>/…`). It carries the ground rules (read before write — `PUT /config` replaces the whole document; nothing in use can be dropped; tell the user what changed; reinstall the skill and turn on the brief's ontology section after reshaping) and a recipe per setting. Never change config on your own judgment.
-
-## Answering "why" — retell the reasoning chain
-
-When the user asks *"why did we decide X?"* or *"why is it like this?"*: `search` the topic, then follow `because` / `answers` edges (`get_node`, `traverse`) and — when the decision has history — `timeline` for the supersession chain. Retell it as a short narrative: the decision, its reason, what it replaced and why, and what problem drove it. Include dates when the history matters.
-
-## Compiling docs from the graph
-
-When the user asks for a decision log / `DECISIONS.md`: walk the current (non-superseded) Decisions with their `because` reasons (grouped by Anchor where it helps), render an ADR-style markdown file, and note supersessions inline. The graph stays personal; the compiled doc is the shareable artifact. Don't commit it unasked.
+- **Session start:** read the brief. If the session opened with an injected "# Engram brief", that IS it; otherwise call `brief` once. Its first line names the graph — if that is not this workspace, call `brief(project: "<workspace absolute path>")`.
+- **Before any non-trivial decision, `search`.** Read the `confidence` verdict (`strong` act / `weak` verify first / `none` say the graph is silent) and each hit's `standing` (`contested` and `tombstone` are said out loud; `superseded` → read the replacement). If a Decision or Caution covers what you're about to do, follow it or raise the contradiction with the user before acting.
+- **On `weak`/`none`, reformulate before concluding absence:** name the thing (entity-first), use the words a note would use, or scope in time (`after: "last week"`, `during_version`). Pass time expressions as written; the daemon resolves them.
+- Start `detail: "compact"` when scanning; `full` only for hits you'll act on. `get_node` / `traverse` pull the reasoning around a hit; `timeline` walks a supersession chain; `audit` shows who changed what; `list_open` is the worklist; `list_nodes` is the lossless read for reviews and exports.
+- **"Why is it like this?"** → search, follow `because`/`answers` edges and `timeline`, retell as a short dated narrative.
+- **Session history** (if the user turned recording on): a weak verdict may carry a `history` section — leads, not knowledge. `expand_history(session, turn)` before relying on one; capture what matters as a proper note. `list_sessions` answers "what was I doing last Tuesday".
 
 ## Capture — what is worth a node
 
 Capture **liberally**:
-- **Decision** — *every* choice made for a reason, including fine-grained ones ("we picked X over Y because Z"). The backbone of the graph.
-- **Principle** — any stable preference / convention / taste you observe or are told.
-- **Caution** — gotchas, constraints, specs-as-rules — including **proactive** ones you foresee will bite.
-- **Problem** + **Resolution** — anything non-trivial that went wrong and how it got solved.
+- **Decision** — every choice made for a reason, fine-grained ones too ("X over Y because Z"). The backbone.
+- **Principle** — any stable preference, convention or taste you observe or are told.
+- **Caution** — gotchas, constraints, specs-as-rules, including ones you foresee.
+- **Problem** + **Resolution** — anything non-trivial that went wrong and how it was solved.
 - **Insight** — every non-obvious realization worth carrying forward.
-- **Intent** — every TODO / deferred idea worth surviving the session.
-- **Tombstone** — whenever something is deliberately removed or killed without a successor (a feature, a decision, a dependency), record what died and why so no future session re-learns it. An existing Tombstone means: *don't resurrect this*.
+- **Intent** — every TODO or deferred idea worth surviving the session.
+- **Tombstone** — something deliberately removed with no successor, and why.
+- **Anchor** — a subject several notes share.
 
-**Decisions are not opt-in.** Every real decision gets captured — the user never has to say "remember this". And most decisions arrive disguised as feature requests: "add a login page" is a feature, but *sessions in httpOnly cookies rather than localStorage* is a Decision made while building it. At every stopping point ask: *what did I just choose, and why?* If alternatives existed and you picked one for a reason, that's a node.
+**Decisions are never opt-in, and they hide in feature requests:** "add a login page" is a feature; *sessions in httpOnly cookies, not localStorage* is the Decision made while building it. At every stopping point ask: *what did I just choose, and why?*
 
-**Never save:**
-- Secrets, credentials, tokens, PII — *ever*. (The backend also redacts, but you are the first line.)
-- Volatile implementation detail (line numbers, transient state) unless the user explicitly asks.
-- Mirrors of what code, git history, or CLAUDE.md already record.
+**Never save** secrets, credentials, tokens or PII; line numbers or transient state; or what code, git history or CLAUDE.md already record.
 
 ## How to write
 
-1. **Avoid duplicates — proportionally.** On a small graph, or right after you've already searched/recalled the area, write directly: `add_note` self-checks similarity and returns `{ matched, created: false }` instead of duping — then `update_node` the match. **Search first when the graph has grown large or the topic is plausibly already covered.**
-2. **Pick the type** from the list above. Don't invent types — there are exactly 9: `Decision`, `Principle`, `Caution`, `Problem`, `Resolution`, `Insight`, `Intent`, `Anchor`, `Tombstone`. *(0.7+: a graph can run a **customized ontology** — renamed types, different verbs. If the brief opens by teaching one, or a write is refused with "unknown node type", call `describe_ontology` and use *that* vocabulary: the graph defines its ontology, not this skill. Reshaping it is the user's decision — the pane's Settings, or the HTTP API on their explicit ask: see **Changing how memory behaves** below.)*
-3. **Custom fields (0.9.0).** If the brief or `describe_ontology` lists custom fields, pass them as `"fields": {"name": value}` on `add_note`/`update_node` (update MERGES: present keys overwrite, `null` deletes). A refusal for a missing/unknown field is a teaching error — it names the full roster and vocabulary; follow it exactly. Field *definitions* are the user's gesture (pane Settings), never yours.
-4. **Title**: a short, declarative label. **Body**: the reasoning in 1–3 sentences — the *why*, not a transcript.
-5. **Link it.** Edges must read as an English sentence: subject → verb → object. Use:
-   - `because` — Decision/Caution **because** Principle (the reason).
-   - `answers` — Resolution **answers** Problem (then close the Problem — see Maintenance).
-   - `about` — any node **about** an Anchor. **Anchors only** — never point `about` at another node type.
-   - `builds-on` — Insight **builds-on** Insight.
-   - `replaces` — Decision **replaces** Decision (supersession; the old one stays as history). Put the *why of the change* in the edge note — `timeline` shows it later.
-   - `conflicts-with` — when two nodes contradict. **High value — always create this** when you notice a contradiction.
-   - `needs` — Intent **needs** Decision (a dependency/blocker).
-   - If you can't complete the sentence with one of these verbs, don't link. An honestly unlinked node beats a forced edge.
-6. **Anchors at write time.** Anchors are free-text subjects ("auth flow", "the RAG layer"). The moment a batch contains two or three notes on one subject, create/reuse the Anchor and attach them with `about` — anchors never accrue by themselves, and unanchored clusters are what makes the pane unreadable later. Optionally pass `code_refs` (repo-relative paths or responsibilities, **never** line numbers; path-shaped refs get drift-checked, so keep them real).
-7. **The write response is a verdict, not a receipt — act on it in the same turn:**
-   - `{ matched, created: false }` — a same-type near-duplicate exists. Merge into it with `update_node`; never re-add.
-   - `warnings` — your note landed near a node that is `in-active-conflict`, `superseded`, or `tombstoned`. For the first two, read the flagged node: align with the canon, or record the disagreement deliberately (`conflicts-with` / `replaces`). `tombstoned` is different: a person deliberately removed this knowledge, and the warning's `note` says why — do **not** re-add or re-derive it; tell the user it was tombstoned and let them decide. (The write itself is never blocked.)
-   - `suspects` — the write queued unlinked look-alike pairs, returned so *you* judge them now with `resolve_suspect`: they contradict → `conflict`, **and say so in chat** ("heads-up: this contradicts a standing decision — *\<title\>*") — that alert is the one exception to silent capture; your note is the fresher claim → `replaces`; fine together → `dismiss`, then add the real edge if one fits (`answers`, `about`).
-   - `canon` — NLI verdicts from nearby existing knowledge: `supports` means the canon already backs your text (link it — `because` / `builds-on` — instead of leaving the reinforcement implicit); `contradicts` means canon disputes it (read the flagged node; if the disagreement is real, `conflicts-with` and tell the user).
-   An unhandled verdict is how graphs rot: unjudged suspects pile up in the next session's brief and become someone else's archaeology.
-8. **Repair mislinks.** A wrong edge (bad verb, wrong endpoints) is yours to fix: `unlink` deletes it; `update_edge` changes its status (`resolved`/`dismissed` for settled conflicts), note, or confidence.
+1. **Title** = the claim in one declarative sentence. **Body** = the why in 1–3 sentences. Use exactly the graph's types — default 9: `Decision`, `Principle`, `Caution`, `Problem`, `Resolution`, `Insight`, `Intent`, `Anchor`, `Tombstone`; if the brief teaches a custom ontology or a write is refused for an unknown type, `describe_ontology` and use that. Custom fields go in `"fields": {...}` when the graph declares them; refusals name the roster.
+2. **Batch** with `add_notes`, then **link** the returned ids. Calls are keyword JSON; notes never carry links:
+   `add_notes {"notes": [{"type": "Decision", "title": "…", "body": "…"}]}` → `link {"from": "<id>", "to": "<id>", "type": "because"}`.
+   Edges read as a sentence, from → verb → to:
+   `because` (Decision → its reason) · `answers` (Resolution → Problem/Intent) · `about` (any → **Anchor only**) · `builds-on` · `replaces` (newer → older; edge note = why it changed) · `conflicts-with` (always create it when you see a contradiction) · `needs` (Intent → blocker). No verb fits → don't link.
+3. Two or three notes on one subject → create or reuse an **Anchor** and `about`-link them. `code_refs` are repo-relative paths, never line numbers.
+4. **The write response is a verdict — act on it in the same turn:**
+   - `matched, created: false` → a near-duplicate exists: `update_node` it, never re-add.
+   - `suspects` → judge each now with `resolve_suspect`: contradict → `conflict` **and tell the user in one line**; yours is the fresher truth → `replaces`; fine together → `dismiss` (then add the real edge if one fits).
+   - `warnings` → you landed near contested or superseded canon: read it, align or record the disagreement. `tombstoned` → a person removed this on purpose: don't re-add it; tell the user.
+   - `canon` → `supports`: link the support; `contradicts`: read it, `conflicts-with` if real, tell the user.
+5. Wrong edge? `unlink`, or `update_edge` to settle it.
 
-## Example flows — imitate these
+## Keep the graph honest
 
-Write calls are keyword JSON — `type` and `title` are required on every note, `type` is also the verb field on `link`, and links are always separate `link` calls, never fields inside a note.
+- **Judge the brief's suspects first**, same rules as above. A Resolution next to the Intent it implements → `dismiss`, ensure the `answers` edge, close the Intent. Hint `inherited` → the contradiction flows through an edge; if the other note is now wrong too, conflict or fix it.
+- **Close the loop:** a Resolution that `answers` a Problem/Intent → set that node `resolved`.
+- **Merge** several notes with the same knowledge via `merge_nodes` (you write the merged body).
+- **Bury, don't delete:** when something is killed on purpose with no successor, add a Tombstone `Removed: <title>` with the why, then link it `replaces` → the victim. Hard delete is user-only.
+- **Drift:** `list_drift` → fix moved paths, and re-read the claim — if the code change made it false, supersede it.
+- **Stale hits:** verify; still true → `update_node` (that re-confirms it); wrong → supersede or conflict.
+- **Version:** notes are stamped automatically; when a release is cut or a cycle opens, `set_version`.
+- **Handoff:** something the next session must see first → an open Intent tagged `handoff`; resolve it when acted on.
 
-**Recall before work.** User: "let's switch the pane to WebSockets."
-→ `search("SSE websocket pane live updates")` → hit *"Source SSE from the Engine change-listener"* [Decision] with a `because` neighbor. Surface it: "There's a standing decision to use SSE (one-way, fits the shared daemon). Switching supersedes it — proceed?" Only after a yes: implement, then `add_note` the new Decision and `link` it `replaces` the old, edge note = why it changed.
+## Trust
 
-**Capture at a stopping point.** A genuinely tricky bug just got fixed — batch the notes, then link the ids the response returns:
+Trust is computed from deliberate acts, never from being read. `approve_node` only on the user's explicit word, or after verifying the note word-by-word. Pins are user-only — if a pinned note looks wrong, tell the user. `check_claim("<one sentence>")` asks the canon before you act on an assumption: `contradicts` → surface it; `retracted` → a Tombstone forbids it.
 
-```json
-add_notes {"notes": [
-  {"type": "Problem", "title": "Audit rows attributed node updates to the creator session", "body": "What was wrong and how it stayed hidden."},
-  {"type": "Resolution", "title": "audit_node stamps the acting session; the node's own session only marks its created row"}
-]}
-link {"from": "<resolution-id>", "to": "<problem-id>", "type": "answers"}
-update_node {"id": "<problem-id>", "status": "resolved"}
-```
+## Projects, settings, subagents
 
-— the loop is closed (notes carry no links; linking is always this second pass over the returned ids). Three nodes now concern the same subject? `add_note {"type": "Anchor", "title": "Audit journal"}` and `about`-link them.
+- **`project`** on most tools reaches another graph: knowledge about a sibling goes in **its** graph; `home` holds user-level canon ("remember this everywhere"); `all` reads across graphs (attribute foreign hits). Edges never cross graphs.
+- **`brief(project: …)` rebinds the session** — later writes go there. If its reply warns that writes moved and you only meant to read, go back at once with the call it names; for read-only looks, pass `project` to `search` / `list_open` / `get_node` instead. A write refused as "bound … by fallback" → bind with `brief(project: <workspace path>)`, then retry. Every write verdict names its project.
+- **Settings** (history recording, ontology, presets, fields, knobs, models) change only on the user's ask, over the core's HTTP API: read `GET /guide` first (port in `.engram/daemon.json`). Never on your own judgment.
+- **Subagents** share the MCP tools but not the brief or this skill: pass them the relevant node ids, and have them *return* findings for you to capture. A subagent that must write gets the verdict rules in its prompt.
 
-**Judging a suspect pair.** Brief: *"Audit journal shipped" [Resolution] vs "Append-only audit journal" [Intent] (87%)*. They don't contradict — the Resolution implements the Intent → `dismiss`, then verify the `answers` edge exists and the Intent's status is `resolved`. Same scan, different pair: two Decisions stating opposite rules → `conflict`. A fresher restatement of an old claim → `replaces`.
+## Cold start, failures, etiquette
 
-**"Why is trust computed this way?"**
-→ `search("trust decay")` → `timeline(hit.id)` → retell oldest-first: "Originally a daily decay sweep per durability class; replaced by read-time trust from three timestamps — the replaces note says a daemon can't be assumed to be running."
-
-## Durability — let it default
-
-Usually let durability default from the type (Principle/Decision/Caution/Anchor/Tombstone → `stable`; Problem/Resolution/Insight → `episodic`; Intent → `volatile`). Don't *override* durability to `volatile` on your own — types that default there (Intent) are the only volatile notes you create unasked.
-
-## Trust & staleness
-
-Trust is **computed from timestamps**, not stored — and it reads only *deliberate acts*, never exposure: search hits and the brief stamp `last_seen` for observability, but being findable proves nothing and refreshes nothing. A node starts at 50%; a deliberate `update_node` (including an empty confirm) stamps `confirmed_at` and restarts it at 60%; an **approved** node restarts at 100%. How it fades depends on durability: **stable** knowledge holds flat until a judged conflict demotes it, after which it fades (withdrawing the conflict — dismiss, resolve, unlink — withdraws the demotion; drift is surfaced for review but never demotes); **episodic** fades over half a year, **volatile** over a month; open Problems/Intents never fade while open. Below 30% a node is **stale** — search results and the brief mark it (`stale: true` / `STALE`).
-
-- **`approve_node` is restricted**: call it ONLY on explicit user demand ("approve this", "yes that's still right") or after verifying the node's content word-by-word against current reality. Routine still-relevant signals are `update_node`, never approval.
-- **`check_claim` asks the canon directly.** Before acting on an assumption ("we use X here, right?"), pass it as one declarative sentence: the local NLI model buckets nearby nodes into supports / contradicts / retracted / silent. Contradicts-hits are conflicts to surface; `retracted` means a Tombstone says this was deliberately removed — don't act on the claim, tell the user; all-silent on a topic that matters is a gap worth capturing. Hints from a small local model — the judgment stays yours.
-- **Pins are user-only.** Nodes marked `PINNED` in the brief carry user-locked constant trust: they never decay, never auto-archive, and evidence cannot silently demote them. You cannot pin or unpin; if a pinned node looks wrong, tell the user — contradicting a pin is always audible.
-- Practical effect: what someone deliberately vouched for stays alive; what merely keeps appearing in search results does not — a wrong-but-attractive note fades or dies of a judged conflict no matter how often it's retrieved, while a rare stable constraint survives its quiet year untouched. Repairing a demoted node with `update_node` clears the demotion: repair is re-validation.
-
-## When something goes wrong
-
-- **The engram tools vanish mid-session** (MCP server disconnected): never drop a capture silently. The daemon speaks the same language over HTTP — read `.engram/daemon.json` for the URL and `POST /nodes` with the same fields plus `"source": "claude"` and your session id. No daemon either? Summarize what you would have captured at the end of the turn and ask the user to reconnect (`/mcp`) — this is the one time memory work may be audible.
-- **An id errors as not found**: ids come only from the brief, `search`, or `get_node` output — never guess, shorten, or reconstruct one.
-- **`add_note` returns `{ matched, created: false }`**: that's the dupe guard, not an error — merge your content into the match with `update_node`.
-- **The brief is empty but shouldn't be**: wrong cwd or DB path — see the cold-start guard above before writing anything.
-
-## The machine core & where the user sees memory
-
-The graph UI is served by the machine core — one process per machine that owns every open store, the local models, and the pane, default `http://127.0.0.1:8787`; its project switcher has every registered repo. If the default port is taken, the core takes the next free one and records the real port in `.engram/daemon.json` — **read that file first** when you need the URL. Your stdio MCP connection is a thin bridge into that same core (it starts one if none is running); the pane exists for the human.
-
-- If the user asks **where to see the memory** ("where did you save that?", "show me the graph"): point them to their IDE's Engram panel, or the pane at `http://127.0.0.1:8787` (mind a custom `--http-port`).
-- If the core isn't running (health check on that URL fails), **start it yourself**: run `engram-alpha serve` in the repo root — it ensures the core is up, registers this repo, prints the pane URL, and exits on its own. No `&`, no backgrounding, no flags. Then share the URL.
-- If the `engram-alpha` binary is missing entirely, don't improvise an install — point the user at the project's GitHub releases / README instructions.
-
-## Timing & etiquette
-
-- **Batch at natural stopping points** — task or sub-task done, end of turn. Never interrupt mid-flow to write.
-- **Be silent** about writes — the graph pane is the transparency surface, not the chat. Two exceptions only: the cold-start seeding offer, and a genuine contradiction surfaced by a write's `warnings`/`suspects` — those you say out loud, immediately. (You *may* also mention a capture if the user explicitly asks what you saved.)
-- A manual `/engram` invocation means the user wants an explicit "save this" or "recall X" right now — honor it directly.
+- **Empty graph:** offer the user a one-time seeding pass (the one capture that is not silent). With a yes, read README, design docs and recent git history and batch-capture decisions with reasons, principles, cautions and open intents — seed thoroughly. If `.engram/` exists or the project plainly had memory, an empty brief means a wrong cwd or db — check `.engram/daemon.json` before seeding; never seed a duplicate graph.
+- **Tools vanished mid-session:** don't drop captures — `POST /nodes` to the core (URL in `.engram/daemon.json`, `"source": "claude"`), or list what you'd have saved and ask the user to `/mcp` reconnect.
+- **Core not running:** run `engram-alpha serve` in the repo root (it exits on its own), then share the pane URL (default `http://127.0.0.1:8787`). Binary missing → point to the README; don't improvise an install.
+- Ids come only from tool output — never guess or shorten one.
+- **Write silently, at natural stopping points.** Speak only for the seeding offer and genuine contradictions (or when asked what you saved). A manual `/engram` means act now.
 
 ## Maintaining this skill (engram repo only)
 
-This skill is a living document the engram project dogfoods. When working IN the engram repo itself and it steers you wrong — a rule that produced a low-value node, guidance that's ambiguous mid-task, a missing case — edit the repo's `skills/engram/` source and note what changed and why. Installed copies (`.claude/`, `.devin/`, `.windsurf/`, `.codex/` skills) are generated by `engram-alpha setup` — never edit those in place.
+When working in the engram repo and this skill steers you wrong, edit `skills/engram/` and say what changed and why. Installed copies are generated by `engram-alpha setup` — never edit those in place.

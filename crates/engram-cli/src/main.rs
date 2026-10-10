@@ -18,7 +18,9 @@ use tracing_subscriber::EnvFilter;
 mod doctor;
 mod lazy;
 mod setup;
+mod shipped_skills;
 mod skillgen;
+mod skillsync;
 mod update;
 
 #[derive(Parser)]
@@ -2251,6 +2253,14 @@ async fn serve(args: ServeArgs) -> anyhow::Result<()> {
                     Err(e) => tracing::warn!("couldn't register this repo: {e}"),
                 },
                 None => tracing::warn!("couldn't resolve this repo's root — not registered"),
+            }
+            // Installed skills and instruction blocks follow the binary
+            // (0.9.12): untouched copies update in place, edited ones stay.
+            if let Some(root) = repo_root_of(&db_abs) {
+                let found = skillsync::refresh(&root, true);
+                for line in skillsync::report(&root, &found) {
+                    println!("{line}");
+                }
             }
             // First-run nudge (PLAN §8): confirm what IS wired, then say once
             // when installed assistants aren't wired to this repo yet. The

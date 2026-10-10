@@ -114,7 +114,7 @@ fn devin_wires_local_config_skills_and_hook() {
 
     // The capture discipline travels AGENTS.md like the other harnesses.
     let agents = std::fs::read_to_string(sb.repo().join("AGENTS.md")).unwrap();
-    assert!(agents.contains("<!-- engram:begin -->"));
+    assert!(agents.contains("<!-- engram:begin v"));
 
     // A foreign hooks file is never rewritten — the snippet is printed.
     std::fs::write(

@@ -15,16 +15,13 @@ pub use engram_core::harness::{
     AGENTS, detect_agents, home_file, is_prerename_bin, is_wired, on_path, windsurf_xdg_config,
 };
 
-const MARK_BEGIN: &str = "<!-- engram:begin -->";
-const MARK_END: &str = "<!-- engram:end -->";
-
 // Claude Code skill variants (full SKILL.md files).
 const CLAUDE_RELAXED: &str = include_str!("../../../skills/engram/relaxed/SKILL.md");
 const CLAUDE_NORMAL: &str = include_str!("../../../skills/engram/normal/SKILL.md");
 const CLAUDE_AGGRESSIVE: &str = include_str!("../../../skills/engram/aggressive/SKILL.md");
 // The digest skill (PLAN §7B) has no variants: one explicit-invocation
 // ingestion doc, installed alongside whichever capture variant was chosen.
-const CLAUDE_DIGEST: &str = include_str!("../../../skills/engram/digest/SKILL.md");
+pub const CLAUDE_DIGEST: &str = include_str!("../../../skills/engram/digest/SKILL.md");
 // Harness-neutral variants for AGENTS.md / GEMINI.md / rules files.
 const AGENT_RELAXED: &str = include_str!("../../../skills/engram/agents/relaxed.md");
 const AGENT_NORMAL: &str = include_str!("../../../skills/engram/agents/normal.md");
@@ -127,6 +124,12 @@ impl Setup {
                 other => anyhow::bail!("unknown agent: {other}"),
             }
         }
+        // Copies this run didn't touch (other harnesses wired earlier) follow
+        // the binary too; edited ones are reported and kept.
+        let found = crate::skillsync::refresh(&self.repo, true);
+        for line in crate::skillsync::report(&self.repo, &found) {
+            say(&line);
+        }
         say("done — restart your assistant sessions so they pick up the MCP server");
         Ok(())
     }
@@ -178,17 +181,11 @@ impl Setup {
             return Ok(());
         }
         let path = self.repo.join(file);
-        let block = format!("{MARK_BEGIN}\n{}{MARK_END}\n", agent_block(&self.variant));
+        let block = crate::skillsync::stamped_block(&self.variant);
         let current = fs::read_to_string(&path).unwrap_or_default();
-        let next = match (current.find(MARK_BEGIN), current.find(MARK_END)) {
-            (Some(start), Some(end)) if end > start => {
-                let after = end + MARK_END.len();
-                let tail = current[after..]
-                    .strip_prefix('\n')
-                    .unwrap_or(&current[after..]);
-                format!("{}{}{}", &current[..start], block, tail)
-            }
-            _ => {
+        let next = match crate::skillsync::replace_block(&current, &block) {
+            Ok(Some(next)) => next,
+            Ok(None) => {
                 let mut s = current;
                 if !s.is_empty() && !s.ends_with('\n') {
                     s.push('\n');
@@ -197,6 +194,12 @@ impl Setup {
                     s.push('\n');
                 }
                 s + &block
+            }
+            Err(()) => {
+                say(&format!(
+                    "{file}: the engram section was edited — kept as it is (remove it to get the current one)"
+                ));
+                return Ok(());
             }
         };
         fs::write(&path, next)?;
@@ -376,8 +379,21 @@ impl Setup {
                 ));
                 continue;
             }
+            let path = dir.join("SKILL.md");
+            let kind = if name == "engram" { "engram" } else { "digest" };
+            if crate::skillsync::is_edited(&path, kind) {
+                say(&format!(
+                    "{label}: {base}/{name} was edited — kept as it is (delete it to get the current text)"
+                ));
+                continue;
+            }
             fs::create_dir_all(&dir)?;
-            fs::write(dir.join("SKILL.md"), body)?;
+            let variant = if kind == "digest" {
+                "digest"
+            } else {
+                self.variant.as_str()
+            };
+            fs::write(&path, crate::skillsync::stamp_skill(body, kind, variant))?;
         }
         say(&format!(
             "{label}: installed the '{}' + digest skills to {base}",

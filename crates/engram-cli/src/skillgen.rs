@@ -57,6 +57,13 @@ impl engram_http::SkillAdmin for SkillInstaller {
             }
         }
         let (content, generated) = generate(cfg, variant);
+        // The canonical text is stamped so updates can follow it; a skill
+        // generated from a custom ontology is regenerated from the pane.
+        let content = if generated {
+            content
+        } else {
+            crate::skillsync::stamp_skill(&content, "engram", variant)
+        };
         std::fs::create_dir_all(&dir)
             .map_err(|e| engram_core::Error::Config(format!("couldn't create {dir:?}: {e}")))?;
         let path = dir.join("SKILL.md");

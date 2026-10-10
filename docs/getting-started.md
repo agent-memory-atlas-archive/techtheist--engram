@@ -86,6 +86,16 @@ engram-alpha setup --cli kilo --skill aggressive
 | `devin` | `.devin/mcp_config.local.json` (project-local, highest-precedence tier, explicit `--db`; git-ignored — it carries personal absolute paths) | `AGENTS.md` + `.devin/skills/` + a `SessionStart` hook in `.devin/hooks.v1.json` that injects the brief |
 | `cursor` | `.cursor/mcp.json` (project-level, explicit `--db`; git-ignored when setup creates it — it carries personal absolute paths; an existing team file is never rewritten, the entry is printed for you to add) | `AGENTS.md` + `.cursor/skills/` (skipped when `.claude/skills/engram` exists — Cursor reads that too) + a `sessionStart` hook in `.cursor/hooks.json` that injects the brief (merged into an existing hooks file) |
 
+**Skills and instruction blocks update with the binary.** Every skill setup
+installs, and the engram section between the `<!-- engram:begin … -->`
+markers in `AGENTS.md` / `GEMINI.md`, carries a small stamp: the version that
+wrote it, its variant, and a fingerprint of the text. When you update
+`engram-alpha`, the next `serve` or `setup` in a repo rewrites the copies that
+are still exactly as installed, keeping your variant. A copy you edited no
+longer matches its fingerprint and is left alone (`doctor` lists it; delete it
+and run setup to take the new text). Your own text around the markers is never
+touched, and symlinked skills are never followed.
+
 Windsurf support is freshly added and still being field-tested — reports
 welcome. One Windsurf-specific note: its JetBrains plugin spawns the MCP
 server from `/` or your home directory and its client never answers the

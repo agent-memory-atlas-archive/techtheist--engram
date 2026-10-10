@@ -92,7 +92,7 @@ fn cursor_wires_mcp_config_skills_and_session_start_hook() {
             "{script} installed"
         );
     }
-    assert!(sb.read("AGENTS.md").contains("<!-- engram:begin -->"));
+    assert!(sb.read("AGENTS.md").contains("<!-- engram:begin v"));
 
     // Re-running is idempotent: one hook entry, not two.
     assert!(sb.run_setup("cursor", &[]).status.success());

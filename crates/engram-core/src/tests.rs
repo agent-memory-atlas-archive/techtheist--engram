@@ -6208,7 +6208,10 @@ fn applying_a_preset_keeps_tuned_policy_brief_versioning_and_fields() {
         .into_iter()
         .find(|p| p.id == "research")
         .unwrap();
-    assert_eq!(applied.ontology, research.config.ontology, "the ontology is the preset's");
+    assert_eq!(
+        applied.ontology, research.config.ontology,
+        "the ontology is the preset's"
+    );
     let stored = e.graph_config();
     assert_eq!(stored, applied, "the answer is what was stored");
     assert_eq!(stored.policy, cfg.policy, "the tuned policy survives");
@@ -6227,7 +6230,10 @@ fn applying_a_preset_keeps_tuned_policy_brief_versioning_and_fields() {
 fn applying_a_preset_refuses_unknown_ids_and_keeps_the_in_use_guard() {
     let e = engine();
     let err = e.apply_preset("nope").unwrap_err().to_string();
-    assert!(err.contains("unknown preset") && err.contains("research"), "{err}");
+    assert!(
+        err.contains("unknown preset") && err.contains("research"),
+        "{err}"
+    );
 
     // A Decision exists; `minimal` has no Decision type — the same refusal a
     // PUT would get, and the stored config is untouched.
@@ -6235,7 +6241,10 @@ fn applying_a_preset_refuses_unknown_ids_and_keeps_the_in_use_guard() {
         .unwrap();
     let before = e.graph_config();
     let err = e.apply_preset("minimal").unwrap_err().to_string();
-    assert!(err.contains("Decision") && err.contains("still has"), "{err}");
+    assert!(
+        err.contains("Decision") && err.contains("still has"),
+        "{err}"
+    );
     assert_eq!(e.graph_config(), before);
 }
 
