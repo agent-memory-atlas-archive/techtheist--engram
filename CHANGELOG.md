@@ -3,6 +3,57 @@
 Release notes for Engram Alpha. Each release's section below becomes the
 body of its GitHub Release (draft-release.yml lifts it automatically).
 
+## v0.9.12
+
+### Skills that are shorter and keep themselves current
+
+- **The capture skills are about a third of their former length** (from
+  ~4,900 to ~1,500 words per variant), and the instruction blocks written
+  into `AGENTS.md` / `GEMINI.md` are ~40% shorter. Every rule that changes
+  what the assistant does is kept; detail the MCP tools already describe is
+  no longer repeated, so each session starts with less to read.
+- **Installed skills and instruction blocks update with the binary.** Each
+  copy setup writes now carries a stamp: the version, the variant, and a
+  fingerprint of the text. After an update, `serve` and `setup` rewrite the
+  copies that are still exactly as installed, keeping their variant. A copy
+  you edited is left as it is. Copies from earlier releases are recognised
+  by matching a text Engram shipped byte for byte, so an edited older copy
+  is kept too. Your own text around the `engram:begin` / `engram:end`
+  markers is never touched, and symlinked skills are never followed.
+- **`doctor` has a skills section** listing each installed copy as current,
+  due for an update, or edited and kept.
+
+### Cursor
+
+- **`engram-alpha setup --cli cursor`** wires a repository for Cursor: the
+  project MCP config `.cursor/mcp.json`, the skills under `.cursor/skills`
+  (skipped when `.claude/skills/engram` exists, which Cursor also reads),
+  and a `sessionStart` hook in `.cursor/hooks.json` that puts the brief into
+  each new session. An existing `mcp.json` or hooks file is merged into or
+  left with a printed snippet, never overwritten. Cursor joins detection,
+  `doctor` and the wiring hint `serve` prints.
+
+### Safer project switching
+
+- **Reading another project's brief warns before your writes move.**
+  `brief(project: …)` rebinds the session, so a look at a sibling project
+  used to send the next write there silently. The reply now leads with which
+  graph receives writes from here on and the exact call that goes back.
+  Binding a fresh session to its own project stays a one-line confirmation.
+
+### Presets keep your settings
+
+- **Applying an ontology preset replaces the types and verbs only.** The
+  graph's policy (including the values auto-tune fitted to it), brief
+  settings, version tracking, session history settings and custom fields
+  are kept. A new `POST /config/presets/{id}` applies a preset; `PUT /config`
+  is unchanged.
+
+### Documentation
+
+- The README says plainly when Engram helps and when a notes file is enough,
+  and its introduction and feature list are written in simpler words.
+
 ## v0.9.11
 
 ### The pane matches your IDE
