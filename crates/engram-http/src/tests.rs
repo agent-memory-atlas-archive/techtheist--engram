@@ -276,6 +276,28 @@ async fn config_get_put_validation_and_400_leaves_store_untouched() {
 }
 
 #[tokio::test]
+async fn applying_a_preset_swaps_the_ontology_and_keeps_the_rest() {
+    let app = test_app();
+    let (_, mut cfg) = req(&app, "GET", "/config", None).await;
+    cfg["policy"]["conflict_suspect_similarity"] = json!(0.8897);
+    cfg["brief"]["recent"]["cap"] = json!(3);
+    let (status, _) = req(&app, "PUT", "/config", Some(cfg)).await;
+    assert_eq!(status, StatusCode::OK);
+
+    let (status, applied) = req(&app, "POST", "/config/presets/general", None).await;
+    assert_eq!(status, StatusCode::OK, "{applied}");
+    assert_eq!(applied["ontology"]["preset"], "general");
+    let (_, got) = req(&app, "GET", "/config", None).await;
+    assert_eq!(got["ontology"]["preset"], "general");
+    assert_eq!(got["policy"]["conflict_suspect_similarity"], 0.8897);
+    assert_eq!(got["brief"]["recent"]["cap"], 3);
+
+    let (status, err) = req(&app, "POST", "/config/presets/nope", None).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(err["error"].as_str().unwrap().contains("unknown preset"));
+}
+
+#[tokio::test]
 async fn export_then_import_into_fresh_app() {
     let app = test_app();
     let (_, a) = req(

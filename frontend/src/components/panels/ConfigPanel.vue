@@ -174,7 +174,7 @@ async function applyPreset(id: string): Promise<void> {
         !window.confirm(
             `Apply the "${preset.name}" ontology? Types already holding nodes cannot be dropped — ` +
                 'on a non-empty graph this only works when the type names line up (or after retyping). ' +
-                'Policy and brief settings reset to the preset too.',
+                'Policy, brief, version tracking and custom fields are kept.',
         )
     ) {
         return
@@ -182,7 +182,7 @@ async function applyPreset(id: string): Promise<void> {
     busy.value = true
     error.value = null
     try {
-        await config.save(clone(preset.config))
+        await config.applyPreset(preset.id)
         resetDraft()
         flash(`Preset "${preset.name}" applied.`)
     } catch (e) {

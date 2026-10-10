@@ -6189,6 +6189,56 @@ fn shipped_presets_are_valid_and_complete() {
     );
 }
 
+/// 0.9.12 (Caution 00e3547lopga): applying a preset swaps the ontology and
+/// nothing else — a tuned policy, the brief, version tracking and custom
+/// field definitions all survive.
+#[test]
+fn applying_a_preset_keeps_tuned_policy_brief_versioning_and_fields() {
+    let e = engine();
+    let mut cfg = e.graph_config();
+    cfg.policy.conflict_suspect_similarity = 0.8897;
+    cfg.policy.weak_evidence_top = 0.72;
+    cfg.brief.recent.cap = 3;
+    cfg.versioning.enabled = !cfg.versioning.enabled;
+    cfg.fields = vec![fdef("owner", crate::config::FieldKind::Text)];
+    e.set_graph_config(&cfg).unwrap();
+
+    let applied = e.apply_preset("research").unwrap();
+    let research = crate::config::presets()
+        .into_iter()
+        .find(|p| p.id == "research")
+        .unwrap();
+    assert_eq!(applied.ontology, research.config.ontology, "the ontology is the preset's");
+    let stored = e.graph_config();
+    assert_eq!(stored, applied, "the answer is what was stored");
+    assert_eq!(stored.policy, cfg.policy, "the tuned policy survives");
+    assert_eq!(stored.brief, cfg.brief);
+    assert_eq!(stored.versioning, cfg.versioning);
+    assert_eq!(stored.history, cfg.history);
+    assert_eq!(stored.fields, cfg.fields);
+
+    // Back to the default ontology: still only the ontology moves.
+    let back = e.apply_preset("engram").unwrap();
+    assert_eq!(back.ontology, GraphConfig::default().ontology);
+    assert_eq!(back.policy.weak_evidence_top, 0.72);
+}
+
+#[test]
+fn applying_a_preset_refuses_unknown_ids_and_keeps_the_in_use_guard() {
+    let e = engine();
+    let err = e.apply_preset("nope").unwrap_err().to_string();
+    assert!(err.contains("unknown preset") && err.contains("research"), "{err}");
+
+    // A Decision exists; `minimal` has no Decision type — the same refusal a
+    // PUT would get, and the stored config is untouched.
+    e.add_node(new_node(NodeType::Decision, "Use Rust", "for the backend"))
+        .unwrap();
+    let before = e.graph_config();
+    let err = e.apply_preset("minimal").unwrap_err().to_string();
+    assert!(err.contains("Decision") && err.contains("still has"), "{err}");
+    assert_eq!(e.graph_config(), before);
+}
+
 // ---------------------------------------------------------------------------
 // 0.9.0: the tombstone role — deletion finally leaves a trace.
 // ---------------------------------------------------------------------------

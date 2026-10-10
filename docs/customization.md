@@ -98,7 +98,9 @@ The redactor's preset shelf swaps the whole ontology at once. Four ship:
   Note, Idea, Task, Reference, Tombstone — designed to pair with custom
   fields.
 
-Applying a preset replaces types, verbs, policy, and brief settings together.
+Applying a preset replaces types and verbs. Everything else is kept: policy
+(including the values auto-tune fitted to this graph), brief settings, version
+tracking, history and custom fields.
 On a graph that already holds nodes it only lands cleanly when the type names
 line up (or after you've retyped), for the same no-stranding reason as above.
 

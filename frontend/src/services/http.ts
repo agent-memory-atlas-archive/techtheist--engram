@@ -225,6 +225,9 @@ export const api = {
     putConfig: (cfg: GraphConfig) =>
         request<GraphConfig>('/config', { method: 'PUT', body: JSON.stringify(cfg) }),
     configPresets: () => request<ConfigPreset[]>('/config/presets'),
+    /** Apply a preset: its ontology only — policy, brief, versioning, history and fields stay (0.9.12). */
+    applyPreset: (id: string) =>
+        request<GraphConfig>(`/config/presets/${encodeURIComponent(id)}`, { method: 'POST' }),
     /** The graph's current working version (version tracking). */
     getVersion: () => request<{ enabled: boolean; current: string | null }>('/version'),
     putVersion: (version: string | null) =>

@@ -344,6 +344,14 @@ export const api: EngramApi = {
         return ok(cfg)
     },
     configPresets: () => ok(presets as unknown as ConfigPreset[]),
+    applyPreset: (id: string) => {
+        const preset = (presets as unknown as ConfigPreset[]).find((p) => p.id === id)
+        if (!preset) return Promise.reject(new Error(`unknown preset "${id}"`))
+        const cfg = engine.state().config
+        cfg.ontology = structuredClone(preset.config.ontology)
+        engine.record('updated', 'graph', 'config', 'graph config', null, null)
+        return ok(cfg)
+    },
 
     getVersion: () => ok({ enabled: true, current: engine.state().version }),
     putVersion: (version) => {

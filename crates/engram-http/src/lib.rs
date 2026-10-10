@@ -684,6 +684,7 @@ fn api_router(state: Arc<AppState>) -> Router {
         .route("/import", post(import))
         .route("/config", get(get_config).put(put_config))
         .route("/config/presets", get(config_presets))
+        .route("/config/presets/{id}", post(apply_preset))
         .route("/guide", get(guide))
         .route("/version", get(get_version).put(put_version))
         .route("/config/rename-type", post(rename_type))
@@ -2112,8 +2113,22 @@ async fn guide() -> Response {
         .into_response()
 }
 
+/// Apply a shipped preset to THIS graph (0.9.12): its ontology replaces the
+/// graph's, and the graph's policy (auto-tuned values included), brief,
+/// versioning, history and field definitions are kept. Answers the
+/// resulting document, like `PUT /config`.
+async fn apply_preset(
+    State(state): State<Arc<AppState>>,
+    scope: Scope,
+    Path(id): Path<String>,
+) -> Result<Json<engram_core::GraphConfig>, AppError> {
+    let engine = state.engine_arc(&scope)?;
+    let cfg = pane(&engine).apply_preset(&id)?;
+    Ok(Json(cfg))
+}
+
 /// The curated ontology templates (PLAN §7D stage 4) — machine-level data,
-/// same shelf for every project; applying one is a plain PUT /config.
+/// same shelf for every project; `POST /config/presets/{id}` applies one.
 async fn config_presets() -> Json<Vec<engram_core::config::Preset>> {
     Json(engram_core::config::presets())
 }

@@ -71,9 +71,10 @@ Top-level keys: `ontology`, `policy`, `brief`, `versioning`, `history`,
   bulk-retype stored rows — a PUT with a changed name is refused as a drop.
   **Remove**: only when nothing uses it.
 - **Apply a preset**: `GET /config/presets` returns `[{id, name,
-  description, config}]`; PUT the chosen `config` (it replaces types, verbs,
-  policy and brief together; on a graph with nodes it lands only when the
-  type names line up, or after you retyped).
+  description, config}]`; `POST /config/presets/{id}` applies one — it
+  replaces types and verbs only, and keeps the graph's policy (auto-tuned
+  values included), brief, versioning, history and fields. On a graph with
+  nodes it lands only when the type names line up, or after you retyped.
 
 ### `fields[]` — custom fields on notes
 

@@ -2925,6 +2925,31 @@ impl Engine {
         Ok(())
     }
 
+    /// Apply a shipped ontology preset (0.9.12): the preset's ONTOLOGY
+    /// replaces this graph's; everything else — policy (auto-tuned lines
+    /// included), brief, versioning, history and custom field definitions —
+    /// is kept. Every shipped preset carries the default policy, so replacing
+    /// the whole document only ever erased per-graph calibration (Caution
+    /// 00e3547lopga). The same in-use guards as [`Engine::set_graph_config`]
+    /// apply, and the audit row is that method's `config_updated`.
+    pub fn apply_preset(&self, id: &str) -> Result<crate::config::GraphConfig> {
+        let preset = crate::config::presets()
+            .into_iter()
+            .find(|p| p.id == id)
+            .ok_or_else(|| {
+                let known: Vec<String> =
+                    crate::config::presets().into_iter().map(|p| p.id).collect();
+                crate::Error::Config(format!(
+                    "unknown preset {id:?} — known: {}",
+                    known.join(", ")
+                ))
+            })?;
+        let mut cfg = self.graph_config();
+        cfg.ontology = preset.config.ontology;
+        self.set_graph_config(&cfg)?;
+        Ok(cfg)
+    }
+
     /// Keep the search index in line with the graph's INDEXED custom fields
     /// (0.9.0), returning how many nodes were reprocessed. The store meta
     /// carries a fingerprint of the indexed-field set; when it drifts, every

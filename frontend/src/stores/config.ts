@@ -180,6 +180,12 @@ export const useConfigStore = defineStore('config', () => {
         injectCss()
     }
 
+    /** Apply a shelf preset — the core swaps the ontology and keeps the rest. */
+    async function applyPreset(id: string): Promise<void> {
+        cfg.value = withHistoryDefaults(await api.applyPreset(id))
+        injectCss()
+    }
+
     /** Rename + bulk-retype — the ontology migration gesture. */
     async function renameType(from: string, to: string): Promise<number> {
         const { renamed } = await api.renameType(from, to)
@@ -210,6 +216,7 @@ export const useConfigStore = defineStore('config', () => {
     return {
         cfg,
         presets,
+        applyPreset,
         types,
         verbs,
         typeNames,
