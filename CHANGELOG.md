@@ -3,6 +3,41 @@
 Release notes for Engram Alpha. Each release's section below becomes the
 body of its GitHub Release (draft-release.yml lifts it automatically).
 
+## v0.10.0
+
+### Tasks: a working list beside the graph
+
+- **Your assistant now keeps a working list, and the next session picks it
+  up.** Tasks are what the assistant is doing, what it parked and what it
+  still owes. They live next to the memory graph, not in it: tasks never
+  show up in search, never raise conflicts and never count as knowledge.
+- **The brief opens with the active tasks**, titles only (up to 15). A
+  feature with several pieces shows as one line with its progress and the
+  next step. Work carried over from an older version is marked, and so is
+  a task nobody touched for five sessions. Three recently finished tasks
+  ride along.
+- **Five statuses and one level of groups.** Active, delayed, backlog,
+  done and dropped. Done and dropped tasks are kept, never deleted. A group
+  closes itself when its last task closes, and reopens if one of them does.
+- **Tasks can close or wake on their own.** A rule is a version
+  ("0.10.0", or ">0.9.12" for once the project moves past it), a date
+  ("2026-10-20", "in 3 days") or a note ("node:<id>", when that note is
+  resolved). A task titled like a release step ("publish 0.9.12") closes
+  itself when the working version moves on. Each automatic change says why.
+- **Tasks point at memory.** A task can reference the notes it is about;
+  the note's drawer lists the open tasks that reference it. When a task
+  finishes and settled something, the assistant is asked to save that as a
+  note.
+- **A Tasks screen in the pane**, between Feed and History: columns by
+  status, drag to reorder or move, groups with their tasks inside, a drawer
+  for the plan, a progress note, rules and references. Only you can delete a
+  task. The brief's task section is set in Settings → Brief composition.
+- **For assistants:** three new MCP tools, `add_tasks`, `update_task` and
+  `list_tasks`. `set_version` reports the tasks its version change closed or
+  woke. The skills teach one task per piece of work, not per step.
+- Tasks travel with exports, imports and the SQLite-to-TepinDB migration,
+  and are sealed at rest when encryption is on.
+
 ## v0.9.12
 
 ### Skills that are shorter and keep themselves current

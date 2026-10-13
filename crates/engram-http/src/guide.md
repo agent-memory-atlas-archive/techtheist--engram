@@ -95,7 +95,11 @@ value moves. Assistants then pass `"fields": {"name": value}` on
 `open` {show, cap, excerpt}, `handoff` {show, cap, excerpt} (notes tagged
 `handoff` get guaranteed first placement), `cycle` {show, cap, excerpt} (with
 version tracking on: open work stamped with the working version, placed
-first), `home_reserve` (chars kept for the home-graph section), `ontology`
+first), `tasks` {show, cap, recent_done, idle_sessions} (the `## Tasks`
+working list: active top-level titles up to `cap`, the last `recent_done`
+done titles, and an idle mark after `idle_sessions` briefed sessions without
+a change; 0 turns either off), `home_reserve` (chars kept for the home-graph
+section), `ontology`
 {show} — **teach this graph's types, verbs and custom fields at the top of
 every brief**. Off in the shipped preset because the skill already teaches
 the default ontology; turn it on for any customized ontology or when custom
@@ -184,6 +188,16 @@ similarity thresholds were calibrated on the default embedding model.
 - `GET /projects` / `POST /projects {"path": "/abs/repo"}` /
   `DELETE /projects/{id}` — the registry; a repo also registers itself when
   `engram-alpha serve` runs inside it. Home and `/` are never project roots.
+
+## Tasks (the working list beside the graph)
+
+Tasks are not knowledge and not part of the config document. Assistants use
+the `add_tasks` / `update_task` / `list_tasks` MCP tools; the pane uses
+`GET /tasks` (`?status=open|closed|all|<status>,…`, `parent`, `ref`),
+`POST /tasks`, `PATCH /tasks/{id}` (`""` clears body, parent, wake, close),
+`DELETE /tasks/{id}` (user-only hard delete; a group takes its tasks along)
+and `POST /tasks/order {"ids": [...]}`. Never delete a task on your own —
+close it (`done`) or drop it (`dropped`).
 
 ## Teaching surfaces
 

@@ -125,12 +125,17 @@ and updating: [Getting started](./docs/getting-started.md).
 ## What you get
 
 - **A graph you can read and edit** — three layouts, tags and filters,
-  editing by hand, and a timeline view of the same memory. Only you can
+  editing by hand, a timeline view of the same memory, and a task board. Only you can
   hard-delete. → [The pane](./docs/pane.md)
 - **An assistant that starts briefed** — every session opens with a short
   digest: conflicts to settle, open work, standing decisions. During the
   session it searches before it decides, and each result arrives with the
   notes that contradict or replaced it. → [Recall & capture](./docs/recall-and-capture.md)
+- **A working list the next session picks up** — the assistant keeps its
+  tasks beside the graph (never mixed into memory): groups for features,
+  progress notes where it stopped, rules that close a task at a version or
+  wake it on a date. The brief opens with what it was doing; you steer the
+  list on the Tasks screen. → [The pane](./docs/pane.md#tasks-what-the-assistant-is-doing)
 - **Quiet writing, checked writing** — the assistant saves without chatter,
   and every save is checked: duplicates merge, and a save that lands near
   replaced, disputed, or deliberately removed knowledge gets a warning. You

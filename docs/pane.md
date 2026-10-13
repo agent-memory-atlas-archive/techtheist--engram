@@ -70,7 +70,7 @@ speaks that vocabulary.
 
 ## Sessions, as they were recorded
 
-The third screen of the topbar toggle is the **History** screen — the
+The last screen of the topbar toggle is the **History** screen — the
 optional [session-history layer](./storage.md), off until you turn it on. Its
 harvester reads your assistants' own transcripts into a sibling store (sealed
 at rest by default), and the screen reads them back: every recorded session
@@ -83,6 +83,42 @@ been kept.
 Transcripts never enter the graph. They stay a labeled fall-through under
 search, and the link runs both ways: a note carries the session it was born
 in, and a session lists the notes born in it.
+
+## Tasks: what the assistant is doing
+
+The **Tasks** screen of the topbar toggle (its label carries the active
+count) is the assistant's working list, kept **beside** the graph and never
+in it: tasks are never searched, never scanned for conflicts and never
+counted as knowledge. The brief opens with the active titles, so a new
+session knows what the last one was in the middle of.
+
+![The Tasks screen: Active, Delayed, Backlog and Closed columns, a group card with its tasks inside](../.screenshots/engram-alpha-tasks-board.png)
+
+- **Columns are statuses**: active, delayed, backlog, and a closed column
+  that keeps done and dropped work (closed tasks are archived, never
+  deleted). Drag a card to reorder it (the brief follows that order) or to
+  another column to change its status; the circle closes or reopens it.
+- **Groups** hold the pieces of one feature inside the card, with a
+  progress bar. Groups are one level deep, close themselves when their last
+  task closes, and reopen when one of their tasks does.
+- **Rules** close or wake a task on their own: at a version (`0.10.0`, or
+  `>0.9.12` for “once past it”), on a date (`2026-10-20`, `in 3 days`), or
+  when a note it waits on is resolved (`node:<id>`). A release-shaped title
+  such as *publish 0.9.12* gets its close rule automatically. Every
+  automatic change says why on the card.
+- **Refs** point a task at the notes it is about; the note's drawer lists
+  the open tasks that point at it. Notes never store a pointer back.
+
+![The task drawer: status, group, the plan with a progress line, rules, refs and provenance](../.screenshots/engram-alpha-task-drawer.png)
+
+Click a card for its drawer: the title, status, group, a markdown plan
+with a one-line **Note** that appends where things stand under today's
+date, the rules, refs found by searching memory, and provenance. Hard
+delete lives there and nowhere else — assistants can close and drop tasks,
+but only you can delete one. The brief's section is configured in
+Settings → Brief composition (`brief.tasks`: on/off, how many active titles,
+how many recently done, after how many sessions an untouched task is marked
+idle).
 
 ## Tags and filters
 
