@@ -14,7 +14,7 @@
  *   name     output basename under `.screenshots/`
  *   doc      where it is used — kept honest by hand, read by `--list`
  *   viewport [w, h] CSS pixels; images come out at 2x (deviceScaleFactor)
- *   view     'graph' | 'feed' | 'history'  (seeded before the app boots)
+ *   view     'graph' | 'feed' | 'tasks' | 'history'  (seeded before the app boots)
  *   layout   'skyline' | 'archipelago' | 'orbit'
  *   act      the click sequence that stages the shot
  *   clip     what to capture; omitted = the whole viewport
@@ -279,5 +279,22 @@ export const shots = [
             await page.locator('.lane-list .lane').nth(1).click()
         },
         settle: 1200,
+    },
+    {
+        name: 'engram-alpha-tasks-board',
+        doc: 'docs/pane.md § Tasks',
+        viewport: [1320, 820],
+        view: 'tasks',
+        settle: 800,
+    },
+    {
+        name: 'engram-alpha-task-drawer',
+        doc: 'docs/pane.md § Tasks',
+        viewport: [1320, 820],
+        view: 'tasks',
+        act: async (page) => {
+            await page.locator('.col-active .card-title', { hasText: 'Anchor highlights' }).click()
+        },
+        settle: 900,
     },
 ]

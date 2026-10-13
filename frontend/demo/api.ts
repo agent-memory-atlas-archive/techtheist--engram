@@ -487,11 +487,25 @@ export const api: EngramApi = {
             ? ok(undoPreview(engine.state().journal, (r) => !!sessionId && r.session_id === sessionId))
             : unavailable('Undo'),
 
+    // Tasks (0.10.0): real — served by the in-tab engine.
+    tasks: () => ok(engine.listTasks()),
+    createTask: (task) => ok(engine.createTask(task)),
+    patchTask: (id, patch) => ok(engine.patchTask(id, patch)),
+    deleteTask: (id) => {
+        engine.deleteTask(id)
+        return ok(undefined)
+    },
+    orderTasks: (ids) => {
+        engine.orderTasks(ids)
+        return ok(undefined)
+    },
+
     exportGraph: () => {
         const g: ExportGraph = {
             version: 1,
             nodes: engine.readNodes(),
             edges: [...engine.state().edges.values()],
+            tasks: engine.state().tasks,
         }
         return ok(g)
     },

@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { TRUSTED_TRUST } from '@/constants/ontology'
 import { useConfigStore } from '@/stores/config'
+import { useTasksStore } from '@/stores/tasks'
 import { api } from '@/services/api'
 import type {
     DriftEntry,
@@ -55,6 +56,7 @@ interface ChangeEvent {
         | 'edge_deleted'
         | 'suspects_changed'
         | 'config_changed'
+        | 'tasks_changed'
     data: GraphNode | GraphEdge | { id: string } | Record<string, never>
 }
 
@@ -267,6 +269,10 @@ export const useGraphStore = defineStore('graph', () => {
             }
             case 'suspects_changed':
                 void loadSuspects()
+                break
+            case 'tasks_changed':
+                // Tasks live beside the graph; their store reloads itself.
+                void useTasksStore().load()
                 break
             case 'config_changed':
                 // Ontology/policy/brief changed (possibly a bulk retype):

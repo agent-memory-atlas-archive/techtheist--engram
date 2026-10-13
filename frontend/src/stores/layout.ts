@@ -29,8 +29,9 @@ export const LAYOUTS: LayoutOption[] = [
 const STORAGE_KEY = 'engram.layout'
 const DEFAULT_LAYOUT: LayoutMode = 'skyline'
 
-/** The two screens: the spatial graph canvas, or the vertical card feed. */
-export type ViewMode = 'graph' | 'feed' | 'history'
+/** The screens: the spatial graph canvas, the vertical card feed, the task
+ *  board (0.10.0) and the recorded session history. */
+export type ViewMode = 'graph' | 'feed' | 'tasks' | 'history'
 const VIEW_KEY = 'engram.view'
 
 function initialLayout(): LayoutMode {
@@ -38,11 +39,13 @@ function initialLayout(): LayoutMode {
     return LAYOUTS.some((l) => l.id === saved) ? (saved as LayoutMode) : DEFAULT_LAYOUT
 }
 
-/** #feed / #graph deep-links win over the remembered choice. */
+/** #feed / #graph / #tasks deep-links win over the remembered choice. */
 function initialView(): ViewMode {
     if (window.location.hash === '#feed') return 'feed'
     if (window.location.hash === '#graph') return 'graph'
-    return localStorage.getItem(VIEW_KEY) === 'feed' ? 'feed' : 'graph'
+    if (window.location.hash === '#tasks') return 'tasks'
+    const saved = localStorage.getItem(VIEW_KEY)
+    return saved === 'feed' || saved === 'tasks' ? saved : 'graph'
 }
 
 export const useLayoutStore = defineStore('layout', () => {

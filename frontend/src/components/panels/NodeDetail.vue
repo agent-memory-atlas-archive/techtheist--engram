@@ -13,6 +13,7 @@ import { BADGE_TIPS, explainTrust } from '@/constants/trust'
 import { api } from '@/services/api'
 import { useGraphStore } from '@/stores/graph'
 import { useHistoryStore } from '@/stores/history'
+import { useTasksStore } from '@/stores/tasks'
 import { useLayoutStore } from '@/stores/layout'
 import { parseCodeRefs } from '@/utils/codeRefs'
 import type { BornIn, EdgeType, GraphEdge, Standing, TimelineEntry } from '@/types/graph'
@@ -24,6 +25,16 @@ const { selected, detailOpen, nodes, edgeList, driftByNode } = storeToRefs(store
 // --- born-in provenance (0.8.4): the history chip -------------------------
 
 const historyStore = useHistoryStore()
+const tasksStore = useTasksStore()
+if (!tasksStore.loaded) void tasksStore.load()
+
+/** Open tasks that point at this note (computed — notes store no backlinks). */
+const taskRefs = computed(() => (selected.value ? tasksStore.referencing(selected.value.id) : []))
+
+function openTask(id: string): void {
+    tasksStore.open(id)
+    layout.setView('tasks')
+}
 const layout = useLayoutStore()
 const bornIn = ref<BornIn | null>(null)
 
@@ -645,6 +656,23 @@ function close(): void {
                     <dt>Demoted</dt><dd>{{ fmtDate(selected.demoted_at) }}</dd>
                 </div>
                 <div v-if="archived"><dt>Archived</dt><dd>{{ fmtDate(selected.valid_until) }}</dd></div>
+                <!-- Computed backlinks (0.10.0): tasks point at notes, notes
+                     never store a pointer back. -->
+                <div v-if="taskRefs.length">
+                    <dt>Tasks</dt>
+                    <dd class="task-refs">
+                        <button
+                            v-for="t in taskRefs"
+                            :key="t.id"
+                            class="session-chip session-link"
+                            type="button"
+                            :title="`Open task: ${t.title}`"
+                            @click="openTask(t.id)"
+                        >
+                            {{ t.title }} ⤴
+                        </button>
+                    </dd>
+                </div>
             </dl>
         </section>
 
@@ -1238,6 +1266,18 @@ function close(): void {
 
 .session-link:hover {
     text-decoration: underline;
+}
+
+.task-refs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.task-refs .session-chip {
+    font-family: var(--font-sans);
+    text-overflow: ellipsis;
+    overflow: hidden;
 }
 
 .actions {

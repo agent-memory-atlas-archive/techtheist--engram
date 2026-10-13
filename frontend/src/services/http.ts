@@ -36,6 +36,11 @@ import type {
     ConfigPreset,
     SystemInfo,
     TagStat,
+    Task,
+    TaskPatch,
+    TaskView,
+    TaskWrite,
+    NewTask,
     TimelineEntry,
 } from '@/types/graph'
 
@@ -365,6 +370,18 @@ export const api = {
             `/audit/sessions/${encodeURIComponent(sessionId)}/undo${dryRun ? '?dry_run=true' : ''}`,
             { method: 'POST' },
         ),
+
+    /** The working list (0.10.0) — every status by default, views carry group progress. */
+    tasks: () => request<TaskView[]>('/tasks'),
+    createTask: (task: NewTask) =>
+        request<TaskWrite>('/tasks', { method: 'POST', body: JSON.stringify(task) }),
+    patchTask: (id: string, patch: TaskPatch) =>
+        request<Task>(`/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+    /** User-only hard delete; a group takes its tasks along. */
+    deleteTask: (id: string) => request<void>(`/tasks/${id}`, { method: 'DELETE' }),
+    /** Manual order: positions 0.. in the order given. */
+    orderTasks: (ids: string[]) =>
+        request<void>('/tasks/order', { method: 'POST', body: JSON.stringify({ ids }) }),
 
     exportGraph: () => request<ExportGraph>('/export'),
 

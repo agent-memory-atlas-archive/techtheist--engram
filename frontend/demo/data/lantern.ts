@@ -46,6 +46,27 @@ export interface SeedNode {
     fields?: Record<string, unknown>
 }
 
+/** A seeded task (0.10.0) — the assistant's working list beside the graph. */
+export interface SeedTask {
+    key: string
+    title: string
+    body?: string
+    status: 'active' | 'delayed' | 'backlog' | 'done' | 'dropped'
+    /** The group's key. */
+    parent?: string
+    /** Node keys this task is about. */
+    refs?: string[]
+    wake?: string
+    close?: string
+    version?: string
+    closedVersion?: string
+    /** Days before now it was created / last changed / closed. */
+    days: number
+    updated?: number
+    closed?: number
+    auto?: string
+}
+
 export interface SeedEdge {
     type: string
     from: string
@@ -894,4 +915,108 @@ export const HOME_NODES: SeedNode[] = [
 
 export const HOME_EDGES: SeedEdge[] = [
     { type: 'because', from: 'h-shell-caution', to: 'h-review-diff', source: 'user', days: 61 },
+]
+
+/**
+ * Lantern's working list: what the assistant is in the middle of. A group
+ * with its tasks, a carried-over task with a node rule, a release task that
+ * closed itself when the version moved on, parked work with wake rules, and
+ * one dropped idea — every shape the board draws.
+ */
+export const LANTERN_TASKS: SeedTask[] = [
+    {
+        key: 'anchors',
+        title: 'Anchor highlights by quoted text, not offsets',
+        body: 'Re-imports shift offsets; a quote plus a little context survives edits.\n\n- [x] format + migration\n- [ ] re-import fixture\n- [ ] overlap conflict card',
+        status: 'active',
+        refs: ['pr-anchor-drift', 'c-anchors-offsets'],
+        version: '0.5.0',
+        days: 9,
+        updated: 1,
+    },
+    {
+        key: 'anchors-format',
+        title: 'Quote-anchored highlight format and the one-time migration',
+        status: 'done',
+        parent: 'anchors',
+        version: '0.5.0',
+        days: 9,
+        closed: 4,
+        closedVersion: '0.5.0',
+    },
+    {
+        key: 'anchors-fixture',
+        title: 'Re-import fixture: 50 books with edited chapters',
+        body: '- the fixture lives in tests/fixtures/reimport\n- stopped after 31 of 50 books — the rest need chapter edits',
+        status: 'active',
+        parent: 'anchors',
+        version: '0.5.0',
+        days: 6,
+        updated: 1,
+    },
+    {
+        key: 'anchors-card',
+        title: 'Ship the overlapping-highlight conflict card',
+        status: 'active',
+        parent: 'anchors',
+        refs: ['n-conflict-card'],
+        version: '0.5.0',
+        days: 6,
+    },
+    {
+        key: 'mmap',
+        title: 'Memory-map the vector index for cold start',
+        body: 'First query reads the whole index today (~6 s on 4,000 books).',
+        status: 'active',
+        refs: ['n-mmap-index', 'pr-cold-start'],
+        close: 'node:n-mmap-index',
+        version: '0.4.2',
+        days: 24,
+        updated: 12,
+    },
+    {
+        key: 'publish-042',
+        title: 'Publish 0.4.2',
+        status: 'done',
+        version: '0.4.2',
+        closedVersion: '0.5.0',
+        days: 20,
+        closed: 14,
+        auto: 'done: the working version moved past 0.4.2',
+    },
+    {
+        key: 'webkit',
+        title: 'WebKitGTK pagination matrix in CI',
+        status: 'delayed',
+        refs: ['n-webkit-matrix'],
+        wake: '0.5.1',
+        version: '0.5.0',
+        days: 8,
+    },
+    {
+        key: 'recall',
+        title: 'Re-measure recall after the encoder swap',
+        status: 'delayed',
+        refs: ['n-remeasure-recall'],
+        wake: 'in 5 days',
+        version: '0.5.0',
+        days: 3,
+    },
+    {
+        key: 'reading-time',
+        title: 'Reading-time estimates per chapter',
+        status: 'backlog',
+        days: 30,
+    },
+    {
+        key: 'crdt',
+        title: 'Try a CRDT for annotation sync',
+        body: '- dropped: last-writer-wins per highlight is enough; see the decision.',
+        status: 'dropped',
+        refs: ['d-anno-crdt'],
+        version: '0.4.2',
+        closedVersion: '0.4.2',
+        days: 40,
+        closed: 33,
+    },
 ]

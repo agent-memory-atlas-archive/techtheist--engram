@@ -5,6 +5,7 @@ import { storeToRefs } from 'pinia'
 import FeedView from '@/components/FeedView.vue'
 import GraphCanvas from '@/components/GraphCanvas.vue'
 import HistoryView from '@/components/HistoryView.vue'
+import TasksView from '@/components/TasksView.vue'
 import EmptyGraph from '@/components/common/EmptyGraph.vue'
 import EngramMark from '@/components/common/EngramMark.vue'
 import SegmentedControl from '@/components/common/SegmentedControl.vue'
@@ -22,12 +23,14 @@ import ProjectSwitcher from '@/components/panels/ProjectSwitcher.vue'
 import ReviewPanel from '@/components/panels/ReviewPanel.vue'
 import SettingsMenu from '@/components/panels/SettingsMenu.vue'
 import SystemInfoPanel from '@/components/panels/SystemInfoPanel.vue'
+import TaskDrawer from '@/components/panels/TaskDrawer.vue'
 import { isDemo } from '@/services/api'
 import { hostChrome } from '@/services/hostChrome'
 import { useConfigStore } from '@/stores/config'
 import { useGraphStore } from '@/stores/graph'
 import { useLayoutStore, type ViewMode } from '@/stores/layout'
 import { useProjectsStore } from '@/stores/projects'
+import { useTasksStore } from '@/stores/tasks'
 import { useThemeStore } from '@/stores/theme'
 import { useGraphSync } from '@/composables/useGraphSync'
 
@@ -43,11 +46,15 @@ const layout = useLayoutStore()
 const projects = useProjectsStore()
 const { loading, error, connected, nodeList } = storeToRefs(store)
 
-const VIEW_OPTIONS = [
+const tasks = useTasksStore()
+// The Tasks segment carries the active count — the brief's list, at a glance
+// from any screen.
+const VIEW_OPTIONS = computed(() => [
     { value: 'graph', label: 'Graph' },
     { value: 'feed', label: 'Feed' },
+    { value: 'tasks', label: tasks.activeCount ? `Tasks ${tasks.activeCount}` : 'Tasks' },
     { value: 'history', label: 'History' },
-]
+])
 
 useGraphSync() // poll-reconcile cross-process writes, but only while the user is active
 
@@ -82,7 +89,7 @@ onMounted(async () => {
     await projects.restore().catch(() => undefined)
     // Config first-ish: colors/labels derive from it; both load in parallel
     // and the ontology CSS lands as soon as it arrives.
-    await Promise.all([config.load().catch(() => undefined), store.load()])
+    await Promise.all([config.load().catch(() => undefined), store.load(), tasks.load()])
     store.connect() // instant SSE for pane-originated writes
 })
 
@@ -96,6 +103,7 @@ onBeforeUnmount(() => store.disconnect())
          graph screen). -->
     <GraphCanvas v-show="layout.view === 'graph'" class="canvas-layer" />
     <FeedView v-if="layout.view === 'feed'" />
+    <TasksView v-if="layout.view === 'tasks'" />
     <HistoryView v-if="layout.view === 'history'" />
 
     <header class="topbar">
@@ -149,6 +157,7 @@ onBeforeUnmount(() => store.disconnect())
     <component :is="hostChrome" v-if="hostChrome" />
 
     <NodeDetail />
+    <TaskDrawer v-if="layout.view === 'tasks'" />
     <NodeCreatePanel v-model="creating" />
     <MemoryLensPanel />
     <AuditPanel />

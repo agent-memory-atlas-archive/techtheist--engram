@@ -1021,6 +1021,20 @@ const twinOrder = computed({
                 <label>open cap <StepperInput v-model="draft.brief.open.cap" :max="100" aria-label="open cap" /></label>
                 <label>open excerpt <StepperInput v-model="draft.brief.open.excerpt" :min="20" :max="2000" :step="10" aria-label="open excerpt" /></label>
             </div>
+            <template v-if="draft.brief.tasks">
+                <div class="checks">
+                    <ToggleChip
+                        v-model="draft.brief.tasks.show"
+                        label="tasks"
+                        title="The ## Tasks section: the active working list, titles only, right after the current cycle"
+                    />
+                </div>
+                <div v-if="draft.brief.tasks.show" class="grid">
+                    <label>tasks cap <StepperInput v-model="draft.brief.tasks.cap" :max="100" aria-label="tasks cap" /></label>
+                    <label>recently done <StepperInput v-model="draft.brief.tasks.recent_done" :max="20" aria-label="recently done tasks" /></label>
+                    <label title="Sessions that briefed without an open task changing before it is marked idle (0 = never)">idle after (sessions) <StepperInput v-model="draft.brief.tasks.idle_sessions" :max="100" aria-label="idle after sessions" /></label>
+                </div>
+            </template>
             <p class="hint">
                 Per-type canon sections (Principles, Decisions, …) are configured on each type
                 above. The worklist section shows every type carrying the worklist role.

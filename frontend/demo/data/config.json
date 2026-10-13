@@ -326,7 +326,13 @@
             "excerpt": 400
         },
         "bodies": true,
-        "canon_order": "endorsed"
+        "canon_order": "endorsed",
+        "tasks": {
+            "show": true,
+            "cap": 15,
+            "recent_done": 3,
+            "idle_sessions": 5
+        }
     },
     "versioning": {
         "enabled": true

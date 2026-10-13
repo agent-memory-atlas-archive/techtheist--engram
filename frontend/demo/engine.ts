@@ -30,11 +30,16 @@ import type {
     PolicyConfig,
     Source,
     SuspectView,
+    Task,
+    TaskPatch,
+    TaskView,
+    TaskWrite,
+    NewTask,
     TimelineEntry,
 } from '@/types/graph'
 import rawConfig from './data/config.json'
-import { HOME_EDGES, HOME_NODES, LANTERN_EDGES, LANTERN_NODES } from './data/lantern'
-import type { SeedEdge, SeedNode } from './data/lantern'
+import { HOME_EDGES, HOME_NODES, LANTERN_EDGES, LANTERN_NODES, LANTERN_TASKS } from './data/lantern'
+import type { SeedEdge, SeedNode, SeedTask } from './data/lantern'
 
 /** The launch project's key; '' is what the pane calls the unprefixed graph. */
 export const LAUNCH = ''
@@ -76,6 +81,8 @@ export interface ProjectState {
     seq: number
     version: string | null
     config: GraphConfig
+    /** The working list beside the graph (0.10.0). */
+    tasks: Task[]
 }
 
 // ---------------------------------------------------------------------------
@@ -308,16 +315,45 @@ function seedSuspects(now: number): SuspectView[] {
     ]
 }
 
+function seedTask(s: SeedTask, i: number, now: number): Task {
+    const at = (d: number | undefined): number | undefined => (d == null ? undefined : now - d * DAY)
+    const node = (key: string): string => synthId(key)
+    return {
+        id: synthId(`task:${s.key}`),
+        title: s.title,
+        body: s.body,
+        status: s.status,
+        parent: s.parent ? synthId(`task:${s.parent}`) : undefined,
+        refs: (s.refs ?? []).map(node),
+        // The daemon stores relative phrases resolved; so does the seed.
+        wake: /^in \d+ days$/.test(s.wake ?? '')
+            ? new Date((now + Number(s.wake!.split(' ')[1]) * DAY) * 1000).toISOString().replace(/\.\d+Z$/, 'Z')
+            : s.wake,
+        close: s.close?.startsWith('node:') ? `node:${node(s.close.slice(5))}` : s.close,
+        position: i,
+        version: s.version,
+        closed_version: s.closedVersion,
+        created_at: now - s.days * DAY,
+        updated_at: at(s.updated ?? s.closed) ?? now - s.days * DAY,
+        closed_at: at(s.closed),
+        session_id: 'demo-session',
+        origin: 'mcp',
+        auto: s.auto,
+    }
+}
+
 function buildProject(
     seedNodes: SeedNode[],
     seedEdges: SeedEdge[],
     version: string | null,
     withSuspects: boolean,
+    seedTasks: SeedTask[] = [],
 ): ProjectState {
     const now = nowSecs()
     const nodes = seedNodes.map((s) => seedNode(s, now))
     const edges = seedEdges.map((s) => seedEdge(s, now))
     return {
+        tasks: seedTasks.map((s, i) => seedTask(s, i, now)),
         nodes: new Map(nodes.map((n) => [n.id, n])),
         edges: new Map(edges.map((e) => [e.id, e])),
         suspects: withSuspects ? seedSuspects(now) : [],
@@ -330,7 +366,7 @@ function buildProject(
 
 function freshWorld(): Map<string, ProjectState> {
     const world = new Map<string, ProjectState>()
-    world.set(LAUNCH, buildProject(LANTERN_NODES, LANTERN_EDGES, '0.5.0', true))
+    world.set(LAUNCH, buildProject(LANTERN_NODES, LANTERN_EDGES, '0.5.0', true, LANTERN_TASKS))
     world.set(HOME, buildProject(HOME_NODES, HOME_EDGES, null, false))
     for (const p of world.values()) p.seq = p.journal.length
     return world
@@ -387,6 +423,7 @@ function persist(): void {
                 seq: p.seq,
                 version: p.version,
                 config: p.config,
+                tasks: p.tasks,
             }
         }
         sessionStorage.setItem(STORAGE_KEY, JSON.stringify(dump))
@@ -426,6 +463,10 @@ export function restore(): void {
                 seq: p.seq as number,
                 version: (p.version ?? null) as string | null,
                 config: backfillConfig(p.config as GraphConfig),
+                // Dumps from before tasks existed start with the seeds.
+                tasks:
+                    (p.tasks as Task[] | undefined) ??
+                    (id === LAUNCH ? LANTERN_TASKS.map((s, i) => seedTask(s, i, nowSecs())) : []),
             })
         }
         if (next.has(LAUNCH)) world = next
@@ -942,6 +983,201 @@ export function tagStats(project = active): { tag: string; count: number; last_u
         .sort((a, b) => b.last_used - a.last_used)
 }
 
+// ---------------------------------------------------------------------------
+// Tasks (0.10.0) — the working list beside the graph, a port of
+// engram-core::tasks minus the time/version rule engine (rules are kept and
+// shown as written; groups still follow their children).
+// ---------------------------------------------------------------------------
+
+const OPEN: Task['status'][] = ['active', 'delayed', 'backlog']
+const isOpenStatus = (s: Task['status']): boolean => OPEN.includes(s)
+
+function taskOrder(a: Task, b: Task): number {
+    const ao = isOpenStatus(a.status)
+    const bo = isOpenStatus(b.status)
+    if (ao && bo) return OPEN.indexOf(a.status) - OPEN.indexOf(b.status) || a.position - b.position || a.created_at - b.created_at
+    if (!ao && !bo) return (b.closed_at ?? 0) - (a.closed_at ?? 0)
+    return ao ? -1 : 1
+}
+
+export function listTasks(project = active): TaskView[] {
+    const p = state(project)
+    return [...p.tasks].sort(taskOrder).map((t) => {
+        const kids = p.tasks.filter((c) => c.parent === t.id)
+        const view: TaskView = { ...t }
+        if (kids.length) view.progress = [kids.filter((c) => !isOpenStatus(c.status)).length, kids.length]
+        if (isOpenStatus(t.status) && t.version && p.version && t.version !== p.version) view.carried_from = t.version
+        return view
+    })
+}
+
+function closeAs(t: Task, status: Task['status'], p: ProjectState, now: number): void {
+    if (isOpenStatus(status)) {
+        t.closed_at = undefined
+        t.closed_version = undefined
+    } else if (isOpenStatus(t.status)) {
+        t.closed_at = now
+        t.closed_version = p.version ?? undefined
+    }
+    t.status = status
+}
+
+/** Groups follow their children: all closed closes it, an open child reopens it. */
+function settleGroups(p: ProjectState, now: number): void {
+    for (const g of p.tasks) {
+        const kids = p.tasks.filter((c) => c.parent === g.id)
+        if (!kids.length) continue
+        const anyOpen = kids.some((c) => isOpenStatus(c.status))
+        if (isOpenStatus(g.status) && !anyOpen) {
+            const status = kids.some((c) => c.status === 'done') ? 'done' : 'dropped'
+            closeAs(g, status, p, now)
+            g.auto = `${status}: every task in the group closed`
+            g.updated_at = now
+        } else if (!isOpenStatus(g.status) && anyOpen) {
+            closeAs(g, 'active', p, now)
+            g.auto = 'reopened: a task in the group is open again'
+            g.updated_at = now
+        }
+    }
+}
+
+function tasksChanged(): void {
+    persist()
+    emit('tasks_changed', {})
+}
+
+export function createTask(input: NewTask, project = active): TaskWrite {
+    const p = state(project)
+    const title = input.title.trim().replace(/\s+/g, ' ')
+    if (!title) throw new Error('POST /tasks → 400 a task needs a title')
+    const status = input.status ?? 'active'
+    const dupe = p.tasks.find((t) => isOpenStatus(t.status) && t.title.toLowerCase() === title.toLowerCase())
+    if (dupe && isOpenStatus(status)) return { created: false, matched: { id: dupe.id, title: dupe.title, status: dupe.status } }
+    if (input.parent) {
+        const parent = p.tasks.find((t) => t.id === input.parent)
+        if (!parent) throw new Error(`POST /tasks → 404 parent task ${input.parent}`)
+        if (parent.parent) throw new Error('POST /tasks → 400 groups are one level deep')
+    }
+    let close = input.close?.trim() || undefined
+    let autoClose: string | undefined
+    const release = /\b(publish|release|tag|ship|cut)\w*\b.*?\bv?(\d+\.\d+(?:\.\d+)?)\b/i.exec(title)
+    if (!close && release) {
+        close = `>${release[2]}`
+        autoClose = close
+    }
+    const now = nowSecs()
+    const siblings = p.tasks.filter((t) => (t.parent ?? null) === (input.parent ?? null))
+    const task: Task = {
+        id: synthId(`task:${title}:${now}:${p.tasks.length}`),
+        title,
+        body: input.body?.trim() || undefined,
+        status,
+        parent: input.parent || undefined,
+        refs: input.refs ?? [],
+        wake: input.wake?.trim() || undefined,
+        close,
+        position: siblings.reduce((m, t) => Math.max(m, t.position + 1), 0),
+        version: p.version ?? undefined,
+        created_at: now,
+        updated_at: now,
+        origin: 'pane',
+    }
+    if (!isOpenStatus(status)) {
+        task.status = 'active'
+        closeAs(task, status, p, now)
+    }
+    p.tasks.push(task)
+    settleGroups(p, now)
+    tasksChanged()
+    return { id: task.id, created: true, auto_close: autoClose }
+}
+
+export function patchTask(id: string, patch: TaskPatch, project = active): Task {
+    const p = state(project)
+    const t = p.tasks.find((x) => x.id === id)
+    if (!t) throw new Error(`PATCH /tasks/${id} → 404 not found`)
+    const now = nowSecs()
+    const clear = (v: string | undefined): string | undefined => (v?.trim() ? v.trim() : undefined)
+    if (patch.title != null && patch.title.trim()) t.title = patch.title.trim()
+    if (patch.body != null) t.body = clear(patch.body)
+    if (patch.progress?.trim()) {
+        const stamp = new Date(now * 1000).toISOString().slice(0, 10)
+        t.body = `${t.body ? `${t.body}\n` : ''}- ${stamp}: ${patch.progress.trim()}`
+    }
+    if (patch.parent != null) {
+        const parent = clear(patch.parent)
+        if (parent && p.tasks.some((c) => c.parent === id)) {
+            throw new Error(`PATCH /tasks/${id} → 400 a group can't go inside another group`)
+        }
+        t.parent = parent
+    }
+    if (patch.refs) t.refs = patch.refs
+    if (patch.wake != null) t.wake = clear(patch.wake)
+    if (patch.close != null) t.close = clear(patch.close)
+    if (patch.position != null) t.position = patch.position
+    if (patch.status && patch.status !== t.status) {
+        closeAs(t, patch.status, p, now)
+        if (!isOpenStatus(patch.status)) {
+            for (const c of p.tasks.filter((c) => c.parent === id && isOpenStatus(c.status))) {
+                closeAs(c, patch.status, p, now)
+                c.auto = `${patch.status}: closed with its group`
+                c.updated_at = now
+            }
+        }
+    }
+    t.updated_at = now
+    settleGroups(p, now)
+    tasksChanged()
+    return t
+}
+
+export function deleteTask(id: string, project = active): void {
+    const p = state(project)
+    if (!p.tasks.some((t) => t.id === id)) throw new Error(`DELETE /tasks/${id} → 404 not found`)
+    p.tasks = p.tasks.filter((t) => t.id !== id && t.parent !== id)
+    tasksChanged()
+}
+
+export function orderTasks(ids: string[], project = active): void {
+    const p = state(project)
+    ids.forEach((id, i) => {
+        const t = p.tasks.find((x) => x.id === id)
+        if (t) t.position = i
+    })
+    tasksChanged()
+}
+
+/** The brief's `## Tasks` section, the daemon's shape. */
+function briefTasks(p: ProjectState): string[] {
+    const views = listTasks()
+    const top = views.filter((t) => !t.parent)
+    const active = top.filter((t) => t.status === 'active')
+    if (!views.length) return []
+    const out = [
+        '',
+        '## Tasks',
+        'Your working list — titles only. `list_tasks` reads bodies; `update_task` moves one along (`progress` appends where you stopped; status done closes it).',
+    ]
+    for (const t of active.slice(0, p.config.brief.tasks?.cap ?? 15)) {
+        let line = `- ${t.title}`
+        if (t.progress) {
+            line += ` (${t.progress[0]}/${t.progress[1]})`
+            const next = views.find((c) => c.parent === t.id && c.status === 'active')
+            if (next) line += ` → next: ${next.title} [Task ${next.id}]`
+        }
+        line += ` [Task ${t.id}`
+        if (t.close) line += ` · closes ${t.close}`
+        if (t.carried_from) line += ` · ↻ from ${t.carried_from}`
+        out.push(`${line}]`)
+    }
+    const delayed = top.filter((t) => t.status === 'delayed').length
+    const backlog = top.filter((t) => t.status === 'backlog').length
+    if (delayed + backlog) out.push(`Parked: ${delayed} delayed, ${backlog} backlog — \`list_tasks\` with status reads them.`)
+    const done = views.filter((t) => t.status === 'done').slice(0, 3)
+    if (done.length) out.push(`Recently done: ${done.map((t) => (t.auto ? `${t.title} (${t.auto})` : t.title)).join('; ')}`)
+    return out
+}
+
 /**
  * The session brief, generated from whatever the graph currently holds — so
  * a visitor who adds a note and reopens the Memory lens sees their own note
@@ -958,6 +1194,7 @@ export function brief(project = active): string {
             `Current working version: ${p.version} — new notes are stamped with it; call \`set_version\` when the project moves on.`,
         )
     }
+    out.push(...briefTasks(p))
     const tags = tagStats(project).slice(0, 7).map((t) => t.tag)
     if (tags.length) {
         out.push(`Recent tags (reuse before inventing new ones): ${tags.join(', ')}`)

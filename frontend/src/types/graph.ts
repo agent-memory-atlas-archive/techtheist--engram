@@ -99,6 +99,8 @@ export interface ExportGraph {
     version: number
     nodes: GraphNode[]
     edges: GraphEdge[]
+    /** The working list beside the graph (0.10.0); absent when empty. */
+    tasks?: Task[]
 }
 
 export interface ImportSummary {
@@ -685,6 +687,19 @@ export interface BriefConfig {
     bodies?: boolean
     /** Canon section order: 'endorsed' (default) or 'connected' (0.9.9). */
     canon_order?: 'endorsed' | 'connected'
+    /** The `## Tasks` section (0.10.0). */
+    tasks?: BriefTasksCfg
+}
+
+/** The brief's task section (0.10.0). */
+export interface BriefTasksCfg {
+    show: boolean
+    /** Most active top-level tasks listed (a group counts once). */
+    cap: number
+    /** Recently done titles riding along (0 = none). */
+    recent_done: number
+    /** Briefed sessions without a change before an open task reads idle (0 = never). */
+    idle_sessions: number
 }
 
 /** Per-harness ingestion switches for the history layer (0.8.4). */
@@ -786,4 +801,77 @@ export interface StaleTriage {
     verdict: string
     evidence?: SuspectEndpoint | null
     score: number
+}
+
+// ---------------------------------------------------------------------------
+// Tasks (0.10.0): the working list beside the graph — never searched, never
+// knowledge. One level of groups; rules settle on read and on set_version.
+// ---------------------------------------------------------------------------
+
+export type TaskStatus = 'active' | 'delayed' | 'backlog' | 'done' | 'dropped'
+
+export interface Task {
+    id: string
+    title: string
+    body?: string
+    status: TaskStatus
+    /** The group this task belongs to (one level only). */
+    parent?: string
+    /** Memory node ids this task is about — one-way. */
+    refs?: string[]
+    /** Canonical wake rule: a version, `>version`, an ISO instant, or `node:<id>`. */
+    wake?: string
+    /** Canonical close rule, same forms. */
+    close?: string
+    position: number
+    version?: string
+    closed_version?: string
+    created_at: number
+    updated_at: number
+    closed_at?: number
+    session_id?: string
+    touched_session?: string
+    origin?: string
+    /** The last automatic change and why. */
+    auto?: string
+}
+
+/** A task as listings return it. */
+export interface TaskView extends Task {
+    /** Groups: [closed children, all children]. */
+    progress?: [number, number]
+    /** Open task created under an older working version. */
+    carried_from?: string
+    idle_sessions?: number
+}
+
+export interface NewTask {
+    title: string
+    body?: string
+    status?: TaskStatus
+    parent?: string
+    refs?: string[]
+    wake?: string
+    close?: string
+}
+
+/** A pane patch: absent = unchanged; '' on body/parent/wake/close clears. */
+export interface TaskPatch {
+    title?: string
+    body?: string
+    status?: TaskStatus
+    parent?: string
+    refs?: string[]
+    wake?: string
+    close?: string
+    position?: number
+    progress?: string
+}
+
+export interface TaskWrite {
+    id?: string
+    created: boolean
+    matched?: { id: string; title: string; status: TaskStatus }
+    auto_close?: string
+    error?: string
 }
