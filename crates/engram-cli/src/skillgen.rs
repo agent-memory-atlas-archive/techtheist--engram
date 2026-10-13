@@ -238,7 +238,11 @@ Nodes carry computed `trust` (0..1) under this graph's tuned policy: a fresh ass
 - Close the loop: when work settles an open {worklist_names}, link the settling node with the answer verb and set the item resolved.
 - Repair drifted `code_refs` (`list_drift`) when files move.
 - If the brief opens with "Current working version", new notes are stamped with it automatically; call `set_version` when the project moves to a new version.
-- A note the NEXT session must see first: an open worklist note tagged `handoff` — the brief tops with it; resolve it once acted on.
+- A note the NEXT session must see first: an open worklist note tagged `handoff` — the brief tops with it; resolve it once acted on. Work in progress belongs in tasks.
+
+## Tasks — your working list
+
+Tasks live beside the graph — never searched, never knowledge; the brief's `## Tasks` lists the active titles so the next session knows what you were doing. One task per piece of work that spans sessions, not per step (steps go in the body): `add_tasks {{"tasks": [{{"title": "Feature X"}}, {{"title": "Its store part", "parent": "$1"}}]}}` makes a group (one level deep). `update_task` with `progress` when you stop mid-way; `status` done / delayed / dropped as things move; a `matched` verdict means the task exists — update it. `close` / `wake` rules take a version, a date or `"node:<id>"`. When a task settles something, capture it as a note and add the id to the task's `refs`.
 
 ## Multi-project memory
 

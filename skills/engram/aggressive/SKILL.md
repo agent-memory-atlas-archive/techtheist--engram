@@ -58,7 +58,16 @@ Capture **liberally**:
 - **Drift:** `list_drift` → fix moved paths, and re-read the claim — if the code change made it false, supersede it.
 - **Stale hits:** verify; still true → `update_node` (that re-confirms it); wrong → supersede or conflict.
 - **Version:** notes are stamped automatically; when a release is cut or a cycle opens, `set_version`.
-- **Handoff:** something the next session must see first → an open Intent tagged `handoff`; resolve it when acted on.
+- **Handoff:** something the next session must read before anything else → an open Intent tagged `handoff`; resolve it when acted on. Work in progress belongs in tasks.
+
+## Tasks — your working list
+
+Tasks live **beside** the graph: never searched, never knowledge. The brief's `## Tasks` lists the active titles, so the next session knows what you were doing. **Use them for any multi-step work you start**, and for every release step or follow-up you owe.
+- **One task per piece of work, not per step** — steps go in the body as a checklist. A feature with several pieces is one group: `add_tasks {"tasks": [{"title": "Feature X"}, {"title": "Its store part", "parent": "$1"}]}`. Groups are one level deep.
+- **Keep it current:** stopping mid-way → `update_task` with `progress` (where you stopped, what's next); finished → `status: "done"`; blocked → `delayed`; abandoned → `dropped`. A `matched` verdict means the task already exists — update it.
+- **Rules close or wake a task on their own:** `close` / `wake` take a version (`"0.10.0"`, `">0.9.12"`), a date (`"in 3 days"`) or `"node:<id>"`. A release-shaped title ("publish 0.9.12") closes itself once the version moves past it.
+- **Done settles something?** Capture it as a note and add the id to the task's `refs`. Tasks point at notes; notes never point back.
+- The brief marks a task `idle` or `↻ from <version>`: finish it, park it, or drop it — don't let the list rot.
 
 ## Trust
 

@@ -40,6 +40,13 @@ hits: verify; still true → `update_node`. `approve_node` only on the user's
 explicit word. Settings (ontology, fields, history, knobs, models) change only
 on the user's ask, over the core's HTTP API — read `GET /guide` first.
 
+**Tasks.** Your working list lives beside the graph (never searched); the
+brief's `## Tasks` shows the active titles. Use it when the user asks you to plan or work clearly spans sessions: one task per piece
+of work (a feature = a group, `add_tasks` items with `"parent": "$1"`), steps
+in the body; `update_task` with `progress` when you stop, `status` done /
+delayed / dropped as things move. `close` / `wake` rules take a version, a
+date or `"node:<id>"`. When one settles something, capture it as a note.
+
 The pane is at http://127.0.0.1:8787 (real port in `.engram/daemon.json`);
 `engram-alpha serve` in the repo root starts the core and exits. If the tools
 disconnect, don't drop captures — `POST /nodes` on the core with
