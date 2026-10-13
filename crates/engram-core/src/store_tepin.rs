@@ -30,6 +30,7 @@ const EDGES: &str = "edges";
 const SUSPECTS: &str = "suspects";
 const AUDIT: &str = "audit";
 const META: &str = "meta";
+const TASKS: &str = "tasks";
 
 /// The single synthetic keyword field (0.9.0): the node's searchable token
 /// stream — identity tokens on a plaintext store, keyed HMAC digests on a
@@ -425,6 +426,32 @@ impl TepinStore {
         Ok(serde_json::from_value(doc)?)
     }
 
+    /// Task → stored document: title and body seal like a node's when the
+    /// state seals writes.
+    fn doc_for_task(&self, t: &crate::tasks::Task) -> Result<Value> {
+        let mut doc = serde_json::to_value(t)?;
+        if self.enc_state().writes_sealed() && self.seal_key().is_some() {
+            doc["title"] = json!(self.seal_write(&t.title));
+            if let Some(b) = &t.body {
+                doc["body"] = json!(self.seal_write(b));
+            }
+        }
+        doc["_id"] = json!(t.id);
+        Ok(doc)
+    }
+
+    fn task_from_doc(&self, mut doc: Value) -> Result<crate::tasks::Task> {
+        for member in ["title", "body"] {
+            if let Some(s) = doc[member].as_str()
+                && is_sealed(s)
+            {
+                let open = self.unseal_read(s);
+                doc[member] = json!(open);
+            }
+        }
+        Ok(serde_json::from_value(doc)?)
+    }
+
     fn edges_matching(&self, field: &str, id: &str) -> Result<Vec<Edge>> {
         self.find_docs(EDGES, &json!({ field: id }))?
             .into_iter()
@@ -485,6 +512,10 @@ fn configure(db: &Db) -> Result<()> {
         (
             META,
             "Store-level facts: embed_version, embed_model, audit_seq",
+        ),
+        (
+            TASKS,
+            "The assistant's working list beside the graph (0.10.0): one doc per task — never searched or embedded",
         ),
     ];
     for (name, purpose) in purposes {
@@ -596,7 +627,8 @@ impl Store for TepinStore {
         let nodes = self.all_nodes()?;
         let edges = self.all_edges()?;
         let audits = self.find_docs(AUDIT, &json!({}))?;
-        let total = nodes.len() + edges.len() + audits.len();
+        let tasks = self.all_tasks()?;
+        let total = nodes.len() + edges.len() + audits.len() + tasks.len();
         let mut done = 0usize;
         for n in &nodes {
             self.write_node(n, true)?;
@@ -615,6 +647,11 @@ impl Store for TepinStore {
             };
             let recoded = self.audit_doc_recode(doc)?;
             self.db().update(AUDIT, &id, recoded)?;
+            done += 1;
+            progress(done, total);
+        }
+        for t in &tasks {
+            self.upsert_task(t)?;
             done += 1;
             progress(done, total);
         }
@@ -1296,6 +1333,37 @@ impl Store for TepinStore {
         }
         entries.sort_by_key(|e| e.seq);
         Ok(entries)
+    }
+
+    // ---- tasks (0.10.0) --------------------------------------------------
+
+    fn all_tasks(&self) -> Result<Vec<crate::tasks::Task>> {
+        self.find_docs(TASKS, &json!({}))?
+            .into_iter()
+            .map(|d| self.task_from_doc(d))
+            .collect()
+    }
+
+    fn get_task(&self, id: &str) -> Result<Option<crate::tasks::Task>> {
+        self.get_doc(TASKS, id)?
+            .map(|d| self.task_from_doc(d))
+            .transpose()
+    }
+
+    fn upsert_task(&self, t: &crate::tasks::Task) -> Result<()> {
+        self.db().upsert(TASKS, self.doc_for_task(t)?)?;
+        Ok(())
+    }
+
+    fn delete_task(&self, id: &str) -> Result<bool> {
+        if self.get_doc(TASKS, id)?.is_none() {
+            return Ok(false);
+        }
+        self.db().batch(vec![BatchOp::Delete {
+            collection: TASKS.into(),
+            id: id.into(),
+        }])?;
+        Ok(true)
     }
 
     // ---- tags ------------------------------------------------------------

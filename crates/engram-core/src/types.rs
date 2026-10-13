@@ -343,6 +343,9 @@ pub struct ExportGraph {
     /// Additive and optional: old binaries ignore it on import.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub config: Option<crate::config::GraphConfig>,
+    /// The working list beside the graph (0.10.0) — additive like `config`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tasks: Vec<crate::tasks::Task>,
 }
 
 pub const EXPORT_VERSION: u32 = 1;

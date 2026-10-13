@@ -23,6 +23,7 @@ pub mod settings;
 mod store;
 mod store_sqlite;
 mod store_tepin;
+pub mod tasks;
 pub mod timespec;
 mod types;
 
@@ -49,6 +50,7 @@ pub use store::{
 };
 pub use store_sqlite::SqliteStore;
 pub use store_tepin::{TepinStore, is_tepin_path};
+pub use tasks::{NewTask, Task, TaskFilter, TaskPatch, TaskRef, TaskStatus, TaskView, TaskWrite};
 pub use timespec::{SearchOrder, TimeWindow};
 pub use types::*;
 

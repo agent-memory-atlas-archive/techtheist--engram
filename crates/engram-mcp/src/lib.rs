@@ -73,6 +73,13 @@ Reuse the brief's recent tags before inventing new ones. \
 `check_claim` checks a statement against canon (hints, never judgments); \
 `timeline` walks a replaces chain; `audit` pages the mutation journal; \
 `list_drift` finds broken code_refs. \
+Tasks (`add_tasks` / `update_task` / `list_tasks`) are your working list \
+BESIDE the graph — never searched, never knowledge: the brief's `## Tasks` \
+section says what you were doing. One task per piece of work that spans \
+sessions (a feature = a group with `parent: \"$1\"` children), never per \
+edit; mark them done as you go; `progress` notes where you stopped. When one \
+closes having settled something, capture it as a note and add the id to the \
+task's refs. \
 `project` on most tools: omit = this project; name/id/directory = that graph \
 (cross-project capture into a sibling's own graph is encouraged); \"home\" = \
 the user-level graph; search/check_claim take \"all\" (reads only — writes \
@@ -1308,12 +1315,21 @@ impl Engram {
         Parameters(a): Parameters<SetVersionArgs>,
     ) -> Result<CallToolResult, ErrorData> {
         let engine = self.write_engine_for(&a.project)?;
-        let (previous, history, enabled_by_this_call) = {
+        let (previous, history, enabled_by_this_call, settled) = {
             let engine = self.mcp(&engine);
             let was_on = engine.config().versioning.enabled;
+            let started = engram_core::now();
             let previous = engine
                 .set_current_version(a.version.as_deref())
                 .map_err(map_err)?;
+            // Version rules on tasks fired with the switch — say which.
+            let settled: Vec<String> = engine
+                .tasks()
+                .map_err(map_err)?
+                .into_iter()
+                .filter(|t| t.updated_at >= started)
+                .filter_map(|t| t.auto.map(|why| format!("{} — {why}", t.title)))
+                .collect();
             let history: Vec<String> = engine
                 .audit_log(None, Some("version"), 10)
                 .map_err(map_err)?
@@ -1321,7 +1337,7 @@ impl Engram {
                 .into_iter()
                 .filter_map(|r| r.title)
                 .collect();
-            (previous, history, a.version.is_some() && !was_on)
+            (previous, history, a.version.is_some() && !was_on, settled)
         };
         let mut reply = json!({
             "ok": true,
@@ -1329,6 +1345,9 @@ impl Engram {
             "current": a.version,
             "history": history,
         });
+        if !settled.is_empty() {
+            reply["tasks"] = json!(settled);
+        }
         if enabled_by_this_call {
             reply["versioning"] = json!(
                 "was off — enabled by this call; new version-bound notes are stamped from now on"
@@ -1698,6 +1717,150 @@ impl Engram {
             .worklist(&types, a.include_conflicts.unwrap_or(true))
             .map_err(map_err)?;
         self.reply(&nodes)
+    }
+
+    #[tool(description = "Add tasks to the working list beside the graph \
+        (never searched, never knowledge — the brief lists active titles). \
+        One task per piece of work that spans sessions, NOT per step (steps \
+        go in the body as a checklist). `tasks`: [{title, body?, status? \
+        (active | delayed | backlog; default active), parent? (a task id, or \
+        \"$N\" = the N-th item of this call — one level of groups), refs? \
+        (memory node ids it is about), wake? / close? (a version \"0.10.0\" \
+        or \">0.9.12\", a date \"2026-10-20\" / \"in 3 days\", or \
+        \"node:<id>\" = when that note closes)}]. Verdicts: {id, created} | \
+        {matched, created: false} = an open task already covers it, \
+        update_task that one | {error}. A release-shaped title (\"publish \
+        0.9.12\") gets an automatic close rule (`auto_close`).")]
+    async fn add_tasks(
+        &self,
+        Parameters(a): Parameters<AddTasksArgs>,
+    ) -> Result<CallToolResult, ErrorData> {
+        if a.tasks.is_empty() || a.tasks.len() > BATCH_CAP {
+            return Err(ErrorData::invalid_params(
+                format!("1..={BATCH_CAP} tasks per call"),
+                None,
+            ));
+        }
+        let engine = self.write_engine_for(&a.project)?;
+        let items = a
+            .tasks
+            .into_iter()
+            .map(|t| engram_core::NewTask {
+                title: t.title,
+                body: t.body,
+                status: t.status,
+                parent: t.parent,
+                refs: t.refs,
+                wake: t.wake,
+                close: t.close,
+            })
+            .collect();
+        let results = self.mcp(&engine).add_tasks(items).map_err(task_err)?;
+        let results: Vec<serde_json::Value> = results
+            .into_iter()
+            .map(|w| {
+                let mut out = json!(w);
+                if let Some(rule) = &w.auto_close {
+                    out["note"] = json!(format!(
+                        "release-shaped title: this task closes itself once the working version is {rule} — pass close: \"\" on update_task to keep it open"
+                    ));
+                }
+                if w.matched.is_some() {
+                    out["note"] = json!(
+                        "an open task already covers this — update_task the matched one (progress, body, refs) instead of adding another"
+                    );
+                }
+                out
+            })
+            .collect();
+        self.reply_write(json!({ "results": results }), &a.project)
+    }
+
+    #[tool(description = "Change one task: title, body, status (active | \
+        delayed | backlog | done | dropped), parent (\"\" = ungroup), refs \
+        (replaces the list), wake / close rules (\"\" clears), position, and \
+        `progress` — one line appended to the body under today's date (where \
+        you stopped, what's next). Closing a group closes its open tasks; \
+        a group closes itself when its last task closes.")]
+    async fn update_task(
+        &self,
+        Parameters(a): Parameters<UpdateTaskArgs>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let engine = self.write_engine_for(&a.project)?;
+        let status = a
+            .status
+            .as_deref()
+            .map(engram_core::TaskStatus::parse)
+            .transpose()
+            .map_err(task_err)?;
+        let clearable = |v: Option<String>| v.map(|s| Some(s).filter(|s| !s.trim().is_empty()));
+        let patch = engram_core::TaskPatch {
+            title: a.title,
+            body: clearable(a.body),
+            status,
+            parent: clearable(a.parent),
+            refs: a.refs,
+            wake: clearable(a.wake),
+            close: clearable(a.close),
+            position: a.position,
+            progress: a.progress,
+        };
+        let (task, was_open) = {
+            let engine = self.mcp(&engine);
+            let was_open = engine
+                .get_task(&a.id)
+                .map_err(task_err)?
+                .is_some_and(|t| t.status.is_open());
+            (
+                engine.update_task(&a.id, patch).map_err(task_err)?,
+                was_open,
+            )
+        };
+        let mut out = json!({ "ok": true, "task": task });
+        if was_open && task.status == engram_core::TaskStatus::Done {
+            out["note"] = json!(
+                "Done. If this work settled something — a decision, a fix, a lesson — capture it now (add_note) and add the new id to this task's refs."
+            );
+        }
+        self.reply_write(out, &a.project)
+    }
+
+    #[tool(description = "The working list: tasks with bodies, group \
+        progress [closed, total], `carried_from` (opened under an older \
+        version) and `idle_sessions`. Default = open tasks (active, delayed, \
+        backlog); `status` takes one or more comma-separated statuses, \
+        \"closed\" or \"all\". `parent` = one group's tasks; `ref` = tasks \
+        about one node.")]
+    async fn list_tasks(
+        &self,
+        Parameters(a): Parameters<ListTasksArgs>,
+    ) -> Result<CallToolResult, ErrorData> {
+        use engram_core::TaskStatus as S;
+        let mut statuses = Vec::new();
+        for word in a.status.as_deref().unwrap_or("").split(',') {
+            match word.trim() {
+                "" | "open" => {}
+                "closed" => statuses.extend([S::Done, S::Dropped]),
+                "all" => statuses.extend([S::Active, S::Delayed, S::Backlog, S::Done, S::Dropped]),
+                w => statuses.push(S::parse(w).map_err(task_err)?),
+            }
+        }
+        if a.status
+            .as_deref()
+            .is_some_and(|s| s.split(',').any(|w| w.trim() == "open"))
+        {
+            statuses.extend([S::Active, S::Delayed, S::Backlog]);
+        }
+        let engine = self.engine_for(&a.project)?;
+        let tasks = self
+            .mcp(&engine)
+            .list_tasks(&engram_core::TaskFilter {
+                statuses,
+                parent: a.parent,
+                ref_id: a.ref_id,
+            })
+            .map_err(task_err)?;
+        self.reply(&json!({ "total": tasks.len(), "tasks": tasks }))
     }
 
     #[tool(
@@ -3427,6 +3590,101 @@ struct ResolveSuspectArgs {
 }
 
 #[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct AddTasksArgs {
+    /// Tasks to create, in order — a later item's `parent: "$1"` names the
+    /// first item of this call.
+    tasks: Vec<AddTaskItem>,
+    /// Omit = current project; a name, id, or the project's directory =
+    /// that project; "home".
+    #[serde(default)]
+    project: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[schemars(inline)]
+struct AddTaskItem {
+    /// One line: the piece of work (the brief prints it whole).
+    title: String,
+    /// Markdown — the plan, a checklist of steps, open questions.
+    #[serde(default)]
+    body: Option<String>,
+    /// active (default) | delayed | backlog.
+    #[serde(default)]
+    status: Option<String>,
+    /// A task id, or "$N" (1-based) = an earlier item of this call. Groups
+    /// are one level deep.
+    #[serde(default)]
+    parent: Option<String>,
+    /// Memory node ids this task is about (one-way: notes never point back).
+    #[serde(default)]
+    refs: Vec<String>,
+    /// When a delayed/backlog task becomes active: "0.10.1", ">0.10.0",
+    /// "2026-10-20", "in 3 days", "next week", or "node:<id>".
+    #[serde(default)]
+    wake: Option<String>,
+    /// When an open task is done on its own — same forms as `wake`.
+    #[serde(default)]
+    close: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct UpdateTaskArgs {
+    id: String,
+    #[serde(default)]
+    title: Option<String>,
+    /// Replaces the body ("" clears). To add a line, use `progress`.
+    #[serde(default)]
+    body: Option<String>,
+    /// active | delayed | backlog | done | dropped.
+    #[serde(default)]
+    status: Option<String>,
+    /// Move into a group (a top-level task id); "" = ungroup.
+    #[serde(default)]
+    parent: Option<String>,
+    /// Replaces the refs list.
+    #[serde(default)]
+    refs: Option<Vec<String>>,
+    /// Wake rule ("" clears).
+    #[serde(default)]
+    wake: Option<String>,
+    /// Close rule ("" clears).
+    #[serde(default)]
+    close: Option<String>,
+    /// Manual order among siblings (lower first).
+    #[serde(default, deserialize_with = "lenient::opt")]
+    position: Option<i64>,
+    /// One line appended to the body under today's date — where you stopped.
+    #[serde(default)]
+    progress: Option<String>,
+    /// Omit = current project; a name, id, or the project's directory =
+    /// that project; "home".
+    #[serde(default)]
+    project: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct ListTasksArgs {
+    /// Omit = open (active, delayed, backlog). Comma-separated statuses,
+    /// "open", "closed" or "all".
+    #[serde(default)]
+    status: Option<String>,
+    /// Only this group's tasks.
+    #[serde(default)]
+    parent: Option<String>,
+    /// Only tasks whose refs include this node id.
+    #[serde(default, rename = "ref")]
+    ref_id: Option<String>,
+    /// Omit = current project; a name, id, or the project's directory =
+    /// that project; "home".
+    #[serde(default)]
+    project: Option<String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
 struct ListOpenArgs {
     #[serde(default)]
     types: Vec<String>,
@@ -3666,6 +3924,15 @@ fn hierarchy(
         out.push(item);
     }
     out
+}
+
+/// Task refusals teach (bad rule, nested group, unknown ref) — they are the
+/// caller's to fix, so they surface as invalid params, never internal.
+fn task_err(e: Error) -> ErrorData {
+    match e {
+        Error::Config(s) => ErrorData::invalid_params(s, None),
+        e => map_err(e),
+    }
 }
 
 fn map_err(e: Error) -> ErrorData {
@@ -4353,6 +4620,118 @@ pub(crate) mod tool_tests {
         let text = text_of(&res);
         assert!(text.contains("# Engram brief"));
         assert!(text.contains("Backend in Rust"));
+    }
+
+    /// Tasks over the wire (0.10.0): the JSON shapes the tool schemas
+    /// promise, the batch `$N` parent, the release auto-close reported by
+    /// set_version, the done nudge, and the brief section.
+    #[tokio::test]
+    async fn task_tools_round_trip() {
+        let s = server();
+        let json_of = |r: &CallToolResult| -> serde_json::Value {
+            let raw = r.content[0].as_text().unwrap().text.clone();
+            serde_json::from_str(&raw).unwrap()
+        };
+        s.set_version(Parameters(
+            serde_json::from_value(json!({ "version": "0.9.12" })).unwrap(),
+        ))
+        .await
+        .unwrap();
+        let added = s
+            .add_tasks(Parameters(
+                serde_json::from_value(json!({ "tasks": [
+                    { "title": "Tasks feature", "body": "- [ ] core\n- [ ] pane" },
+                    { "title": "Store drivers", "parent": "$1" },
+                    { "title": "Publish 0.9.12" },
+                    { "title": "Bad one", "close": "whenever" }
+                ]}))
+                .unwrap(),
+            ))
+            .await
+            .unwrap();
+        let added = json_of(&added);
+        let results = added["results"].as_array().unwrap();
+        assert_eq!(results[0]["created"], true, "{added}");
+        assert_eq!(results[2]["auto_close"], ">0.9.12", "{added}");
+        assert!(
+            results[3]["error"]
+                .as_str()
+                .unwrap()
+                .contains("can't read the rule")
+        );
+        let child = results[1]["id"].as_str().unwrap().to_string();
+
+        let listed = json_of(
+            &s.list_tasks(Parameters(serde_json::from_value(json!({})).unwrap()))
+                .await
+                .unwrap(),
+        );
+        assert_eq!(listed["total"], 3, "{listed}");
+        let group = listed["tasks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|t| t["title"] == "Tasks feature")
+            .unwrap();
+        assert_eq!(group["progress"], json!([0, 1]));
+
+        let brief = text_of(
+            &s.brief(Parameters(BriefArgs {
+                max_chars: None,
+                project: None,
+            }))
+            .await
+            .unwrap(),
+        );
+        assert!(brief.contains("## Tasks"), "{brief}");
+        assert!(brief.contains("Tasks feature (0/1)"), "{brief}");
+
+        let switched = json_of(
+            &s.set_version(Parameters(
+                serde_json::from_value(json!({ "version": "0.10.0" })).unwrap(),
+            ))
+            .await
+            .unwrap(),
+        );
+        assert!(
+            switched["tasks"][0]
+                .as_str()
+                .unwrap()
+                .starts_with("Publish 0.9.12 — done:"),
+            "{switched}"
+        );
+
+        let done = json_of(
+            &s.update_task(Parameters(
+                serde_json::from_value(json!({
+                    "id": child, "status": "done", "progress": "both drivers landed"
+                }))
+                .unwrap(),
+            ))
+            .await
+            .unwrap(),
+        );
+        assert!(
+            done["note"].as_str().unwrap().contains("capture it now"),
+            "{done}"
+        );
+        assert!(
+            done["task"]["body"]
+                .as_str()
+                .unwrap()
+                .contains("both drivers landed")
+        );
+        let closed = json_of(
+            &s.list_tasks(Parameters(
+                serde_json::from_value(json!({ "status": "closed" })).unwrap(),
+            ))
+            .await
+            .unwrap(),
+        );
+        assert_eq!(
+            closed["total"], 3,
+            "group closed with its last task: {closed}"
+        );
     }
 
     #[tokio::test]

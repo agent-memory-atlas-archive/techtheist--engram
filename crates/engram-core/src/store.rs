@@ -316,6 +316,19 @@ pub trait Store: Send {
     /// entity).
     fn audit_rows(&self, q: &AuditQuery) -> Result<Vec<AuditEntry>>;
 
+    // ---- tasks (0.10.0) --------------------------------------------------
+
+    /// Every task, any status — the working list beside the graph. Tasks
+    /// are few (hundreds at most); composites filter in Rust.
+    fn all_tasks(&self) -> Result<Vec<crate::tasks::Task>>;
+    fn get_task(&self, id: &str) -> Result<Option<crate::tasks::Task>> {
+        Ok(self.all_tasks()?.into_iter().find(|t| t.id == id))
+    }
+    /// Insert or replace a task by id.
+    fn upsert_task(&self, t: &crate::tasks::Task) -> Result<()>;
+    /// User-only hard delete (the pane).
+    fn delete_task(&self, id: &str) -> Result<bool>;
+
     // ---- tags ------------------------------------------------------------
 
     /// Every tag in use on current nodes with count and freshness, freshest

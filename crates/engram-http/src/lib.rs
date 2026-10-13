@@ -518,6 +518,7 @@ fn encode_event(ev: &ChangeEvent) -> String {
         ChangeEvent::EdgeDeleted(id) => ("edge_deleted", json!({ "id": id })),
         ChangeEvent::SuspectsChanged => ("suspects_changed", json!({})),
         ChangeEvent::ConfigChanged => ("config_changed", json!({})),
+        ChangeEvent::TasksChanged => ("tasks_changed", json!({})),
     };
     json!({ "type": kind, "data": data }).to_string()
 }
@@ -679,6 +680,12 @@ fn api_router(state: Arc<AppState>) -> Router {
         .route("/brief", get(brief))
         .route("/audit", get(audit))
         .route("/open", get(list_open))
+        .route("/tasks", get(list_tasks).post(create_task))
+        .route("/tasks/order", post(order_tasks))
+        .route(
+            "/tasks/{id}",
+            get(get_task).patch(patch_task).delete(delete_task),
+        )
         .route("/graph", get(graph))
         .route("/export", get(export))
         .route("/import", post(import))
@@ -1947,6 +1954,135 @@ async fn list_open(
     let engine = state.engine_arc(&scope)?;
     let nodes = pane(&engine).list_open(&types)?;
     Ok(Json(nodes))
+}
+
+// ---- tasks (0.10.0): the working list beside the graph -------------------
+
+#[derive(Deserialize)]
+struct TaskListParams {
+    /// Comma-separated statuses, "open", "closed" or "all" (default all —
+    /// the pane's board shows every column).
+    status: Option<String>,
+    parent: Option<String>,
+    #[serde(rename = "ref")]
+    ref_id: Option<String>,
+}
+
+async fn list_tasks(
+    State(state): State<Arc<AppState>>,
+    scope: Scope,
+    Query(p): Query<TaskListParams>,
+) -> Result<Json<Vec<engram_core::TaskView>>, AppError> {
+    use engram_core::TaskStatus as S;
+    let mut statuses = Vec::new();
+    for word in p.status.as_deref().unwrap_or("all").split(',') {
+        match word.trim() {
+            "" | "all" => statuses.extend([S::Active, S::Delayed, S::Backlog, S::Done, S::Dropped]),
+            "open" => statuses.extend([S::Active, S::Delayed, S::Backlog]),
+            "closed" => statuses.extend([S::Done, S::Dropped]),
+            w => statuses.push(S::parse(w)?),
+        }
+    }
+    let engine = state.engine_arc(&scope)?;
+    let tasks = pane(&engine).list_tasks(&engram_core::TaskFilter {
+        statuses,
+        parent: p.parent,
+        ref_id: p.ref_id,
+    })?;
+    Ok(Json(tasks))
+}
+
+async fn create_task(
+    State(state): State<Arc<AppState>>,
+    scope: Scope,
+    Json(input): Json<engram_core::NewTask>,
+) -> Result<Json<engram_core::TaskWrite>, AppError> {
+    let engine = state.engine_arc(&scope)?;
+    let mut out = pane(&engine).add_tasks(vec![input])?;
+    let w = out.pop().ok_or(AppError::NotFound)?;
+    if let Some(e) = &w.error {
+        return Err(AppError::Core(Error::Config(e.clone())));
+    }
+    Ok(Json(w))
+}
+
+async fn get_task(
+    State(state): State<Arc<AppState>>,
+    scope: Scope,
+    Path(id): Path<String>,
+) -> Result<Json<engram_core::Task>, AppError> {
+    let engine = state.engine_arc(&scope)?;
+    let task = pane(&engine).get_task(&id)?;
+    task.map(Json).ok_or(AppError::NotFound)
+}
+
+/// A pane patch: absent = unchanged; "" on body/parent/wake/close clears.
+#[derive(Deserialize)]
+struct TaskPatchBody {
+    title: Option<String>,
+    body: Option<String>,
+    status: Option<String>,
+    parent: Option<String>,
+    refs: Option<Vec<String>>,
+    wake: Option<String>,
+    close: Option<String>,
+    position: Option<i64>,
+    progress: Option<String>,
+}
+
+async fn patch_task(
+    State(state): State<Arc<AppState>>,
+    scope: Scope,
+    Path(id): Path<String>,
+    Json(p): Json<TaskPatchBody>,
+) -> Result<Json<engram_core::Task>, AppError> {
+    let clearable = |v: Option<String>| v.map(|s| Some(s).filter(|s| !s.trim().is_empty()));
+    let patch = engram_core::TaskPatch {
+        title: p.title,
+        body: clearable(p.body),
+        status: p
+            .status
+            .as_deref()
+            .map(engram_core::TaskStatus::parse)
+            .transpose()?,
+        parent: clearable(p.parent),
+        refs: p.refs,
+        wake: clearable(p.wake),
+        close: clearable(p.close),
+        position: p.position,
+        progress: p.progress,
+    };
+    let engine = state.engine_arc(&scope)?;
+    let task = pane(&engine).update_task(&id, patch)?;
+    Ok(Json(task))
+}
+
+async fn delete_task(
+    State(state): State<Arc<AppState>>,
+    scope: Scope,
+    Path(id): Path<String>,
+) -> Result<StatusCode, AppError> {
+    let engine = state.engine_arc(&scope)?;
+    if pane(&engine).delete_task(&id)? {
+        Ok(StatusCode::NO_CONTENT)
+    } else {
+        Err(AppError::NotFound)
+    }
+}
+
+#[derive(Deserialize)]
+struct TaskOrder {
+    ids: Vec<String>,
+}
+
+async fn order_tasks(
+    State(state): State<Arc<AppState>>,
+    scope: Scope,
+    Json(p): Json<TaskOrder>,
+) -> Result<StatusCode, AppError> {
+    let engine = state.engine_arc(&scope)?;
+    pane(&engine).reorder_tasks(&p.ids)?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 async fn graph(

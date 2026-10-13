@@ -1339,3 +1339,98 @@ async fn cors_allows_local_ui_origins_and_refuses_the_open_web() {
     assert_eq!(probe("https://evil.example").await, None);
     assert_eq!(probe("http://127.0.0.1.evil.example").await, None);
 }
+
+/// The pane's task board API (0.10.0): create, group, patch with clears,
+/// order, list by status, delete (a group takes its tasks along).
+#[tokio::test]
+async fn task_board_round_trip() {
+    let app = test_app();
+    let (status, group) = req(
+        &app,
+        "POST",
+        "/tasks",
+        Some(json!({ "title": "Tasks feature" })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{group}");
+    let gid = group["id"].as_str().unwrap().to_string();
+    let (_, a) = req(
+        &app,
+        "POST",
+        "/tasks",
+        Some(json!({ "title": "Board screen", "parent": gid, "close": "in 3 days" })),
+    )
+    .await;
+    let aid = a["id"].as_str().unwrap().to_string();
+    let (_, b) = req(
+        &app,
+        "POST",
+        "/tasks",
+        Some(json!({ "title": "Brief section", "parent": gid })),
+    )
+    .await;
+    let bid = b["id"].as_str().unwrap().to_string();
+
+    let (status, bad) = req(
+        &app,
+        "POST",
+        "/tasks",
+        Some(json!({ "title": "x", "wake": "someday" })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{bad}");
+
+    let (status, patched) = req(
+        &app,
+        "PATCH",
+        &format!("/tasks/{aid}"),
+        Some(json!({ "close": "", "status": "delayed", "progress": "waiting on design" })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{patched}");
+    assert!(patched.get("close").is_none(), "\"\" clears: {patched}");
+    assert_eq!(patched["status"], "delayed");
+
+    let (status, _) = req(
+        &app,
+        "POST",
+        "/tasks/order",
+        Some(json!({ "ids": [bid, aid] })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let (_, open) = req(
+        &app,
+        "GET",
+        &format!("/tasks?status=open&parent={gid}"),
+        None,
+    )
+    .await;
+    let titles: Vec<&str> = open
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| t["title"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        titles,
+        ["Brief section", "Board screen"],
+        "active before delayed"
+    );
+
+    let (_, all) = req(&app, "GET", "/tasks", None).await;
+    let g = all
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|t| t["id"] == gid)
+        .unwrap();
+    assert_eq!(g["progress"], json!([0, 2]));
+
+    let (status, _) = req(&app, "DELETE", &format!("/tasks/{gid}"), None).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let (_, all) = req(&app, "GET", "/tasks", None).await;
+    assert_eq!(all, json!([]));
+    let (status, _) = req(&app, "GET", &format!("/tasks/{aid}"), None).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}

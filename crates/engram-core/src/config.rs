@@ -658,6 +658,35 @@ pub struct BriefConfig {
     /// connected the note is (live edges), so the load-bearing canon leads.
     #[serde(default = "default_canon_order")]
     pub canon_order: String,
+    /// The `## Tasks` section (0.10.0): the active working list, titles only,
+    /// right after the current cycle.
+    #[serde(default)]
+    pub tasks: BriefTasks,
+}
+
+/// The brief's task section (0.10.0).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct BriefTasks {
+    pub show: bool,
+    /// Most active top-level tasks (groups count once) listed.
+    pub cap: usize,
+    /// How many recently done titles ride along (0 = none).
+    pub recent_done: usize,
+    /// Sessions that briefed without an open task changing before it reads
+    /// as idle (0 = never).
+    pub idle_sessions: usize,
+}
+
+impl Default for BriefTasks {
+    fn default() -> Self {
+        Self {
+            show: true,
+            cap: 15,
+            recent_done: 3,
+            idle_sessions: 5,
+        }
+    }
 }
 
 fn default_canon_order() -> String {
@@ -721,6 +750,7 @@ impl Default for BriefConfig {
             cycle: default_cycle(),
             bodies: true,
             canon_order: default_canon_order(),
+            tasks: BriefTasks::default(),
         }
     }
 }

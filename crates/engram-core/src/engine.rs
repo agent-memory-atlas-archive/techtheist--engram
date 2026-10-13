@@ -25,6 +25,8 @@ pub enum ChangeEvent {
     /// The per-graph configuration was replaced (PLAN §7D) — the pane
     /// refetches `/config` and re-derives colors/labels.
     ConfigChanged,
+    /// Tasks (0.10.0) changed — coarse; the pane refetches `/tasks`.
+    TasksChanged,
 }
 
 /// How many 1-hop neighbors ride along with each search hit.
@@ -1168,6 +1170,8 @@ impl Engine {
             None,
         )?;
         self.notify(ChangeEvent::ConfigChanged);
+        // Version rules on tasks ("close once past 0.9.12") fire now.
+        self.settle_tasks()?;
         Ok(previous)
     }
 
@@ -1552,6 +1556,38 @@ impl Engine {
         });
         hits.truncate(limit);
         Ok(hits)
+    }
+
+    /// [`Engine::notify`] for sibling modules (tasks).
+    pub(crate) fn emit(&self, event: ChangeEvent) {
+        self.notify(event)
+    }
+
+    /// The acting session, as audit rows stamp it.
+    pub(crate) fn audit_session(&self) -> Option<String> {
+        self.audit_origin
+            .session_id
+            .clone()
+            .filter(|s| !s.is_empty())
+    }
+
+    /// The acting front-end: pane | mcp | daemon | cli | library.
+    pub(crate) fn audit_origin_name(&self) -> String {
+        self.audit_origin.origin.clone()
+    }
+
+    /// Journal one row for a sibling module (tasks), under this engine's
+    /// origin and session.
+    pub(crate) fn audit_row(
+        &self,
+        action: &str,
+        entity: &str,
+        entity_id: &str,
+        title: Option<String>,
+        before: Option<serde_json::Value>,
+        after: Option<serde_json::Value>,
+    ) -> Result<()> {
+        self.audit(action, entity, entity_id, title, before, after, None)
     }
 
     fn notify(&self, event: ChangeEvent) {
@@ -2794,6 +2830,11 @@ impl Engine {
             // dump must re-import as the same graph. Uncustomized stays bare
             // — an old dump and a new default dump mean the same thing.
             config: self.stored_graph_config(),
+            tasks: {
+                let mut tasks = self.store.all_tasks()?;
+                tasks.sort_by(|a, b| (a.created_at, &a.id).cmp(&(b.created_at, &b.id)));
+                tasks
+            },
         })
     }
 
@@ -3112,6 +3153,9 @@ impl Engine {
         // than silently restoring a graph whose types have no definitions.
         if let Some(cfg) = &graph.config {
             self.set_graph_config(cfg)?;
+        }
+        for t in &graph.tasks {
+            self.store.upsert_task(t)?;
         }
         let (nodes, edges) = (graph.nodes.len(), graph.edges.len());
         // One summary row: per-entity rows for a bulk restore would drown the
@@ -4375,6 +4419,13 @@ impl Engine {
                     if !push_line(&mut out, &line) {
                         break 'assemble;
                     }
+                }
+            }
+            // Tasks (0.10.0): the working list beside the graph — what the
+            // assistant was doing, titles only. Rules settle on the way in.
+            for line in self.brief_task_lines()? {
+                if !push_line(&mut out, &line) {
+                    break 'assemble;
                 }
             }
             if bc.handoff.show {

@@ -1291,6 +1291,30 @@ impl Store for SqliteStore {
         Ok(rows.collect::<rusqlite::Result<_>>()?)
     }
 
+    fn all_tasks(&self) -> Result<Vec<crate::tasks::Task>> {
+        let mut stmt = self.conn.prepare("SELECT doc FROM tasks ORDER BY id")?;
+        let docs = stmt
+            .query_map([], |r| r.get::<_, String>(0))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        docs.iter().map(|d| Ok(serde_json::from_str(d)?)).collect()
+    }
+
+    fn upsert_task(&self, t: &crate::tasks::Task) -> Result<()> {
+        self.conn.execute(
+            "INSERT INTO tasks (id, doc) VALUES (?1, ?2)
+             ON CONFLICT(id) DO UPDATE SET doc = excluded.doc",
+            params![t.id, serde_json::to_string(t)?],
+        )?;
+        Ok(())
+    }
+
+    fn delete_task(&self, id: &str) -> Result<bool> {
+        Ok(self
+            .conn
+            .execute("DELETE FROM tasks WHERE id = ?1", params![id])?
+            > 0)
+    }
+
     fn tag_stats(&self, limit: usize) -> Result<Vec<TagStat>> {
         // "Used" leans on the trust clock: a node touched by write or
         // retrieval refreshes its tags' recency too.

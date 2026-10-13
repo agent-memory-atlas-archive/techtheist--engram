@@ -89,6 +89,13 @@ CREATE TABLE IF NOT EXISTS meta (
   key   TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+
+-- Tasks (0.10.0): the working list beside the graph, one JSON document per
+-- task — never searched, so no columns beyond the key.
+CREATE TABLE IF NOT EXISTS tasks (
+  id  TEXT PRIMARY KEY,
+  doc TEXT NOT NULL
+);
 "#;
 
 /// The FTS5 mirror and the triggers that keep it in sync. Dropped and re-run
