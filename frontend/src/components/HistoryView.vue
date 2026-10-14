@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import InfoBadge from '@/components/common/InfoBadge.vue'
+import NoteText from '@/components/common/NoteText.vue'
+import UiButton from '@/components/common/UiButton.vue'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import MarkdownView from '@/components/common/MarkdownView.vue'
@@ -127,10 +130,10 @@ async function remove(s: HistorySession): Promise<void> {
                 wipe) lives in Settings → Session history.
             </li>
         </ul>
-        <p v-if="enableError" class="empty error">{{ enableError }}</p>
-        <button class="mini accent" type="button" :disabled="enabling || !config.cfg" @click="enableRecording">
+        <NoteText v-if="enableError" tone="error">{{ enableError }}</NoteText>
+        <UiButton size="sm" variant="accent" :disabled="enabling || !config.cfg" @click="enableRecording">
             {{ enabling ? 'Turning on…' : 'Turn on recording' }}
-        </button>
+        </UiButton>
     </section>
 </div>
 <div v-else class="history" :class="{ reading: !!active }">
@@ -141,16 +144,16 @@ async function remove(s: HistorySession): Promise<void> {
         </header>
         <div v-if="recordingOff" class="off-banner">
             Recording is off — new sessions aren't ingested.
-            <button class="mini" type="button" :disabled="enabling" @click="enableRecording">
+            <UiButton size="sm" :disabled="enabling" @click="enableRecording">
                 Turn on
-            </button>
+            </UiButton>
         </div>
-        <p v-if="error" class="empty error">{{ error }}</p>
-        <p v-else-if="!loading && sessions.length === 0" class="empty">
+        <NoteText v-if="error" tone="error">{{ error }}</NoteText>
+        <NoteText v-else-if="!loading && sessions.length === 0" tone="empty">
             Nothing recorded yet. The daemon indexes coding-assistant transcripts in the
             background — sessions appear here as they're found. Knobs live in Settings →
             Session history.
-        </p>
+        </NoteText>
         <ul class="lane-list">
             <li v-for="s in sessions" :key="s.session">
                 <button
@@ -161,7 +164,7 @@ async function remove(s: HistorySession): Promise<void> {
                 >
                     <span class="lane-title">{{ s.title }}</span>
                     <span class="lane-meta">
-                        <span v-if="s.harness" class="chip">{{ s.harness }}</span>
+                        <InfoBadge v-if="s.harness" pill>{{ s.harness }}</InfoBadge>
                         {{ day(s.started) }} · {{ s.messages }} turns
                     </span>
                 </button>
@@ -170,28 +173,27 @@ async function remove(s: HistorySession): Promise<void> {
     </aside>
 
     <section ref="thread" class="thread">
-        <p v-if="!active" class="empty pick">Pick a session to read it.</p>
+        <NoteText v-if="!active" tone="empty">Pick a session to read it.</NoteText>
         <template v-else>
             <header class="thread-head glass-panel">
-                <button
-                    class="mini back"
-                    type="button"
+                <UiButton
+                    size="sm" class="back"
                     aria-label="Back to sessions"
                     @click="backToLanes"
                 >
                     ←
-                </button>
+                </UiButton>
                 <div class="thread-id">
                     <h2 class="thread-title">{{ active.title }}</h2>
                     <p class="thread-meta">
-                        <span v-if="active.harness" class="chip">{{ active.harness }}</span>
+                        <InfoBadge v-if="active.harness" pill>{{ active.harness }}</InfoBadge>
                         {{ day(active.started) }} · {{ messages.length }} turns
-                        <span v-if="active.version" class="chip quiet">v{{ active.version }}</span>
+                        <InfoBadge v-if="active.version" pill tone="muted">v{{ active.version }}</InfoBadge>
                     </p>
                 </div>
-                <button class="mini danger" type="button" @click="remove(active)">
+                <UiButton size="sm" variant="danger" @click="remove(active)">
                     Delete session
-                </button>
+                </UiButton>
             </header>
             <ol class="turns">
                 <li
@@ -296,19 +298,6 @@ async function remove(s: HistorySession): Promise<void> {
     align-items: center;
     font-size: var(--text-caption, 11px);
     color: var(--text-secondary);
-}
-
-.chip {
-    padding: 1px 6px;
-    border-radius: 999px;
-    white-space: nowrap;
-    background: rgb(56 189 248 / 15%);
-    font-size: var(--text-caption, 11px);
-    color: var(--text-secondary);
-}
-
-.chip.quiet {
-    background: rgb(148 163 184 / 15%);
 }
 
 .thread {
@@ -422,34 +411,9 @@ async function remove(s: HistorySession): Promise<void> {
     overflow-x: auto;
 }
 
-.empty {
-    padding: 12px;
-    font-size: var(--text-body-sm);
-    color: var(--text-secondary);
-}
-
-.empty.error {
-    color: var(--node-problem);
-}
-
-.empty.pick {
+.pick {
     margin-top: 20vh;
     text-align: center;
-}
-
-.mini {
-    padding: 4px 10px;
-    border: 1px solid rgb(148 163 184 / 35%);
-    border-radius: 6px;
-    background: transparent;
-    color: var(--text-primary);
-    font-size: var(--text-body-sm);
-    cursor: pointer;
-}
-
-.mini.danger {
-    border-color: rgb(239 68 68 / 45%);
-    color: var(--node-problem);
 }
 
 /* Recording off: the opt-in hero (what turning it on does) and the slim
@@ -487,11 +451,6 @@ async function remove(s: HistorySession): Promise<void> {
     padding-left: 18px;
     font-size: var(--text-body-sm);
     color: var(--text-secondary);
-}
-
-.mini.accent {
-    border-color: var(--interactive-primary);
-    color: var(--interactive-primary);
 }
 
 .off-banner {

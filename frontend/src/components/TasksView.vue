@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import InfoBadge from '@/components/common/InfoBadge.vue'
+import NoteText from '@/components/common/NoteText.vue'
+import UiButton from '@/components/common/UiButton.vue'
 import AutoTextarea from '@/components/common/AutoTextarea.vue'
 import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
@@ -168,7 +171,7 @@ function progressPct(t: TaskView): number {
         aria-label="Column"
     />
 
-    <p v-if="error" class="empty error">{{ error }}</p>
+    <NoteText v-if="error" tone="error">{{ error }}</NoteText>
     <div v-else class="board">
         <section
             v-for="col in COLUMNS"
@@ -194,10 +197,10 @@ function progressPct(t: TaskView): number {
                 />
                 <div v-if="draft.trim()" class="composer-foot">
                     <span class="composer-hint">Enter adds · Shift+Enter, new line for the plan</span>
-                    <button class="mini accent" type="submit">Add</button>
+                    <UiButton size="sm" variant="accent" type="submit">Add</UiButton>
                 </div>
-                <p v-if="addError" class="msg error">{{ addError }}</p>
-                <p v-else-if="notice" class="msg">{{ notice }}</p>
+                <NoteText v-if="addError" tone="error">{{ addError }}</NoteText>
+                <NoteText v-else-if="notice" tone="body">{{ notice }}</NoteText>
             </form>
             <ol class="cards">
                 <li
@@ -238,14 +241,14 @@ function progressPct(t: TaskView): number {
                         <span class="progress-text">{{ t.progress[0] }}/{{ t.progress[1] }}</span>
                     </div>
                     <div class="chips">
-                        <span v-if="t.status === 'dropped'" class="chip quiet">dropped</span>
-                        <span v-if="t.carried_from" class="chip warn" :title="`Opened under ${t.carried_from}, still open`">↻ {{ t.carried_from }}</span>
-                        <span v-if="t.idle_sessions" class="chip warn" title="Sessions briefed without this task changing">idle {{ t.idle_sessions }}</span>
-                        <span v-if="t.close" class="chip rule" :title="ruleText('close', t.close)">{{ ruleText('close', t.close) }}</span>
-                        <span v-if="t.wake" class="chip rule">{{ ruleText('wake', t.wake) }}</span>
-                        <span v-if="t.refs?.length" class="chip quiet" title="Memory notes this task is about">{{ t.refs.length }} ref{{ t.refs.length === 1 ? '' : 's' }}</span>
-                        <span v-if="t.version && !t.carried_from" class="chip quiet">{{ t.closed_version && t.closed_version !== t.version ? `${t.version}→${t.closed_version}` : t.version }}</span>
-                        <span v-if="!isOpen(t.status) && t.closed_at" class="chip quiet">{{ day(t.closed_at) }}</span>
+                        <InfoBadge v-if="t.status === 'dropped'" pill tone="muted">dropped</InfoBadge>
+                        <InfoBadge v-if="t.carried_from" :title="`Opened under ${t.carried_from}, still open`" pill tone="warn">↻ {{ t.carried_from }}</InfoBadge>
+                        <InfoBadge v-if="t.idle_sessions" title="Sessions briefed without this task changing" pill tone="warn">idle {{ t.idle_sessions }}</InfoBadge>
+                        <InfoBadge v-if="t.close" :title="ruleText('close', t.close)" pill tone="accent">{{ ruleText('close', t.close) }}</InfoBadge>
+                        <InfoBadge v-if="t.wake" pill tone="accent">{{ ruleText('wake', t.wake) }}</InfoBadge>
+                        <InfoBadge v-if="t.refs?.length" title="Memory notes this task is about" pill tone="muted">{{ t.refs.length }} ref{{ t.refs.length === 1 ? '' : 's' }}</InfoBadge>
+                        <InfoBadge v-if="t.version && !t.carried_from" pill tone="muted">{{ t.closed_version && t.closed_version !== t.version ? `${t.version}→${t.closed_version}` : t.version }}</InfoBadge>
+                        <InfoBadge v-if="!isOpen(t.status) && t.closed_at" pill tone="muted">{{ day(t.closed_at) }}</InfoBadge>
                     </div>
                     <p v-if="t.auto" class="auto">{{ t.auto }}</p>
                     <ul v-if="t.progress" class="children">
@@ -269,7 +272,7 @@ function progressPct(t: TaskView): number {
                                 <span v-else-if="c.status === 'dropped'">–</span>
                             </button>
                             <button class="child-title" type="button" @click="tasks.open(c.id)">{{ c.title }}</button>
-                            <span v-if="c.status === 'delayed' || c.status === 'backlog'" class="chip quiet">{{ STATUS_LABELS[c.status].toLowerCase() }}</span>
+                            <InfoBadge v-if="c.status === 'delayed' || c.status === 'backlog'" pill tone="muted">{{ STATUS_LABELS[c.status].toLowerCase() }}</InfoBadge>
                         </li>
                     </ul>
                     <form v-if="isOpen(t.status) && (t.progress || selectedId === t.id)" class="child-add" @submit.prevent="addChild(t.id)">
@@ -282,20 +285,18 @@ function progressPct(t: TaskView): number {
                     </form>
                 </li>
             </ol>
-            <button
-                v-if="col.id === 'closed' && columns.closed.length > closedShown"
-                class="mini more"
-                type="button"
+            <UiButton
+                v-if="col.id === 'closed' && columns.closed.length > closedShown" size="sm" class="more"
                 @click="closedShown += CLOSED_PAGE"
             >
                 Show {{ Math.min(CLOSED_PAGE, columns.closed.length - closedShown) }} more
-            </button>
-            <p v-if="!columns[col.id].length && col.id !== 'active'" class="empty column-empty">
+            </UiButton>
+            <NoteText v-if="!columns[col.id].length && col.id !== 'active'" tone="empty">
                 {{ col.id === 'closed' ? 'Nothing closed yet.' : 'Empty' }}
-            </p>
-            <p v-if="col.id === 'active' && loaded && !topLevel.length" class="empty column-empty">
+            </NoteText>
+            <NoteText v-if="col.id === 'active' && loaded && !topLevel.length" tone="empty">
                 Your assistant adds tasks with <code>add_tasks</code>; the brief lists the active ones.
-            </p>
+            </NoteText>
         </section>
     </div>
 </div>
@@ -373,16 +374,6 @@ function progressPct(t: TaskView): number {
 .child-add input:focus {
     border-color: var(--border-strong);
     outline: none;
-}
-
-.msg {
-    margin: 0;
-    font-size: var(--text-body-sm);
-    color: var(--text-secondary);
-}
-
-.msg.error {
-    color: var(--node-problem);
 }
 
 /* One column at a time is a narrow-pane affordance only. */
@@ -599,30 +590,6 @@ function progressPct(t: TaskView): number {
     display: none;
 }
 
-.chip {
-    max-width: 100%;
-    overflow: hidden;
-    padding: 1px 6px;
-    border-radius: 999px;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    background: rgb(56 189 248 / 15%);
-    font-size: var(--text-caption, 11px);
-    color: var(--text-secondary);
-}
-
-.chip.quiet {
-    background: rgb(148 163 184 / 15%);
-}
-
-.chip.warn {
-    background: rgb(245 158 11 / 18%);
-}
-
-.chip.rule {
-    background: rgb(139 92 246 / 18%);
-}
-
 .auto {
     margin: 0;
     font-size: var(--text-caption, 11px);
@@ -648,39 +615,9 @@ function progressPct(t: TaskView): number {
     display: flex;
 }
 
-.empty {
-    padding: 12px;
-    font-size: var(--text-body-sm);
-    color: var(--text-secondary);
-}
-
-.empty.error {
-    color: var(--node-problem);
-}
-
 .column-empty {
     padding: 6px;
     color: var(--text-tertiary);
-}
-
-.mini {
-    padding: 4px 10px;
-    border: 1px solid rgb(148 163 184 / 35%);
-    border-radius: 6px;
-    background: transparent;
-    color: var(--text-primary);
-    font-size: var(--text-body-sm);
-    cursor: pointer;
-}
-
-.mini.accent {
-    border-color: var(--interactive-primary);
-    color: var(--interactive-primary);
-}
-
-.mini:disabled {
-    cursor: default;
-    opacity: 0.5;
 }
 
 .more {

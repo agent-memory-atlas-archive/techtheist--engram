@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import InfoBadge from '@/components/common/InfoBadge.vue'
+import UiButton from '@/components/common/UiButton.vue'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import EmptyGraph from '@/components/common/EmptyGraph.vue'
@@ -486,12 +488,16 @@ const currentNode = computed(() =>
                 <header class="card-head">
                     <span class="type-dot" />
                     <span class="type-name">{{ item.node.type }}</span>
-                    <span v-if="item.node.version" class="chip version">{{ item.node.version }}</span>
-                    <span v-if="item.node.status" class="chip status" :class="item.node.status">
+                    <InfoBadge v-if="item.node.version" pill>{{ item.node.version }}</InfoBadge>
+                    <InfoBadge
+                        v-if="item.node.status"
+                        pill
+                        :tone="item.node.status === 'resolved' ? 'ok' : item.node.status === 'open' ? 'accent' : 'neutral'"
+                    >
                         {{ item.node.status }}
-                    </span>
-                    <span v-if="item.node.valid_until != null" class="chip status">archived</span>
-                    <span v-if="driftByNode.has(item.node.id)" class="chip warn">drifted</span>
+                    </InfoBadge>
+                    <InfoBadge v-if="item.node.valid_until != null" pill tone="muted">archived</InfoBadge>
+                    <InfoBadge v-if="driftByNode.has(item.node.id)" pill tone="warn">drifted</InfoBadge>
                     <span class="spacer" />
                     <span class="date" :title="dateTip(item.node)">{{ fmtDate(item.node.created_at) }}</span>
                 </header>
@@ -573,61 +579,55 @@ const currentNode = computed(() =>
     <div v-if="currentNode" class="action-bar glass-panel">
         <span class="bar-dot" :style="{ background: config.accent(currentNode.type) }" />
         <span class="bar-title" :title="currentNode.title">{{ currentNode.title }}</span>
-        <button
-            v-if="currentNode.approved_at == null"
-            class="action"
-            type="button"
+        <UiButton
+            v-if="currentNode.approved_at == null" size="sm" pill variant="primary"
             :disabled="busyId === currentNode.id"
             title="Approve: you vouch for it — trust 100%"
             @click="approve(currentNode)"
         >
             Approve
-        </button>
-        <button
-            v-else
-            class="action ghost"
-            type="button"
+        </UiButton>
+        <UiButton
+            v-else size="sm" pill variant="ghost"
             :disabled="busyId === currentNode.id"
             title="Withdraw approval — trust falls back to its anchor"
             @click="revoke(currentNode)"
         >
             Revoke
-        </button>
-        <button
-            class="action ghost"
-            type="button"
+        </UiButton>
+        <UiButton
+            size="sm" pill variant="ghost"
             :disabled="busyId === currentNode.id"
             title="Confirm still true — refreshes trust without approval"
             @click="reconfirm(currentNode)"
         >
             Still true
-        </button>
-        <button
-            class="action ghost"
-            type="button"
+        </UiButton>
+        <UiButton
+            size="sm" pill variant="ghost"
             :disabled="busyId === currentNode.id"
             :title="currentNode.trust_override == null ? 'Pin: constant trust, decay and demotion off' : 'Unpin'"
             @click="togglePin(currentNode)"
         >
             {{ currentNode.trust_override == null ? 'Pin' : 'Unpin' }}
-        </button>
-        <button
-            class="action ghost"
-            type="button"
+        </UiButton>
+        <UiButton
+            size="sm" pill variant="ghost"
             title="Edit in the detail drawer"
             @click="openDetail(currentNode)"
         >
             Edit
-        </button>
-        <button
-            class="action ghost danger"
-            type="button"
+        </UiButton>
+        <UiButton
+            size="sm"
+            pill
+            variant="danger-text"
             :disabled="busyId === currentNode.id"
             title="Hard delete (user-only) — cascades edges"
             @click="removeNode(currentNode)"
         >
             Delete
-        </button>
+        </UiButton>
     </div>
 </div>
 </template>
@@ -847,29 +847,6 @@ const currentNode = computed(() =>
     color: var(--card-accent);
 }
 
-.chip {
-    padding: 0.15rem 0.7rem;
-    border-radius: var(--radius-full);
-    font-family: var(--font-mono);
-    font-size: var(--text-caption);
-    color: var(--text-secondary);
-    background: var(--surface-muted);
-    white-space: nowrap;
-}
-
-.chip.status.open {
-    color: var(--node-intent, #0ea5e9);
-}
-
-.chip.status.resolved {
-    color: var(--trust-trusted);
-}
-
-.chip.warn {
-    color: var(--node-caution);
-    background: color-mix(in srgb, var(--node-caution) 14%, transparent);
-}
-
 .spacer {
     flex: 1;
 }
@@ -1061,43 +1038,6 @@ const currentNode = computed(() =>
     white-space: nowrap;
 }
 
-.action {
-    padding: 0.4rem 1.2rem;
-    border: 1px solid transparent;
-    border-radius: var(--radius-control);
-    background: var(--interactive-primary);
-    color: var(--text-inverse);
-    font-size: var(--text-caption);
-    font-weight: 600;
-    /* "Still true" must never fold into two rows when the bar gets tight. */
-    white-space: nowrap;
-    cursor: pointer;
-}
-
-.action:disabled {
-    opacity: 0.5;
-    cursor: default;
-}
-
-.action:hover:not(:disabled) {
-    background: var(--interactive-primary-hover);
-}
-
-.action.ghost {
-    border-color: var(--border-default);
-    background: transparent;
-    color: var(--text-secondary);
-}
-
-.action.ghost:hover:not(:disabled) {
-    color: var(--text-primary);
-    background: var(--interactive-ghost-hover);
-}
-
-.action.danger:hover:not(:disabled) {
-    color: var(--node-problem, #ef4444);
-}
-
 @media (width <= 700px) {
     .feed {
         gap: 1.2rem;
@@ -1162,7 +1102,8 @@ const currentNode = computed(() =>
         min-width: 0;
     }
 
-    .action {
+    /* The bar's UiButtons share the row evenly when it wraps. */
+    .action-bar .btn {
         flex: 1 1 auto;
         padding: 0.4rem 0.6rem;
         text-align: center;

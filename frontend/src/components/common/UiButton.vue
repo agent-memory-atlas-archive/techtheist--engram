@@ -15,13 +15,16 @@ withDefaults(
         type?: 'button' | 'submit'
         /** Full width of its container. */
         block?: boolean
+        /** The control corner (pill in the brand theme, the IDE's button
+         *  corner under Match IDE) — for floating toolbars like the feed's. */
+        pill?: boolean
     }>(),
-    { variant: 'default', size: 'md', type: 'button', block: false },
+    { variant: 'default', size: 'md', type: 'button', block: false, pill: false },
 )
 </script>
 
 <template>
-<button class="btn" :class="[variant, size, { block }]" :type="type"><slot /></button>
+<button class="btn" :class="[variant, size, { block, pill }]" :type="type"><slot /></button>
 </template>
 
 <style scoped>
@@ -54,6 +57,10 @@ withDefaults(
 
 .block {
     width: 100%;
+}
+
+.pill {
+    border-radius: var(--radius-control);
 }
 
 .ghost {
