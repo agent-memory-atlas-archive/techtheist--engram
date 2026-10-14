@@ -11844,7 +11844,9 @@ fn groups_are_one_level_and_follow_their_children() {
 
     let brief = e.brief(16_000).unwrap();
     assert!(
-        brief.contains("- Tasks feature (0/2) → next: Core entity and store drivers"),
+        brief.contains(&format!(
+            "- Tasks feature [Task {group}] — 0/2 done, next: Core entity and store drivers [Task {a}]"
+        )),
         "{brief}"
     );
 

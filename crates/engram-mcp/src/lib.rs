@@ -3768,7 +3768,7 @@ fn ok_json<T: Serialize>(v: &T) -> Result<CallToolResult, ErrorData> {
 /// tool replies so an assistant never converts epoch numbers itself — and can
 /// paste any date it was shown straight back into `after`/`before` (the
 /// temporal grammar reads the same ISO form).
-const TIMESTAMP_KEYS: [&str; 14] = [
+const TIMESTAMP_KEYS: [&str; 16] = [
     "created_at",
     "confirmed_at",
     "approved_at",
@@ -3783,6 +3783,9 @@ const TIMESTAMP_KEYS: [&str; 14] = [
     "started_at",
     "ended_at",
     "touched_at",
+    // Tasks (0.10.0).
+    "updated_at",
+    "closed_at",
 ];
 
 /// Every tool reply is per-session context on every client (the 0.8.9
@@ -4684,7 +4687,7 @@ pub(crate) mod tool_tests {
             .unwrap(),
         );
         assert!(brief.contains("## Tasks"), "{brief}");
-        assert!(brief.contains("Tasks feature (0/1)"), "{brief}");
+        assert!(brief.contains("— 0/1 done, next: Store drivers"), "{brief}");
 
         let switched = json_of(
             &s.set_version(Parameters(

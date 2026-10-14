@@ -340,15 +340,18 @@ fn release_version(title: &str) -> Option<String> {
     let words: Vec<&str> = lower
         .split(|c: char| c.is_whitespace() || matches!(c, ',' | ';' | ':' | '(' | ')' | '—'))
         .filter(|w| !w.is_empty())
-        .collect();
-    if !words.iter().any(|w| VERBS.iter().any(|v| w.starts_with(v))) {
-        return None;
-    }
-    words
-        .iter()
         .map(|w| w.trim_end_matches(['.', '!', '?']))
-        .find(|w| looks_like_version(w))
-        .map(|w| w.strip_prefix('v').unwrap_or(w).to_string())
+        .collect();
+    // The verb must name the version itself ("publish 0.9.12", "release
+    // v1.2"); "ship tasks in 0.10.0" is a feature landing in a release, not
+    // the release step.
+    words.windows(2).find_map(|pair| {
+        let verb = VERBS
+            .iter()
+            .any(|v| pair[0] == *v || pair[0] == format!("{v}s") || pair[0] == format!("{v}ed"));
+        (verb && looks_like_version(pair[1]))
+            .then(|| pair[1].strip_prefix('v').unwrap_or(pair[1]).to_string())
+    })
 }
 
 /// Word-set similarity of two titles (Jaccard over lowercased alphanumeric
@@ -514,7 +517,7 @@ impl Engine {
                     created: false,
                     matched: None,
                     auto_close: None,
-                    error: Some(e.to_string()),
+                    error: Some(plain_message(e)),
                 }),
             }
         }
@@ -889,7 +892,7 @@ impl Engine {
         let p = self
             .store()
             .get_task(parent)?
-            .ok_or_else(|| Error::NotFound(format!("parent task {parent}")))?;
+            .ok_or_else(|| Error::NotFound(format!("no task {parent} to use as a group")))?;
         if p.parent.is_some() {
             return Err(Error::Config(format!(
                 "task {parent} is already inside a group — groups are one level deep; put this task in {} instead",
@@ -972,16 +975,9 @@ impl Engine {
         let mut body = Vec::new();
         for t in open_top.iter().take(tc.cap) {
             let v = self.view_of(t, &all, current.as_deref(), &briefs, tc.idle_sessions);
-            let mut line = format!("- {}", t.title);
-            if let Some((done, total)) = v.progress {
-                line.push_str(&format!(" ({done}/{total})"));
-                if let Some(next) = all.iter().find(|c| {
-                    c.parent.as_deref() == Some(t.id.as_str()) && c.status == TaskStatus::Active
-                }) {
-                    line.push_str(&format!(" → next: {} [Task {}]", next.title, next.id));
-                }
-            }
-            line.push_str(&format!(" [Task {}", t.id));
+            // `- Title [Task id · marks]`, then for a group its progress and
+            // the next step with that step's own id.
+            let mut line = format!("- {} [Task {}", t.title, t.id);
             if let Some(c) = &t.close {
                 line.push_str(&format!(" · closes {c}"));
             }
@@ -992,6 +988,14 @@ impl Engine {
                 line.push_str(&format!(" · idle {n} sessions"));
             }
             line.push(']');
+            if let Some((done, total)) = v.progress {
+                line.push_str(&format!(" — {done}/{total} done"));
+                if let Some(next) = all.iter().find(|c| {
+                    c.parent.as_deref() == Some(t.id.as_str()) && c.status == TaskStatus::Active
+                }) {
+                    line.push_str(&format!(", next: {} [Task {}]", next.title, next.id));
+                }
+            }
             body.push(line);
         }
         if open_top.len() > tc.cap {
@@ -1045,6 +1049,16 @@ fn sessions_after(briefs: &[(i64, String)], ts: i64, current: Option<&str>) -> u
         .map(|(_, s)| s.as_str())
         .collect::<std::collections::BTreeSet<_>>()
         .len()
+}
+
+/// An item refusal as the caller should read it — the message alone, no
+/// `config:` / `not found:` kind prefix.
+fn plain_message(e: Error) -> String {
+    match e {
+        Error::Config(s) => s,
+        Error::NotFound(s) => s,
+        e => e.to_string(),
+    }
 }
 
 fn clean_title(title: &str) -> Result<String> {
@@ -1125,6 +1139,11 @@ mod unit {
         );
         assert_eq!(release_version("Release notes cleanup"), None);
         assert_eq!(release_version("Fix the 0.9.12 regression"), None);
+        assert_eq!(release_version("Ship tasks in 0.10.0"), None);
+        assert_eq!(
+            release_version("Cut 0.10.0: tag and push"),
+            Some("0.10.0".into())
+        );
     }
 
     #[test]
