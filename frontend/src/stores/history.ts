@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { api } from '@/services/api'
 import { onProjectSwitch } from '@/composables/onProjectSwitch'
 import type { HistoryMessage, HistorySession } from '@/types/graph'
@@ -21,6 +21,27 @@ export const useHistoryStore = defineStore('history', () => {
     const focusTs = ref<number | null>(null)
     const loading = ref(false)
     const error = ref<string | null>(null)
+
+    // --- lane filter (client side, the top bar's Filter on this screen) ---
+    const filters = ref<{ harnesses: string[]; versions: string[] }>({ harnesses: [], versions: [] })
+    const activeFilterCount = computed(() => filters.value.harnesses.length + filters.value.versions.length)
+    const visibleSessions = computed(() =>
+        sessions.value.filter(
+            (s) =>
+                (!filters.value.harnesses.length || filters.value.harnesses.includes(s.harness ?? 'unknown')) &&
+                (!filters.value.versions.length || filters.value.versions.includes(s.version ?? 'no version')),
+        ),
+    )
+    function toggleFilter(group: 'harnesses' | 'versions', value: string): void {
+        const list = filters.value[group]
+        filters.value = {
+            ...filters.value,
+            [group]: list.includes(value) ? list.filter((v) => v !== value) : [...list, value],
+        }
+    }
+    function clearFilters(): void {
+        filters.value = { harnesses: [], versions: [] }
+    }
 
     async function load(): Promise<void> {
         loading.value = true
@@ -67,6 +88,7 @@ export const useHistoryStore = defineStore('history', () => {
         focusTurn.value = null
         focusTs.value = null
         error.value = null
+        clearFilters()
         void load()
     })
 
@@ -87,6 +109,11 @@ export const useHistoryStore = defineStore('history', () => {
         focusTs,
         loading,
         error,
+        filters,
+        activeFilterCount,
+        visibleSessions,
+        toggleFilter,
+        clearFilters,
         load,
         open,
         deleteSession,

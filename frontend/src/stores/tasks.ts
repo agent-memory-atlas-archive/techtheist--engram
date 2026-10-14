@@ -21,6 +21,29 @@ export function isOpen(s: TaskStatus): boolean {
     return OPEN_STATUSES.includes(s)
 }
 
+/** The board filter's facets (0.10.0). */
+export interface TaskFilters {
+    versions: string[]
+    origins: string[]
+    flags: string[]
+}
+
+/** How a task's version reads when it has none. */
+export const NO_VERSION = 'no version'
+
+/** Who created it, in the filter's words. */
+export function originLabel(t: { origin?: string }): string {
+    return t.origin === 'pane' ? 'you' : 'assistant'
+}
+
+/** The filter's yes/no facets. */
+export const TASK_FLAGS: Record<string, (t: TaskView) => boolean> = {
+    'carried over': (t) => !!t.carried_from,
+    idle: (t) => !!t.idle_sessions,
+    'has rules': (t) => !!(t.close || t.wake),
+    'linked to notes': (t) => !!t.refs?.length,
+}
+
 /**
  * The tasks screen's state (0.10.0): the working list beside the graph. Kept
  * apart from the graph store — tasks are not knowledge, they never enter the
@@ -43,6 +66,49 @@ export const useTasksStore = defineStore('tasks', () => {
 
     /** Top-level tasks (groups and loose tasks), in the daemon's order. */
     const topLevel = computed(() => tasks.value.filter((t) => !t.parent))
+
+    // --- board filter (client side, the top bar's Filter on this screen) ---
+
+    /** Selected values per facet; empty facet = no constraint. */
+    const filters = ref<TaskFilters>({ versions: [], origins: [], flags: [] })
+    const activeFilterCount = computed(
+        () => filters.value.versions.length + filters.value.origins.length + filters.value.flags.length,
+    )
+
+    function passes(t: TaskView): boolean {
+        const f = filters.value
+        if (f.versions.length && !f.versions.includes(t.version ?? NO_VERSION)) return false
+        if (f.origins.length && !f.origins.includes(originLabel(t))) return false
+        return f.flags.every((flag) => TASK_FLAGS[flag]?.(t) ?? true)
+    }
+
+    /** The board's top level after the filter: a group stays when it or
+     *  any of its tasks matches. */
+    const visibleTopLevel = computed(() =>
+        activeFilterCount.value === 0
+            ? topLevel.value
+            : topLevel.value.filter((t) => passes(t) || childrenOf(t.id).some(passes)),
+    )
+
+    function toggleFilter(group: keyof TaskFilters, value: string): void {
+        const list = filters.value[group]
+        filters.value = {
+            ...filters.value,
+            [group]: list.includes(value) ? list.filter((v) => v !== value) : [...list, value],
+        }
+    }
+
+    function clearFilters(): void {
+        filters.value = { versions: [], origins: [], flags: [] }
+    }
+
+    /** The New-task panel (the top bar's New on this screen). */
+    const creating = ref(false)
+    function startCreate(): void {
+        selectedId.value = null
+        useGraphStore().closeDetail()
+        creating.value = true
+    }
 
     function childrenOf(id: string): TaskView[] {
         return tasks.value
@@ -115,7 +181,10 @@ export const useTasksStore = defineStore('tasks', () => {
      *  selection itself survives (the canvas still centers on it). */
     function open(id: string | null): void {
         selectedId.value = id
-        if (id != null) useGraphStore().closeDetail()
+        if (id != null) {
+            useGraphStore().closeDetail()
+            creating.value = false
+        }
     }
 
     onProjectSwitch(() => {
@@ -123,6 +192,8 @@ export const useTasksStore = defineStore('tasks', () => {
         loaded.value = false
         selectedId.value = null
         error.value = null
+        clearFilters()
+        creating.value = false
         void load()
     })
 
@@ -134,6 +205,13 @@ export const useTasksStore = defineStore('tasks', () => {
         selectedId,
         selected,
         currentVersion,
+        filters,
+        activeFilterCount,
+        visibleTopLevel,
+        toggleFilter,
+        clearFilters,
+        creating,
+        startCreate,
         byId,
         topLevel,
         activeCount,

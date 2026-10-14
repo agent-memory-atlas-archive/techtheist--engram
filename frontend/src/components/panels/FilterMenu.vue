@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import NoteText from '@/components/common/NoteText.vue'
 import UiButton from '@/components/common/UiButton.vue'
 import ToggleSwitch from '@/components/common/ToggleSwitch.vue'
 import { computed, ref, useTemplateRef } from 'vue'
@@ -6,29 +7,49 @@ import { onClickOutside } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { useConfigStore } from '@/stores/config'
 import { trustLevel, useGraphStore, type GraphFilters } from '@/stores/graph'
+import { useHistoryStore } from '@/stores/history'
+import { useLayoutStore } from '@/stores/layout'
+import { NO_VERSION, TASK_FLAGS, originLabel, useTasksStore, type TaskFilters } from '@/stores/tasks'
 
 /**
- * Pure client-side canvas filter. Every option list is gathered from the
- * loaded graph — only values that actually occur are offered — and the canvas
- * re-packs to just the matching nodes.
+ * The top bar's Filter — one button in one place, filtering whatever the
+ * current screen shows (0.10.0): the graph and the feed by note facets, the
+ * task board by version / who created it / flags, the history lanes by
+ * assistant and version. Pure client side: every option list is gathered
+ * from what is loaded, so only values that actually occur are offered.
  */
 const store = useGraphStore()
 const config = useConfigStore()
-const { nodeList, filters, activeFilterCount } = storeToRefs(store)
+const tasks = useTasksStore()
+const history = useHistoryStore()
+const layout = useLayoutStore()
+const { nodeList, filters } = storeToRefs(store)
 
 const open = ref(false)
 const root = useTemplateRef<HTMLElement>('root')
 onClickOutside(root, () => (open.value = false))
 
-type Group = Exclude<keyof GraphFilters, 'showArchived'>
-
 interface Section {
-    group: Group
+    key: string
     label: string
     values: string[]
 }
 
-const sections = computed<Section[]>(() => {
+interface Source {
+    title: string
+    sections: Section[]
+    count: number
+    isOn: (key: string, value: string) => boolean
+    toggle: (key: string, value: string) => void
+    clear: () => void
+    accent?: (key: string, value: string) => string | undefined
+}
+
+const sorted = (set: Set<string>): string[] => [...set].sort()
+
+type Group = Exclude<keyof GraphFilters, 'showArchived'>
+
+function memorySource(): Source {
     const types = new Set<string>()
     const durabilities = new Set<string>()
     const sources = new Set<string>()
@@ -43,30 +64,78 @@ const sections = computed<Section[]>(() => {
         trust.add(trustLevel(n))
         for (const t of n.tags) tags.add(t)
     }
-    const section = (group: Group, label: string, set: Set<string>): Section => ({
-        group,
-        label,
-        values: [...set].sort(),
-    })
-    return [
-        section('types', 'Type', types),
-        // Even a lone tag partitions the graph (unlike the property groups,
-        // where a single value means every node matches).
-        section('tags', 'Tags', tags),
-        section('statuses', 'Status', statuses),
-        section('trust', 'Trust', trust),
-        section('sources', 'Source', sources),
-        section('durabilities', 'Durability', durabilities),
-    ].filter((s) => (s.group === 'tags' ? s.values.length > 0 : s.values.length > 1))
-})
-
-const hasArchived = computed(() => nodeList.value.some((n) => n.valid_until != null))
-
-const isOn = (group: Group, value: string): boolean => filters.value[group].includes(value)
-
-function accentFor(group: Group, value: string): string | undefined {
-    return group === 'types' ? config.accent(value) : undefined
+    const section = (key: Group, label: string, set: Set<string>): Section => ({ key, label, values: sorted(set) })
+    return {
+        title: layout.view === 'feed' ? 'Filter the feed' : 'Filter the canvas',
+        sections: [
+            section('types', 'Type', types),
+            // Even a lone tag partitions the graph (unlike the property groups,
+            // where a single value means every node matches).
+            section('tags', 'Tags', tags),
+            section('statuses', 'Status', statuses),
+            section('trust', 'Trust', trust),
+            section('sources', 'Source', sources),
+            section('durabilities', 'Durability', durabilities),
+        ].filter((s) => (s.key === 'tags' ? s.values.length > 0 : s.values.length > 1)),
+        count: store.activeFilterCount,
+        isOn: (key, value) => filters.value[key as Group].includes(value),
+        toggle: (key, value) => store.toggleFilter(key as Group, value),
+        clear: () => store.clearFilters(),
+        accent: (key, value) => (key === 'types' ? config.accent(value) : undefined),
+    }
 }
+
+function taskSource(): Source {
+    const versions = new Set<string>()
+    const origins = new Set<string>()
+    const flags = new Set<string>()
+    for (const t of tasks.tasks) {
+        versions.add(t.version ?? NO_VERSION)
+        origins.add(originLabel(t))
+        for (const [flag, test] of Object.entries(TASK_FLAGS)) if (test(t)) flags.add(flag)
+    }
+    return {
+        title: 'Filter the board',
+        sections: [
+            { key: 'versions', label: 'Version', values: sorted(versions) },
+            { key: 'origins', label: 'Created by', values: sorted(origins) },
+            { key: 'flags', label: 'Only', values: Object.keys(TASK_FLAGS).filter((f) => flags.has(f)) },
+        ].filter((s) => (s.key === 'flags' ? s.values.length > 0 : s.values.length > 1)),
+        count: tasks.activeFilterCount,
+        isOn: (key, value) => tasks.filters[key as keyof TaskFilters].includes(value),
+        toggle: (key, value) => tasks.toggleFilter(key as keyof TaskFilters, value),
+        clear: () => tasks.clearFilters(),
+    }
+}
+
+function historySource(): Source {
+    const harnesses = new Set<string>()
+    const versions = new Set<string>()
+    for (const s of history.sessions) {
+        harnesses.add(s.harness ?? 'unknown')
+        versions.add(s.version ?? 'no version')
+    }
+    return {
+        title: 'Filter the sessions',
+        sections: [
+            { key: 'harnesses', label: 'Assistant', values: sorted(harnesses) },
+            { key: 'versions', label: 'Version', values: sorted(versions) },
+        ].filter((s) => s.values.length > 1),
+        count: history.activeFilterCount,
+        isOn: (key, value) => history.filters[key as 'harnesses' | 'versions'].includes(value),
+        toggle: (key, value) => history.toggleFilter(key as 'harnesses' | 'versions', value),
+        clear: () => history.clearFilters(),
+    }
+}
+
+const source = computed<Source>(() =>
+    layout.view === 'tasks' ? taskSource() : layout.view === 'history' ? historySource() : memorySource(),
+)
+
+/** Archived notes exist only on the memory screens. */
+const hasArchived = computed(
+    () => (layout.view === 'graph' || layout.view === 'feed') && nodeList.value.some((n) => n.valid_until != null),
+)
 </script>
 
 <template>
@@ -74,17 +143,17 @@ function accentFor(group: Group, value: string): string | undefined {
     <button
         class="toggle"
         type="button"
-        :class="{ active: open || activeFilterCount > 0 }"
-        :title="'Filter the canvas'"
+        :class="{ active: open || source.count > 0 }"
+        :title="source.title"
         @click="open = !open"
     >
         Filter
-        <span v-if="activeFilterCount" class="count">{{ activeFilterCount }}</span>
+        <span v-if="source.count" class="count">{{ source.count }}</span>
     </button>
 
     <Transition name="pop">
         <div v-if="open" class="popover glass-panel">
-            <section v-for="s in sections" :key="s.group" class="group">
+            <section v-for="s in source.sections" :key="s.key" class="group">
                 <h3 class="group-title">{{ s.label }}</h3>
                 <div class="chips">
                     <button
@@ -92,21 +161,19 @@ function accentFor(group: Group, value: string): string | undefined {
                         :key="v"
                         class="chip"
                         type="button"
-                        :class="{ on: isOn(s.group, v) }"
-                        :style="accentFor(s.group, v) ? { '--chip-accent': accentFor(s.group, v) } : undefined"
-                        @click="store.toggleFilter(s.group, v)"
+                        :class="{ on: source.isOn(s.key, v) }"
+                        :style="source.accent?.(s.key, v) ? { '--chip-accent': source.accent(s.key, v) } : undefined"
+                        @click="source.toggle(s.key, v)"
                     >
                         {{ v }}
                     </button>
                 </div>
             </section>
+            <NoteText v-if="!source.sections.length && !hasArchived">Nothing to filter here yet.</NoteText>
 
             <ToggleSwitch v-if="hasArchived" v-model="filters.showArchived" class="archived-row" label="Show archived" />
 
-            <UiButton
-                v-if="activeFilterCount" size="sm" variant="ghost" class="clear"
-                @click="store.clearFilters()"
-            >
+            <UiButton v-if="source.count" size="sm" variant="ghost" class="clear" @click="source.clear()">
                 Clear all filters
             </UiButton>
         </div>
@@ -216,6 +283,7 @@ function accentFor(group: Group, value: string): string | undefined {
     border-color: color-mix(in srgb, var(--chip-accent) 55%, transparent);
     background-color: color-mix(in srgb, var(--chip-accent) 14%, transparent);
 }
+
 
 .clear {
     align-self: flex-start;

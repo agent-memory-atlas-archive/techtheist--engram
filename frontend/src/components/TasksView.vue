@@ -22,7 +22,7 @@ import type { TaskStatus, TaskView } from '@/types/graph'
 const tasks = useTasksStore()
 const graph = useGraphStore()
 const layout = useLayoutStore()
-const { topLevel, error, loaded, selectedId } = storeToRefs(tasks)
+const { topLevel, visibleTopLevel, error, loaded, selectedId } = storeToRefs(tasks)
 
 onMounted(() => {
     void tasks.load()
@@ -49,7 +49,7 @@ const columnOf = (t: TaskView): Column => (isOpen(t.status) ? (t.status as Colum
 
 const columns = computed(() => {
     const out: Record<Column, TaskView[]> = { active: [], delayed: [], backlog: [], closed: [] }
-    for (const t of topLevel.value) out[columnOf(t)].push(t)
+    for (const t of visibleTopLevel.value) out[columnOf(t)].push(t)
     return out
 })
 

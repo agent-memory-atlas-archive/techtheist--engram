@@ -24,6 +24,7 @@ import ProjectSwitcher from '@/components/panels/ProjectSwitcher.vue'
 import ReviewPanel from '@/components/panels/ReviewPanel.vue'
 import SettingsMenu from '@/components/panels/SettingsMenu.vue'
 import SystemInfoPanel from '@/components/panels/SystemInfoPanel.vue'
+import TaskCreatePanel from '@/components/panels/TaskCreatePanel.vue'
 import TaskDrawer from '@/components/panels/TaskDrawer.vue'
 import { isDemo } from '@/services/api'
 import { hostChrome } from '@/services/hostChrome'
@@ -151,10 +152,17 @@ function screenClass(s: ViewMode): Record<string, boolean> {
     }
 }
 
+/** New makes what the screen is about: a task on Tasks, a memory elsewhere. */
+const newTitle = computed(() => (layout.view === 'tasks' ? 'Create a task' : 'Create a memory node'))
+
 function startCreate(): void {
+    menuOpen.value = false
+    if (layout.view === 'tasks') {
+        tasks.startCreate()
+        return
+    }
     // Claiming the right side auto-dismisses the detail drawer (usePanels).
     creating.value = true
-    menuOpen.value = false
 }
 
 onMounted(async () => {
@@ -226,11 +234,11 @@ onBeforeUnmount(() => store.disconnect())
                 </svg>
             </button>
             <div class="actions-cluster" :class="{ open: menuOpen }">
-                <button class="new-node" type="button" title="Create a memory node" @click="startCreate">
-                    + New
+                <button class="new-node" type="button" :title="newTitle" @click="startCreate">
+                    New
                 </button>
-                <!-- Filters shape the graph and the feed only. -->
-                <FilterMenu v-if="layout.view === 'graph' || layout.view === 'feed'" />
+                <!-- One Filter in one place; it filters whatever the screen shows. -->
+                <FilterMenu />
                 <ReviewPanel />
                 <CheckupPanel />
             </div>
@@ -243,6 +251,7 @@ onBeforeUnmount(() => store.disconnect())
 
     <NodeDetail />
     <TaskDrawer v-if="layout.view === 'tasks'" />
+    <TaskCreatePanel v-if="layout.view === 'tasks'" />
     <NodeCreatePanel v-model="creating" />
     <MemoryLensPanel />
     <AuditPanel />

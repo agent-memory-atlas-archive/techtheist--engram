@@ -59,8 +59,11 @@ body of its GitHub Release (draft-release.yml lifts it automatically).
   and a task open in the same kind of card.
 - **A themed date picker** replaces the browser's own, the narrow top bar
   folds the screen switch into one compact control, text boxes grow with
-  their text instead of showing a resize handle, and the Filter button
-  shows only where it filters (Graph and Feed).
+  their text instead of showing a resize handle.
+- **New and Filter follow the screen.** On Tasks, New opens a new task and
+  Filter narrows the board by version, who created a task, and flags such
+  as carried over or idle; on History, Filter narrows the sessions by
+  assistant and version. Everywhere else they work on memories as before.
 
 ## v0.9.12
 

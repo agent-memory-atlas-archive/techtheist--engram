@@ -20,7 +20,7 @@ import type { GraphConfig, HistorySession } from '@/types/graph'
 const history = useHistoryStore()
 const layout = useLayoutStore()
 const config = useConfigStore()
-const { sessions, active, messages, focusTurn, focusTs, loading, error } = storeToRefs(history)
+const { sessions, visibleSessions, active, messages, focusTurn, focusTs, loading, error } = storeToRefs(history)
 
 const thread = ref<HTMLElement | null>(null)
 /** The message a jump centers on: exact turn (born-in) or nearest-by-time
@@ -150,7 +150,7 @@ async function remove(s: HistorySession): Promise<void> {
     <aside class="lanes glass-panel">
         <header class="lanes-head">
             <h2 class="lanes-title">Session history</h2>
-            <span class="count">{{ sessions.length }}</span>
+            <span class="count">{{ visibleSessions.length }}</span>
         </header>
         <div v-if="recordingOff" class="off-banner">
             Recording is off — new sessions aren't ingested.
@@ -165,7 +165,7 @@ async function remove(s: HistorySession): Promise<void> {
             Session history.
         </NoteText>
         <ul class="lane-list">
-            <li v-for="s in sessions" :key="s.session">
+            <li v-for="s in visibleSessions" :key="s.session">
                 <button
                     class="lane"
                     :class="{ active: active?.session === s.session }"

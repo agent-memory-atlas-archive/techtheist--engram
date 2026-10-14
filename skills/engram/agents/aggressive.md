@@ -46,6 +46,9 @@ of work (a feature = a group, `add_tasks` items with `"parent": "$1"`), steps
 in the body; `update_task` with `progress` when you stop, `status` done /
 delayed / dropped as things move. `close` / `wake` rules take a version, a
 date or `"node:<id>"`. When one settles something, capture it as a note.
+Resume from the brief's `## Tasks` (`list_tasks` reads bodies; `search`
+never returns tasks). An Intent is the plan worth remembering, tasks are the
+doing — they `refs` it. A status or order the user set on the board stands.
 If a task tool says tasks are turned off, work without them there.
 
 The pane is at http://127.0.0.1:8787 (real port in `.engram/daemon.json`);
