@@ -445,7 +445,7 @@ const currentNode = computed(() =>
 
 <template>
 <div class="feed-screen">
-    <div class="feed-toolbar glass-panel">
+    <div class="feed-toolbar glass-panel screen-content">
         <SegmentedControl v-model="mode" :options="MODE_OPTIONS" aria-label="Feed lens" />
         <SegmentedControl v-model="sort" :options="sortOptions" aria-label="Feed order" />
         <span class="jumps">
@@ -477,7 +477,7 @@ const currentNode = computed(() =>
         <span class="feed-count">{{ feedNodes.length }} notes</span>
     </div>
 
-    <div ref="feedEl" class="feed" @scroll.passive="onFeedScroll">
+    <div ref="feedEl" class="feed screen-content" @scroll.passive="onFeedScroll">
         <div v-if="!feedNodes.length" class="feed-empty glass-panel">
             <!-- An empty graph gets ONE empty state — the canvas's overlay is
                  graph-only, so the feed shows the same card here. -->
@@ -597,7 +597,7 @@ const currentNode = computed(() =>
     <!-- The side pane's controls, feed-style: one bottom bar acting on the
          centered card — no drawer pops in this view (Edit is the exception,
          it needs the full form). -->
-    <div v-if="currentNode" class="action-bar glass-panel">
+    <div v-if="currentNode" class="action-bar glass-panel screen-content">
         <span class="bar-dot" :style="{ background: config.accent(currentNode.type) }" />
         <span class="bar-title" :title="currentNode.title">{{ currentNode.title }}</span>
         <UiButton

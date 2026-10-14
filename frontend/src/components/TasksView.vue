@@ -177,13 +177,13 @@ function progressPct(t: TaskView): number {
 <div class="tasks" :class="`show-${narrowColumn}`">
     <SegmentedControl
         v-model="narrowColumn"
-        class="column-pick"
+        class="column-pick screen-content"
         :options="columnOptions"
         aria-label="Column"
     />
 
     <NoteText v-if="error" tone="error">{{ error }}</NoteText>
-    <div v-else class="board">
+    <div v-else class="board screen-content">
         <section
             v-for="col in COLUMNS"
             :key="col.id"

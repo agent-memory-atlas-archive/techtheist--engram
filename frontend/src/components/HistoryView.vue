@@ -115,7 +115,7 @@ async function remove(s: HistorySession): Promise<void> {
 </script>
 
 <template>
-<div v-if="recordingOff && sessions.length === 0" class="history">
+<div v-if="recordingOff && sessions.length === 0" class="history screen-content">
     <section class="off-hero glass-panel">
         <h2 class="off-title">Session history is off</h2>
         <p class="off-text">
@@ -146,7 +146,7 @@ async function remove(s: HistorySession): Promise<void> {
         </UiButton>
     </section>
 </div>
-<div v-else class="history" :class="{ reading: !!active }">
+<div v-else class="history screen-content" :class="{ reading: !!active }">
     <aside class="lanes glass-panel">
         <header class="lanes-head">
             <h2 class="lanes-title">Session history</h2>

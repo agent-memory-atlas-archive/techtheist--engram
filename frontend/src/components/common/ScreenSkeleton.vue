@@ -16,7 +16,7 @@ const BUBBLES = [['user', 5], ['assistant', 9], ['user', 4], ['assistant', 7]] a
 </script>
 
 <template>
-<div class="skeleton" :class="kind" aria-busy="true" aria-label="Loading">
+<div class="skeleton screen-content" :class="kind" aria-busy="true" aria-label="Loading">
     <template v-if="kind === 'feed'">
         <div class="feed-col">
             <SkeletonBlock v-for="(h, i) in FEED_CARDS" :key="i" class="card" :height="`${h}rem`" />

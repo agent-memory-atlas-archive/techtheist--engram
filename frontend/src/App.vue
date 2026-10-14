@@ -317,53 +317,75 @@ onBeforeUnmount(() => store.disconnect())
     content-visibility: visible;
 }
 
-/* The leaving screen stays under the arriving one and takes no input. */
+/* A switch is two motions: the whole screen (its backdrop — the canvas
+   color, glow and dot grid, the feed's gradient) only fades, while its
+   content (`.screen-content`, and the canvas's node/edge layer) slides.
+   Content moves with the `translate` property, which composes with the
+   transforms components already own (Vue Flow's pan/zoom, centered bars). */
 .screen.leaving {
     pointer-events: none;
-    animation: screen-out-fwd 220ms cubic-bezier(0.3, 0.7, 0.2, 1) both;
+    animation: screen-fade-out 220ms cubic-bezier(0.3, 0.7, 0.2, 1) both;
 }
 
 .screen.entering {
-    animation: screen-in-fwd 220ms cubic-bezier(0.3, 0.7, 0.2, 1) both;
+    animation: screen-fade-in 220ms cubic-bezier(0.3, 0.7, 0.2, 1) both;
 }
 
-.screen.leaving.back {
-    animation-name: screen-out-back;
+.screen.entering :deep(.screen-content),
+.screen.entering :deep(.vue-flow__viewport) {
+    animation: content-in-fwd 220ms cubic-bezier(0.3, 0.7, 0.2, 1) both;
 }
 
-.screen.entering.back {
-    animation-name: screen-in-back;
+.screen.leaving :deep(.screen-content),
+.screen.leaving :deep(.vue-flow__viewport) {
+    animation: content-out-fwd 220ms cubic-bezier(0.3, 0.7, 0.2, 1) both;
 }
 
-/* Forward (to a screen right of this one in the toggle): the new screen
-   comes in from the right, the old one leaves to the left; back mirrors it.
-   A partial distance plus a fade: content visibly moves, backgrounds
-   crossfade instead of sliding as hard edges. */
-@keyframes screen-in-fwd {
+.screen.entering.back :deep(.screen-content),
+.screen.entering.back :deep(.vue-flow__viewport) {
+    animation-name: content-in-back;
+}
+
+.screen.leaving.back :deep(.screen-content),
+.screen.leaving.back :deep(.vue-flow__viewport) {
+    animation-name: content-out-back;
+}
+
+@keyframes screen-fade-in {
     from {
         opacity: 0;
-        transform: translateX(var(--slide));
     }
 }
 
-@keyframes screen-in-back {
+@keyframes screen-fade-out {
+    to {
+        opacity: 0;
+    }
+}
+
+/* Forward (to a screen right of this one in the toggle): content comes in
+   from the right and leaves to the left; back mirrors it. */
+@keyframes content-in-fwd {
     from {
-        opacity: 0;
-        transform: translateX(calc(-1 * var(--slide)));
+        translate: var(--slide) 0;
     }
 }
 
-@keyframes screen-out-fwd {
-    to {
-        opacity: 0;
-        transform: translateX(calc(-1 * var(--slide)));
+@keyframes content-in-back {
+    from {
+        translate: calc(-1 * var(--slide)) 0;
     }
 }
 
-@keyframes screen-out-back {
+@keyframes content-out-fwd {
     to {
-        opacity: 0;
-        transform: translateX(var(--slide));
+        translate: calc(-1 * var(--slide)) 0;
+    }
+}
+
+@keyframes content-out-back {
+    to {
+        translate: var(--slide) 0;
     }
 }
 
