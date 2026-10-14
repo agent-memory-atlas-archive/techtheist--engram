@@ -146,7 +146,7 @@ it back on.
 Nodes carry free-form tags, settable by you in the pane or by the assistant
 on request (*"tag everything about the auth rewrite"*).
 
-<img src="../.screenshots/engram-alpha-filter-and-tags-feature.png" width="170" alt="The filter menu: type chips, the project's tag vocabulary, and status / trust / durability filters">
+<img src="../.screenshots/engram-alpha-filter-and-tags-feature.png" width="300" alt="The filter menu: type chips, the project's tag vocabulary, and status / trust / durability filters">
 
 The filter menu turns the graph into slices: one click on a tag chip and the
 canvas shows only that concern. Combine tags with type, status
@@ -172,7 +172,8 @@ same note, linking to whatever replaces or contests it), tags,
 custom field values, body, links, and the session it was born in — with
 every one of them editable in place.
 
-<img src="../.screenshots/engram-alpha-node-detail-feature.png" width="290" alt="A note open in the detail drawer: type pill, version, durability, source, status and trust badges, tags, custom field values, body, and the provenance block naming the session it was born in"> <img src="../.screenshots/engram-alpha-add-memory-feature.png" width="198" alt="The New memory dialog">
+<img src="../.screenshots/engram-alpha-node-detail-feature.png" width="420" alt="A note open in the detail drawer: type pill, version, durability, source, status and trust badges, tags, custom field values, body, and the provenance block naming the session it was born in">
+<img src="../.screenshots/engram-alpha-add-memory-feature.png" width="420" alt="The New memory dialog">
 
 - **Create** nodes from the **+ New** drawer — type, title, markdown body,
   durability, tags, and any [custom fields](./customization.md#custom-fields)
@@ -198,13 +199,13 @@ every one of them editable in place.
   onto the Tombstone, so the removal stays attached to the code subject it
   happened under.
 
-  <img src="../.screenshots/engram-alpha-delete-tombstone-feature.png" width="290" alt="The delete confirm at the foot of the detail drawer: Leave a Tombstone ticked, a reason typed in, Keep the removed text ticked, and the Confirm delete button">
+  <img src="../.screenshots/engram-alpha-delete-tombstone-feature.png" width="420" alt="The delete confirm at the foot of the detail drawer: Leave a Tombstone ticked, a reason typed in, Keep the removed text ticked, and the Confirm delete button">
 
 ## The Review drawer
 
 Capture is silent; Review is where it becomes accountable.
 
-<img src="../.screenshots/engram-alpha-review-feature.png" width="243" alt="The Review drawer: a suspected-conflict pair awaiting a verdict, above the approval queue">
+<img src="../.screenshots/engram-alpha-review-feature.png" width="420" alt="The Review drawer: a suspected-conflict pair awaiting a verdict, above the approval queue">
 
 Everything recently added, everything awaiting review with its computed
 trust, one-click **Approve** for what you vouch for — and above the queue,
@@ -218,7 +219,7 @@ An append-only audit journal records every node and edge mutation — created,
 updated, approved, archived — with before/after values, which session did
 it, over which transport, and what the daemon knew at the time.
 
-<img src="../.screenshots/engram-alpha-audit-log-feature.png" width="240" alt="The Audit log: an assistant-written note expanded to its field-level record and session, with the Undo session preview listing what undoing that session would take back">
+<img src="../.screenshots/engram-alpha-audit-log-feature.png" width="420" alt="The Audit log: an assistant-written note expanded to its field-level record and session, with the Undo session preview listing what undoing that session would take back">
 
 When you come back from vacation to a graph that looks different, *"what
 changed and who wrote this"* has an exact answer.
@@ -251,7 +252,7 @@ one call, with dates.
 
 ## Settings → System
 
-<img src="../.screenshots/engram-alpha-system-feature.png" width="280" alt="The System panel: version and uptime, the process census, the graph store's backend and integrity, and the three local models with their paths">
+<img src="../.screenshots/engram-alpha-system-feature.png" width="420" alt="The System panel: version and uptime, the process census, the graph store's backend and integrity, and the three local models with their paths">
 
 The System panel is the daemon's self-report: binary version and uptime,
 store backend and integrity, the loaded

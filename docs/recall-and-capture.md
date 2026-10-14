@@ -12,7 +12,7 @@ decisions, cautions, and the tag vocabulary — so the assistant doesn't start
 cold and doesn't have to remember to ask. **Settings → Get brief** shows you
 the same text the assistant receives, for the project the pane is bound to:
 
-<img src="../.screenshots/engram-alpha-memory-lens-feature.png" width="300" alt="The Memory Lens panel rendering a session brief: working version, tag vocabulary, unresolved and suspected conflicts, and open work">
+<img src="../.screenshots/engram-alpha-memory-lens-feature.png" width="420" alt="The Memory Lens panel rendering a session brief: working version, tag vocabulary, unresolved and suspected conflicts, and open work">
 
 A real (trimmed) brief from this repository:
 
