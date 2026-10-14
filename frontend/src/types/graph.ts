@@ -783,6 +783,8 @@ export interface GraphConfig {
     history: HistoryConfig
     /** User-defined custom fields on notes (0.9.0). */
     fields: FieldDef[]
+    /** The working list beside the graph (0.10.0); absent = on. */
+    tasks?: { enabled: boolean }
 }
 
 /** One curated ontology template (GET /config/presets). */

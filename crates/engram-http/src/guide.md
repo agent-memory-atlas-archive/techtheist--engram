@@ -191,7 +191,11 @@ similarity thresholds were calibrated on the default embedding model.
 
 ## Tasks (the working list beside the graph)
 
-Tasks are not knowledge and not part of the config document. Assistants use
+Tasks are not knowledge. The only setting is `tasks.enabled` in the config
+document (default `true`); `false` turns the feature off for that graph —
+the brief drops its section and the task tools refuse with a message that
+tells the assistant to work without them. Stored tasks are kept and come
+back when it is turned on again. Change it only on the user's ask. Assistants use
 the `add_tasks` / `update_task` / `list_tasks` MCP tools; the pane uses
 `GET /tasks` (`?status=open|closed|all|<status>,…`, `parent`, `ref`),
 `POST /tasks`, `PATCH /tasks/{id}` (`""` clears body, parent, wake, close),

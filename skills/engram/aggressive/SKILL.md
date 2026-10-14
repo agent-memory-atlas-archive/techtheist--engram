@@ -68,6 +68,7 @@ Tasks live **beside** the graph: never searched, never knowledge. The brief's `#
 - **Rules close or wake a task on their own:** `close` / `wake` take a version (`"0.10.0"`, `">0.9.12"`), a date (`"in 3 days"`) or `"node:<id>"`. A release-shaped title ("publish 0.9.12") closes itself once the version moves past it.
 - **Done settles something?** Capture it as a note and add the id to the task's `refs`. Tasks point at notes; notes never point back.
 - The brief marks a task `idle` or `↻ from <version>`: finish it, park it, or drop it — don't let the list rot.
+- **Tasks can be turned off per graph.** If a task tool answers that they are off, don't keep a list there — work without one (a `handoff` Intent carries what the next session must see first).
 
 ## Trust
 

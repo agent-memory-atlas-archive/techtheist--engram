@@ -37,6 +37,30 @@ body of its GitHub Release (draft-release.yml lifts it automatically).
   woke. The skills teach one task per piece of work, not per step.
 - Tasks travel with exports, imports and the SQLite-to-TepinDB migration,
   and are sealed at rest when encryption is on.
+- **Tasks can be turned off** per graph in Settings → Graph settings →
+  Tasks. They are on by default. Off removes the Tasks screen and the brief
+  section, and the assistant's task tools answer that tasks are off and
+  what to do instead. Your stored tasks are kept for when you turn them
+  back on.
+
+### A faster, more consistent pane
+
+- **Switching screens is much faster on big graphs.** Screens you have
+  visited stay ready in the background, and the others are prepared while
+  the pane is idle. On a 640-note graph, opening the feed went from about
+  0.8 s to under 0.2 s, and returning to the graph from up to 0.75 s to
+  under 0.4 s.
+- **Screens slide.** Switching between Graph, Feed, Tasks and History moves
+  the new screen in from the side while the old one fades out; the top bar
+  stays put. With reduced motion turned on in your system, screens just
+  crossfade. A screen that isn't ready yet shows a light outline first.
+- **One look everywhere.** Every panel now uses the same buttons, fields,
+  badges, section headings and notes, so they match in every theme. A node
+  and a task open in the same kind of card.
+- **A themed date picker** replaces the browser's own, the narrow top bar
+  folds the screen switch into one compact control, text boxes grow with
+  their text instead of showing a resize handle, and the Filter button
+  shows only where it filters (Graph and Feed).
 
 ## v0.9.12
 

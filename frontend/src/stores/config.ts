@@ -207,6 +207,9 @@ export const useConfigStore = defineStore('config', () => {
     }
 
     /** The custom fields that apply to nodes of `type` (empty applies_to = all). */
+    /** Tasks are on unless this graph turned them off (0.10.0). */
+    const tasksEnabled = computed(() => cfg.value?.tasks?.enabled !== false)
+
     function fieldsFor(type: string): FieldDef[] {
         return (cfg.value?.fields ?? []).filter(
             (f) => f.applies_to.length === 0 || f.applies_to.includes(type),
@@ -215,6 +218,7 @@ export const useConfigStore = defineStore('config', () => {
 
     return {
         cfg,
+        tasksEnabled,
         presets,
         applyPreset,
         types,

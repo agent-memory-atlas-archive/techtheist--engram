@@ -46,6 +46,7 @@ of work (a feature = a group, `add_tasks` items with `"parent": "$1"`), steps
 in the body; `update_task` with `progress` when you stop, `status` done /
 delayed / dropped as things move. `close` / `wake` rules take a version, a
 date or `"node:<id>"`. When one settles something, capture it as a note.
+If a task tool says tasks are turned off, work without them there.
 
 The pane is at http://127.0.0.1:8787 (real port in `.engram/daemon.json`);
 `engram-alpha serve` in the repo root starts the core and exits. If the tools

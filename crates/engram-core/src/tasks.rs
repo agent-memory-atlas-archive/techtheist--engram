@@ -372,6 +372,10 @@ fn title_similarity(a: &str, b: &str) -> f64 {
     x.intersection(&y).count() as f64 / x.union(&y).count() as f64
 }
 
+/// What a task call answers when the graph has tasks turned off: what
+/// happened, what to do instead, and not to lobby for it.
+pub const TASKS_OFF: &str = "tasks are turned off for this graph — the user's choice (Settings → Graph settings → Tasks in the pane). Don't keep a task list here: work without one, and use an open Intent tagged `handoff` for anything the next session must see first. Don't ask to turn tasks back on unless the user brings it up.";
+
 /// At or above this word-set similarity, a new task matches an open one.
 const DUPLICATE_SIMILARITY: f64 = 0.75;
 /// Longest title accepted (the brief prints titles whole).
@@ -399,8 +403,26 @@ fn listing_order(a: &Task, b: &Task) -> std::cmp::Ordering {
 }
 
 impl Engine {
-    /// Every task, rules settled first.
+    /// Whether this graph keeps a task list (config `tasks.enabled`).
+    pub fn tasks_enabled(&self) -> bool {
+        self.store().config().tasks.enabled
+    }
+
+    /// Refuse a task call on a graph with tasks off.
+    fn require_tasks(&self) -> Result<()> {
+        if self.tasks_enabled() {
+            Ok(())
+        } else {
+            Err(Error::Config(TASKS_OFF.into()))
+        }
+    }
+
+    /// Every task, rules settled first. Empty while tasks are off (callers
+    /// that only report — set_version, the brief — stay quiet).
     pub fn tasks(&self) -> Result<Vec<Task>> {
+        if !self.tasks_enabled() {
+            return Ok(Vec::new());
+        }
         self.settle_tasks()?;
         let mut all = self.store().all_tasks()?;
         all.sort_by(listing_order);
@@ -413,6 +435,7 @@ impl Engine {
 
     /// Filtered listing with group progress and carry/idle marks.
     pub fn list_tasks(&self, filter: &TaskFilter) -> Result<Vec<TaskView>> {
+        self.require_tasks()?;
         let all = self.tasks()?;
         let idle_after = self.store().config().brief.tasks.idle_sessions;
         let current = self.current_version()?;
@@ -500,6 +523,7 @@ impl Engine {
 
     /// Create tasks; one bad item never blocks the rest.
     pub fn add_tasks(&self, items: Vec<NewTask>) -> Result<Vec<TaskWrite>> {
+        self.require_tasks()?;
         self.settle_tasks()?;
         let now = crate::store::now();
         let version = self.current_version()?;
@@ -624,6 +648,7 @@ impl Engine {
     /// Patch one task. Closing a group by hand closes its open children with
     /// the same status.
     pub fn update_task(&self, id: &str, p: TaskPatch) -> Result<Task> {
+        self.require_tasks()?;
         self.settle_tasks()?;
         let before = self
             .store()
@@ -717,6 +742,7 @@ impl Engine {
 
     /// Set a manual order: `ids` get positions 0.. in the order given.
     pub fn reorder_tasks(&self, ids: &[String]) -> Result<()> {
+        self.require_tasks()?;
         for (i, id) in ids.iter().enumerate() {
             if let Some(mut t) = self.store().get_task(id)?
                 && t.position != i as i64
@@ -731,6 +757,7 @@ impl Engine {
 
     /// User-only hard delete (the pane); a group takes its children along.
     pub fn delete_task(&self, id: &str) -> Result<bool> {
+        self.require_tasks()?;
         let Some(t) = self.store().get_task(id)? else {
             return Ok(false);
         };
@@ -753,6 +780,11 @@ impl Engine {
     /// write, from the brief, and on `set_version`. Returns how many tasks
     /// changed.
     pub fn settle_tasks(&self) -> Result<usize> {
+        // Rules don't fire while tasks are off; they settle on the first
+        // read after the feature comes back.
+        if !self.tasks_enabled() {
+            return Ok(0);
+        }
         let mut all = self.store().all_tasks()?;
         if all.is_empty() {
             return Ok(0);
@@ -958,7 +990,7 @@ impl Engine {
     pub(crate) fn brief_task_lines(&self) -> Result<Vec<String>> {
         let cfg = self.store().config();
         let tc = &cfg.brief.tasks;
-        if !tc.show {
+        if !tc.show || !cfg.tasks.enabled {
             return Ok(Vec::new());
         }
         let all = self.tasks()?;

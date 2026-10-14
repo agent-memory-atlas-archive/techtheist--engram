@@ -992,11 +992,29 @@ const twinOrder = computed({
                 <label>open cap <StepperInput v-model="draft.brief.open.cap" :max="100" aria-label="open cap" /></label>
                 <label>open excerpt <StepperInput v-model="draft.brief.open.excerpt" :min="20" :max="2000" :step="10" aria-label="open excerpt" /></label>
             </div>
-            <template v-if="draft.brief.tasks">
+            <NoteText>
+                Per-type canon sections (Principles, Decisions, …) are configured on each type
+                above. The worklist section shows every type carrying the worklist role.
+            </NoteText>
+        </PanelSection>
+
+        <PanelSection title="Tasks">
+            <ToggleSwitch
+                :model-value="draft.tasks?.enabled !== false"
+                label="Keep a task list"
+                title="The working list beside the graph: the Tasks screen, the brief's Tasks section and the assistant's task tools"
+                @update:model-value="draft.tasks = { enabled: $event }"
+            />
+            <NoteText>
+                Off hides the Tasks screen and the brief section; the assistant's task tools then
+                answer that tasks are off and it works without them. Stored tasks are kept and
+                return when you turn this back on.
+            </NoteText>
+            <template v-if="draft.tasks?.enabled !== false && draft.brief.tasks">
                 <div class="checks">
                     <ToggleChip
                         v-model="draft.brief.tasks.show"
-                        label="tasks"
+                        label="in the brief"
                         title="The ## Tasks section: the active working list, titles only, right after the current cycle"
                     />
                 </div>
@@ -1006,10 +1024,6 @@ const twinOrder = computed({
                     <label title="Sessions that briefed without an open task changing before it is marked idle (0 = never)">idle after (sessions) <StepperInput v-model="draft.brief.tasks.idle_sessions" :max="100" aria-label="idle after sessions" /></label>
                 </div>
             </template>
-            <NoteText>
-                Per-type canon sections (Principles, Decisions, …) are configured on each type
-                above. The worklist section shows every type carrying the worklist role.
-            </NoteText>
         </PanelSection>
 
         <PanelSection title="Version tracking">

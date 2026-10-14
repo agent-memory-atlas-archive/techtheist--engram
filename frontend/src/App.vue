@@ -48,12 +48,24 @@ const projects = useProjectsStore()
 const { loading, error, connected, nodeList } = storeToRefs(store)
 
 const tasks = useTasksStore()
-const VIEW_OPTIONS = [
-    { value: 'graph', label: 'Graph' },
-    { value: 'feed', label: 'Feed' },
-    { value: 'tasks', label: 'Tasks' },
-    { value: 'history', label: 'History' },
-]
+// The Tasks screen exists only while the graph keeps tasks (0.10.0).
+const VIEW_OPTIONS = computed(() =>
+    [
+        { value: 'graph', label: 'Graph' },
+        { value: 'feed', label: 'Feed' },
+        { value: 'tasks', label: 'Tasks' },
+        { value: 'history', label: 'History' },
+    ].filter((o) => o.value !== 'tasks' || config.tasksEnabled),
+)
+
+// Turned off while on the Tasks screen: back to the graph.
+watch(
+    () => config.tasksEnabled,
+    (on) => {
+        if (!on && layout.view === 'tasks') layout.setView('graph')
+        void tasks.load()
+    },
+)
 
 useGraphSync() // poll-reconcile cross-process writes, but only while the user is active
 

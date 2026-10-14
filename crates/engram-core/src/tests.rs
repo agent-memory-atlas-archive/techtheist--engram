@@ -12181,3 +12181,35 @@ fn tasks_round_trip_every_store_export_and_sealing() {
     .unwrap();
     assert_eq!(e.tasks().unwrap()[0].title, "Sealed title, renamed");
 }
+
+#[test]
+fn tasks_can_be_turned_off_and_back_on() {
+    let e = engine();
+    let id = one_task(&e, task("Kept while the feature is off"));
+    let mut cfg = e.graph_config();
+    cfg.tasks.enabled = false;
+    e.set_graph_config(&cfg).unwrap();
+
+    assert!(!e.brief(16_000).unwrap().contains("## Tasks"));
+    let refused = e.add_tasks(vec![task("Nope")]).unwrap_err().to_string();
+    assert!(
+        refused.contains("turned off") && refused.contains("handoff"),
+        "{refused}"
+    );
+    assert!(e.list_tasks(&TaskFilter::default()).is_err());
+    assert!(e.update_task(&id, Default::default()).is_err());
+    assert!(e.tasks().unwrap().is_empty(), "reporting reads go quiet");
+    assert_eq!(
+        e.store().all_tasks().unwrap().len(),
+        1,
+        "stored tasks are kept"
+    );
+
+    cfg.tasks.enabled = true;
+    e.set_graph_config(&cfg).unwrap();
+    assert!(
+        e.brief(16_000)
+            .unwrap()
+            .contains("Kept while the feature is off")
+    );
+}

@@ -41,6 +41,25 @@ pub struct GraphConfig {
     /// Empty (the default) = the feature is invisible.
     #[serde(default)]
     pub fields: Vec<FieldDef>,
+    /// The working list beside the graph (0.10.0) — on by default; a graph
+    /// that doesn't want it turns it off here.
+    #[serde(default)]
+    pub tasks: TasksConfig,
+}
+
+/// Tasks (0.10.0). Off = no brief section, no rule settling, and the task
+/// tools refuse with a message that tells the assistant what to do instead;
+/// stored tasks are kept, so turning it back on restores the list.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
+pub struct TasksConfig {
+    pub enabled: bool,
+}
+
+impl Default for TasksConfig {
+    fn default() -> Self {
+        Self { enabled: true }
+    }
 }
 
 /// One user-defined field on notes (0.9.0). Definitions live in the graph's

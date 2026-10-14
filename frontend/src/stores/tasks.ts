@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { api } from '@/services/api'
 import { onProjectSwitch } from '@/composables/onProjectSwitch'
+import { useConfigStore } from '@/stores/config'
 import { useGraphStore } from '@/stores/graph'
 import type { NewTask, TaskPatch, TaskStatus, TaskView, TaskWrite } from '@/types/graph'
 
@@ -58,6 +59,13 @@ export const useTasksStore = defineStore('tasks', () => {
     }
 
     async function load(): Promise<void> {
+        // A graph with tasks off has no list to show (the API would refuse).
+        if (!useConfigStore().tasksEnabled) {
+            tasks.value = []
+            loaded.value = true
+            selectedId.value = null
+            return
+        }
         loading.value = true
         error.value = null
         try {

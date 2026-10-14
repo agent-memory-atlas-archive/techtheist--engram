@@ -41,7 +41,9 @@ const tasksStore = useTasksStore()
 if (!tasksStore.loaded) void tasksStore.load()
 
 /** Open tasks that point at this note (computed — notes store no backlinks). */
-const taskRefs = computed(() => (selected.value ? tasksStore.referencing(selected.value.id) : []))
+const taskRefs = computed(() =>
+    selected.value && config.tasksEnabled ? tasksStore.referencing(selected.value.id) : [],
+)
 
 function openTask(id: string): void {
     tasksStore.open(id)

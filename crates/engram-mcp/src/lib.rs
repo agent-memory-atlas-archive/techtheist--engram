@@ -79,7 +79,8 @@ section says what you were doing. One task per piece of work that spans \
 sessions (a feature = a group with `parent: \"$1\"` children), never per \
 edit; mark them done as you go; `progress` notes where you stopped. When one \
 closes having settled something, capture it as a note and add the id to the \
-task's refs. \
+task's refs. If a task tool answers that tasks are turned off, work without \
+them in that graph. \
 `project` on most tools: omit = this project; name/id/directory = that graph \
 (cross-project capture into a sibling's own graph is encouraged); \"home\" = \
 the user-level graph; search/check_claim take \"all\" (reads only — writes \
@@ -4735,6 +4736,36 @@ pub(crate) mod tool_tests {
             closed["total"], 3,
             "group closed with its last task: {closed}"
         );
+    }
+
+    /// A graph with tasks off: the task tools refuse with what happened and
+    /// what to do instead, as invalid params (the caller's to act on).
+    #[tokio::test]
+    async fn task_tools_explain_when_tasks_are_off() {
+        let s = server();
+        {
+            let engine = s.engine_for(&None).unwrap();
+            let engine = engine.lock().unwrap();
+            let mut cfg = engine.graph_config();
+            cfg.tasks.enabled = false;
+            engine.set_graph_config(&cfg).unwrap();
+        }
+        let err = s
+            .add_tasks(Parameters(
+                serde_json::from_value(json!({ "tasks": [{ "title": "x" }] })).unwrap(),
+            ))
+            .await
+            .expect_err("tasks are off");
+        assert!(
+            err.message.contains("turned off") && err.message.contains("handoff"),
+            "{}",
+            err.message
+        );
+        let err = s
+            .list_tasks(Parameters(serde_json::from_value(json!({})).unwrap()))
+            .await
+            .expect_err("tasks are off");
+        assert!(err.message.contains("turned off"), "{}", err.message);
     }
 
     #[tokio::test]
