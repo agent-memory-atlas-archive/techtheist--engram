@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /**
  * The pane's button for card and drawer actions. `primary` is the one
- * outlined-in-accent action of a row, `ghost` an outlined quiet one,
+ * filled action of a form (Create), `accent` an outlined-in-accent one
+ * (Add, Turn on), `ghost` an outlined quiet one,
  * `subtle` a borderless one (a toolbar's secondary gesture), `danger` a
  * confirmed destructive step, `danger-text` the entry to one. `sm` is the
  * inline size (rows, list items, section headers). Every panel uses this —
@@ -9,7 +10,7 @@
  */
 withDefaults(
     defineProps<{
-        variant?: 'default' | 'primary' | 'ghost' | 'subtle' | 'danger' | 'danger-text'
+        variant?: 'default' | 'primary' | 'accent' | 'ghost' | 'subtle' | 'danger' | 'danger-text'
         size?: 'md' | 'sm'
         type?: 'button' | 'submit'
         /** Full width of its container. */
@@ -70,7 +71,18 @@ withDefaults(
 }
 
 .primary {
+    border-color: transparent;
+    background-color: var(--interactive-primary);
+    color: var(--text-inverse);
+}
+
+.primary:hover:not(:disabled) {
+    background-color: var(--interactive-primary-hover);
+}
+
+.accent {
     border-color: var(--interactive-primary);
+    background-color: transparent;
     color: var(--interactive-primary);
 }
 

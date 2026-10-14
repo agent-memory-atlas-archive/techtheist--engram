@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import AutoTextarea from '@/components/common/AutoTextarea.vue'
+import FormField from '@/components/common/FormField.vue'
 import InfoBadge from '@/components/common/InfoBadge.vue'
 import MarkdownView from '@/components/common/MarkdownView.vue'
+import NoteText from '@/components/common/NoteText.vue'
 import RulePicker from '@/components/common/RulePicker.vue'
 import SegmentedControl from '@/components/common/SegmentedControl.vue'
 import SelectMenu from '@/components/common/SelectMenu.vue'
@@ -216,8 +218,8 @@ async function remove(): Promise<void> {
     </template>
 
     <template v-if="task">
-        <p v-if="task.auto" class="note">Last automatic change: {{ task.auto }}</p>
-        <p v-if="error" class="note error">{{ error }}</p>
+        <NoteText v-if="task.auto">Last automatic change: {{ task.auto }}</NoteText>
+        <NoteText v-if="error" tone="error">{{ error }}</NoteText>
 
         <SegmentedControl
             class="status"
@@ -227,7 +229,7 @@ async function remove(): Promise<void> {
             aria-label="Status"
             @update:model-value="save({ status: $event as TaskStatus })"
         />
-        <p v-if="closedGroup" class="note">A closed group follows its tasks — reopen one of them to reopen the group.</p>
+        <NoteText v-if="closedGroup">A closed group follows its tasks — reopen one of them to reopen the group.</NoteText>
 
         <template v-if="editingPlan">
             <AutoTextarea v-model="body" class="mono" :rows="8" aria-label="Plan (markdown)" />
@@ -237,7 +239,7 @@ async function remove(): Promise<void> {
             </div>
         </template>
         <MarkdownView v-else-if="task.body" :content="task.body" class="body" />
-        <p v-else class="note">No plan yet — Edit plan adds one; steps go in as a checklist.</p>
+        <NoteText v-else>No plan yet — Edit plan adds one; steps go in as a checklist.</NoteText>
 
         <form class="row" @submit.prevent="addProgress">
             <TextField
@@ -275,8 +277,7 @@ async function remove(): Promise<void> {
         </PanelSection>
 
         <PanelSection title="Automatically">
-            <div class="field">
-                <span class="field-label">Mark done</span>
+            <FormField label="Mark done">
                 <RulePicker
                     :model-value="task.close ?? ''"
                     :current-version="tasks.currentVersion"
@@ -284,9 +285,8 @@ async function remove(): Promise<void> {
                     label="Mark done"
                     @update:model-value="saveRule('close', $event)"
                 />
-            </div>
-            <div v-if="showWake" class="field">
-                <span class="field-label">Back to active</span>
+            </FormField>
+            <FormField v-if="showWake" label="Back to active">
                 <RulePicker
                     :model-value="task.wake ?? ''"
                     :current-version="tasks.currentVersion"
@@ -294,7 +294,7 @@ async function remove(): Promise<void> {
                     label="Back to active"
                     @update:model-value="saveRule('wake', $event)"
                 />
-            </div>
+            </FormField>
         </PanelSection>
 
         <PanelSection title="Linked notes">
@@ -359,16 +359,6 @@ async function remove(): Promise<void> {
 </template>
 
 <style scoped>
-.note {
-    margin: 0;
-    color: var(--text-tertiary);
-    font-size: var(--text-caption);
-    line-height: var(--leading-normal);
-}
-
-.note.error {
-    color: var(--node-problem);
-}
 
 .status {
     align-self: flex-start;
@@ -398,17 +388,6 @@ async function remove(): Promise<void> {
     margin: 0;
     padding: 0;
     list-style: none;
-}
-
-.field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-}
-
-.field-label {
-    color: var(--text-tertiary);
-    font-size: var(--text-caption);
 }
 
 .type-dot {

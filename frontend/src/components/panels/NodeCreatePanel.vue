@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import FormField from '@/components/common/FormField.vue'
+import NoteText from '@/components/common/NoteText.vue'
+import PanelSection from '@/components/common/PanelSection.vue'
+import TextField from '@/components/common/TextField.vue'
+import UiButton from '@/components/common/UiButton.vue'
 import AutoTextarea from '@/components/common/AutoTextarea.vue'
 import { computed, reactive, ref, watch } from 'vue'
 import FieldInput from '@/components/common/FieldInput.vue'
@@ -124,64 +129,50 @@ function close(): void {
         </button>
     </div>
 
-    <input
-        v-model="draft.title"
-        class="edit-input"
-        type="text"
-        placeholder="Title"
-        aria-label="Title"
-    />
+    <TextField v-model="draft.title" placeholder="Title" aria-label="Title" />
     <AutoTextarea
         v-model="draft.body"
-        class="edit-input edit-body"
+        class="mono"
         :rows="8"
         placeholder="Body (markdown, optional)"
         aria-label="Body (markdown)"
     />
 
-    <label class="edit-label">
-        Durability
+    <FormField label="Durability">
         <SelectMenu v-model="draft.durability" :options="durabilityOptions" aria-label="Durability" block />
-    </label>
+    </FormField>
 
-    <label class="edit-label">
-        Tags
+    <FormField label="Tags">
         <TagEditor v-model="draft.tags" />
-    </label>
+    </FormField>
 
-    <label class="edit-label">
-        Code refs
+    <FormField
+        label="Code refs"
+        hint="Repo-relative paths, one per line, no line numbers — drift-checked against the working tree."
+    >
         <AutoTextarea
             v-model="draft.codeRefsText"
-            class="edit-input edit-refs"
+            class="mono small"
             :rows="3"
             placeholder="One repo-relative path per line (optional)…"
             aria-label="Code refs"
         />
-        <span class="field-hint">
-            Repo-relative paths, one per line, no line numbers — drift-checked against the working tree.
-        </span>
-    </label>
+    </FormField>
 
-    <div v-if="fieldDefs.length" class="fields-block">
-        <span class="edit-label">Custom fields</span>
+    <PanelSection v-if="fieldDefs.length" title="Custom fields">
         <FieldInput
             v-for="d in fieldDefs"
             :key="d.name"
             v-model="draft.fields[d.name]"
             :def="d"
         />
-    </div>
+    </PanelSection>
 
-    <p v-if="error" class="error">{{ error }}</p>
+    <NoteText v-if="error" tone="error">{{ error }}</NoteText>
 
     <footer class="actions">
-        <button class="btn primary" type="button" :disabled="busy || !draft.title.trim()" @click="save">
-            Create
-        </button>
-        <button class="btn ghost" type="button" :disabled="busy" @click="close">
-            Cancel
-        </button>
+        <UiButton variant="primary" :disabled="busy || !draft.title.trim()" @click="save">Create</UiButton>
+        <UiButton variant="ghost" :disabled="busy" @click="close">Cancel</UiButton>
     </footer>
 </SidePanel>
 </template>
@@ -216,50 +207,12 @@ function close(): void {
     background-color: color-mix(in srgb, var(--chip-accent) 14%, transparent);
 }
 
-.edit-input {
-    width: 100%;
-    padding: 0.7rem 0.9rem;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border-default);
-    background-color: var(--surface-sunken);
-    color: var(--text-primary);
-    font-size: var(--text-body-sm);
-    font-family: inherit;
-}
-
-.edit-body {
+.mono {
     font-family: var(--font-mono);
-    line-height: var(--leading-normal);
 }
 
-.edit-refs {
-    font-family: var(--font-mono);
+.mono.small {
     font-size: var(--text-caption);
-    line-height: var(--leading-normal);
-}
-
-.field-hint {
-    font-size: var(--text-caption);
-    color: var(--text-tertiary);
-}
-
-.edit-label {
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-    font-size: var(--text-caption);
-    color: var(--text-tertiary);
-}
-
-.fields-block {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-}
-
-.error {
-    font-size: var(--text-caption);
-    color: var(--node-problem);
 }
 
 .actions {
@@ -267,35 +220,5 @@ function close(): void {
     gap: 0.6rem;
     margin-top: auto;
     padding-top: 0.6rem;
-}
-
-.btn {
-    padding: 0.7rem 1.2rem;
-    border-radius: var(--radius-md);
-    font-size: var(--text-label);
-    font-weight: 600;
-    cursor: pointer;
-    border: 1px solid var(--border-default);
-    background-color: var(--surface-elevated);
-    color: var(--text-primary);
-}
-
-.btn:disabled {
-    opacity: 0.5;
-    cursor: default;
-}
-
-.btn:hover:not(:disabled) {
-    background-color: var(--node-hover-surface);
-}
-
-.btn.primary {
-    border-color: transparent;
-    background-color: var(--interactive-primary);
-    color: var(--text-inverse);
-}
-
-.btn.ghost {
-    background-color: transparent;
 }
 </style>

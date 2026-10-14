@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import UiButton from '@/components/common/UiButton.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { api } from '@/services/api'
 import { useProjectsStore } from '@/stores/projects'
@@ -60,8 +61,8 @@ watch(() => projects.active?.id, check)
             labeled fall-through.
         </p>
         <div class="row">
-            <button class="mini" type="button" @click="openSettings">Settings</button>
-            <button class="mini quiet" type="button" @click="dismiss">Got it</button>
+            <UiButton size="sm" @click="openSettings">Settings</UiButton>
+            <UiButton size="sm" variant="subtle" @click="dismiss">Got it</UiButton>
         </div>
     </div>
 </Transition>
@@ -92,18 +93,5 @@ watch(() => projects.active?.id, check)
     gap: 8px;
 }
 
-.mini {
-    padding: 4px 10px;
-    border: 1px solid var(--border-default, rgb(148 163 184 / 35%));
-    border-radius: 6px;
-    background: transparent;
-    color: var(--text-primary);
-    font-size: var(--text-body-sm);
-    cursor: pointer;
-}
 
-.mini.quiet {
-    border-color: transparent;
-    color: var(--text-secondary);
-}
 </style>

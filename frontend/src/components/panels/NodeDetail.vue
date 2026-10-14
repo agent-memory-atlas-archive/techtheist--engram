@@ -5,7 +5,9 @@ import { onClickOutside } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import MarkdownView from '@/components/common/MarkdownView.vue'
 import SelectMenu from '@/components/common/SelectMenu.vue'
+import FormField from '@/components/common/FormField.vue'
 import InfoBadge from '@/components/common/InfoBadge.vue'
+import NoteText from '@/components/common/NoteText.vue'
 import TextField from '@/components/common/TextField.vue'
 import UiButton from '@/components/common/UiButton.vue'
 import DetailDrawer from '@/components/common/detail/DetailDrawer.vue'
@@ -454,21 +456,20 @@ function close(): void {
             <TextField v-model="draft.title" class="edit-title" aria-label="Title" />
             <AutoTextarea v-model="draft.body" class="mono" :rows="8" aria-label="Body (markdown)" />
             <div class="edit-row">
-                <label class="edit-label">
-                    Type
+                <FormField label="Type">
                     <SelectMenu v-model="draft.type" :options="typeOptions" aria-label="Type" block />
-                </label>
-                <label class="edit-label">
-                    Durability
+                </FormField>
+                <FormField label="Durability">
                     <SelectMenu v-model="draft.durability" :options="durabilityOptions" aria-label="Durability" block />
-                </label>
+                </FormField>
             </div>
-            <label class="edit-label">
-                Tags
+            <FormField label="Tags">
                 <TagEditor v-model="draft.tags" />
-            </label>
-            <label class="edit-label">
-                Code refs
+            </FormField>
+            <FormField
+                label="Code refs"
+                hint="Repo-relative paths, one per line, no line numbers — drift-checked against the working tree. Leave empty to clear."
+            >
                 <AutoTextarea
                     v-model="draft.codeRefsText"
                     class="mono small"
@@ -476,26 +477,22 @@ function close(): void {
                     placeholder="One repo-relative path per line…"
                     aria-label="Code refs"
                 />
-                <span class="field-hint">
-                    Repo-relative paths, one per line, no line numbers — drift-checked against the working tree. Leave empty to clear.
-                </span>
-            </label>
-            <div v-if="fieldDefs.length" class="fields-edit">
-                <span class="edit-label">Custom fields</span>
+            </FormField>
+            <PanelSection v-if="fieldDefs.length" title="Custom fields">
                 <FieldInput
                     v-for="d in fieldDefs"
                     :key="d.name"
                     v-model="draft.fields[d.name]"
                     :def="d"
                 />
-            </div>
+            </PanelSection>
             <div class="edit-actions">
                 <UiButton :disabled="busy || !draft.title.trim()" @click="saveEdit">Save</UiButton>
                 <UiButton variant="ghost" :disabled="busy" @click="editing = false">Cancel</UiButton>
             </div>
         </template>
 
-        <p class="trust-note">{{ explainTrust(selected, config.cfg?.policy) }}</p>
+        <NoteText>{{ explainTrust(selected, config.cfg?.policy) }}</NoteText>
 
         <p v-if="standing" class="standing-line">
             <StandingChip :standing="standing" />
@@ -572,7 +569,7 @@ function close(): void {
                     </template>
                 </DetailLink>
             </ul>
-            <p class="rel-hint">Drag between node handles on the canvas to add a connection.</p>
+            <NoteText>Drag between node handles on the canvas to add a connection.</NoteText>
         </PanelSection>
 
         <PanelSection v-if="timeline.length > 1" title="History">
@@ -783,24 +780,12 @@ function close(): void {
     list-style: none;
 }
 
-.field-hint {
-    font-size: var(--text-caption);
-    color: var(--text-tertiary);
-}
 
 .edit-row {
     display: flex;
     gap: 1.2rem;
 }
 
-.edit-label {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    gap: 0.3rem;
-    font-size: var(--text-caption);
-    color: var(--text-tertiary);
-}
 
 .edit-actions {
     display: flex;
@@ -835,12 +820,6 @@ function close(): void {
     text-decoration: underline;
 }
 
-/* The plain-words answer to "why is trust this number". */
-.trust-note {
-    font-size: var(--text-caption);
-    line-height: var(--leading-normal);
-    color: var(--text-tertiary);
-}
 
 .menu-wrap {
     position: relative;
@@ -948,11 +927,6 @@ function close(): void {
     font-weight: 600;
 }
 
-.rel-hint {
-    margin-top: 0.5rem;
-    font-size: var(--text-caption);
-    color: var(--text-tertiary);
-}
 
 .timeline {
     display: flex;
@@ -1064,11 +1038,6 @@ function close(): void {
     text-decoration: underline;
 }
 
-.fields-edit {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-}
 
 .fields-view {
     display: grid;
