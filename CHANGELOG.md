@@ -67,6 +67,24 @@ body of its GitHub Release (draft-release.yml lifts it automatically).
   Filter narrows the board by version, who created a task, and flags such
   as carried over or idle; on History, Filter narrows the sessions by
   assistant and version. Everywhere else they work on memories as before.
+- **Dragging works inside the IDEs.** The task board drags with the
+  pointer instead of the browser's drag-and-drop, which the JetBrains tool
+  window never finishes (a card greyed out and stayed that way). Escape
+  cancels a drag, and it works on touchscreens too. In a narrow IDE pane the
+  board's column switch no longer collapses to a sliver.
+- **The History screen opens sessions faster.** Listing sessions and
+  opening one used to read every recorded message, about 0.1 s per request
+  on a graph with ~4,700 recorded messages, growing with every session. They
+  now read only what they show: on a sealed test store, listing went from
+  46 ms to 0.6 ms and opening a session from 43 ms to 0.8 ms. Existing
+  stores are indexed once, the first time they open.
+
+### Browser demo
+
+- **Memory search works in the demo.** The search box runs a keyword
+  match over the demo graph, with highlighted snippets like the real
+  daemon's. The demo has no embedding models, so it doesn't rank by
+  meaning.
 
 ## v0.9.12
 
