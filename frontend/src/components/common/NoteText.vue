@@ -10,41 +10,41 @@ withDefaults(defineProps<{ tone?: 'hint' | 'body' | 'ok' | 'warn' | 'error' | 'e
 </script>
 
 <template>
-<component :is="as" class="note" :class="tone"><slot /></component>
+<component :is="as" class="ui-note" :class="`ui-note--${tone}`"><slot /></component>
 </template>
 
 <style scoped>
-.note {
+.ui-note {
     margin: 0;
     color: var(--text-tertiary);
     font-size: var(--text-caption);
     line-height: var(--leading-normal);
 }
 
-.note :deep(code) {
+.ui-note :deep(code) {
     padding: 0.1rem 0.4rem;
     border-radius: var(--radius-sm);
     background-color: var(--surface-sunken);
     font-family: var(--font-mono);
 }
 
-.body {
+.ui-note--body {
     color: var(--text-secondary);
 }
 
-.ok {
+.ui-note--ok {
     color: var(--node-resolution);
 }
 
-.warn {
+.ui-note--warn {
     color: var(--node-caution);
 }
 
-.error {
+.ui-note--error {
     color: var(--node-problem);
 }
 
-.empty {
+.ui-note--empty {
     padding: 0.6rem 0;
     font-size: var(--text-body-sm);
 }

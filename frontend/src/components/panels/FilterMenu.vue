@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import UiButton from '@/components/common/UiButton.vue'
+import ToggleSwitch from '@/components/common/ToggleSwitch.vue'
 import { computed, ref, useTemplateRef } from 'vue'
 import { onClickOutside } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -99,19 +101,14 @@ function accentFor(group: Group, value: string): string | undefined {
                 </div>
             </section>
 
-            <label v-if="hasArchived" class="archived-row">
-                <input v-model="filters.showArchived" type="checkbox" />
-                <span>Show archived</span>
-            </label>
+            <ToggleSwitch v-if="hasArchived" v-model="filters.showArchived" class="archived-row" label="Show archived" />
 
-            <button
-                v-if="activeFilterCount"
-                class="clear"
-                type="button"
+            <UiButton
+                v-if="activeFilterCount" size="sm" variant="ghost" class="clear"
                 @click="store.clearFilters()"
             >
                 Clear all filters
-            </button>
+            </UiButton>
         </div>
     </Transition>
 </div>
@@ -220,29 +217,8 @@ function accentFor(group: Group, value: string): string | undefined {
     background-color: color-mix(in srgb, var(--chip-accent) 14%, transparent);
 }
 
-.archived-row {
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
-    font-size: var(--text-body-sm);
-    color: var(--text-secondary);
-    cursor: pointer;
-}
-
 .clear {
     align-self: flex-start;
-    padding: 0.5rem 1rem;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border-default);
-    background-color: transparent;
-    color: var(--text-secondary);
-    font-size: var(--text-caption);
-    font-weight: 600;
-    cursor: pointer;
 }
 
-.clear:hover {
-    color: var(--text-primary);
-    background-color: var(--interactive-ghost-hover);
-}
 </style>

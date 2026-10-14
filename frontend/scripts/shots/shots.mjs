@@ -49,7 +49,7 @@ const fromSettings = (row) => async (page) => {
 /** Park a block of a long settings panel at the top of its scroll area. */
 async function scrollTo(page, heading) {
     await page
-        .locator(`${PANEL} h3.block-title`, { hasText: heading })
+        .locator(`${PANEL} h3.ui-section-title`, { hasText: heading })
         .evaluate((el) => el.scrollIntoView({ block: 'start' }))
 }
 
@@ -127,7 +127,7 @@ export const shots = [
             await page.locator(`${PANEL}`).getByRole('button', { name: 'Check', exact: true }).click()
             // The verdict lands below the fold of a long panel.
             await page
-                .locator(`${PANEL} h3.block-title`, { hasText: 'Check a claim' })
+                .locator(`${PANEL} h3.ui-section-title`, { hasText: 'Check a claim' })
                 .evaluate((el) => el.scrollIntoView({ block: 'start' }))
         },
         clip: PANEL,
@@ -228,8 +228,8 @@ export const shots = [
         },
         // The heading and its hint down to the end of the first type card.
         clip: [
-            `${PANEL} h3.block-title:has-text("Node types")`,
-            `${PANEL} section.block:has-text("Node types") article.card`,
+            `${PANEL} h3.ui-section-title:has-text("Node types")`,
+            `${PANEL} section.ui-section:has-text("Node types") article.card`,
         ],
         pad: 4,
         settle: 600,
@@ -245,8 +245,8 @@ export const shots = [
         // Heading through the second declared field — the demo graph's
         // `impact` enum and `tracker` url.
         clip: [
-            `${PANEL} h3.block-title:has-text("Custom fields")`,
-            `${PANEL} section.block:has-text("Custom fields") article.card:nth-of-type(2)`,
+            `${PANEL} h3.ui-section-title:has-text("Custom fields")`,
+            `${PANEL} section.ui-section:has-text("Custom fields") article.card:nth-of-type(2)`,
         ],
         pad: 4,
         settle: 600,

@@ -9,11 +9,11 @@ withDefaults(defineProps<{ size?: 'sm' | 'md' }>(), { size: 'sm' })
 </script>
 
 <template>
-<dl class="meta" :class="size"><slot /></dl>
+<dl class="ui-meta" :class="`ui-meta--${size}`"><slot /></dl>
 </template>
 
 <style scoped>
-.meta {
+.ui-meta {
     --meta-label-width: 7rem;
     --meta-value-size: var(--text-caption);
     --meta-value-color: var(--text-secondary);
@@ -24,7 +24,7 @@ withDefaults(defineProps<{ size?: 'sm' | 'md' }>(), { size: 'sm' })
     font-size: var(--text-caption);
 }
 
-.md {
+.ui-meta--md {
     --meta-label-width: 10rem;
     --meta-value-size: var(--text-body-sm);
     --meta-value-color: var(--text-primary);

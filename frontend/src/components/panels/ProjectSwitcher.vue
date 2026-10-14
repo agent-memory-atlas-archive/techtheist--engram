@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import TextField from '@/components/common/TextField.vue'
+import NoteText from '@/components/common/NoteText.vue'
 import { computed, ref, useTemplateRef } from 'vue'
 import { onClickOutside } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -146,10 +148,10 @@ async function addCurrent(): Promise<void> {
                     >
                         ~
                     </button>
-                    <input
+                    <TextField
                         v-model="pathDraft"
                         class="path-input"
-                        type="text"
+                        mono
                         spellcheck="false"
                         title="Current folder — edit and press Enter to jump"
                         @keydown.enter.prevent="navigate(pathDraft.trim())"
@@ -171,7 +173,7 @@ async function addCurrent(): Promise<void> {
                         <span v-if="d.engram" class="badge home">engram</span>
                         <span v-else-if="d.git" class="badge">git</span>
                     </button>
-                    <p v-if="listing && !listing.dirs.length" class="note">no subfolders here</p>
+                    <NoteText v-if="listing && !listing.dirs.length">no subfolders here</NoteText>
                 </div>
                 <div class="browser-actions">
                     <button
@@ -186,7 +188,7 @@ async function addCurrent(): Promise<void> {
                     <button class="cancel-btn" type="button" @click="browsing = false">Cancel</button>
                 </div>
             </div>
-            <p v-if="note" class="note">{{ note }}</p>
+            <NoteText v-if="note">{{ note }}</NoteText>
         </div>
     </Transition>
 </div>
@@ -380,13 +382,6 @@ async function addCurrent(): Promise<void> {
 
 .path-input {
     flex: 1;
-    min-width: 0;
-    padding: 0.5rem 0.8rem;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border-default);
-    background-color: var(--surface-sunken);
-    color: var(--text-primary);
-    font-family: var(--font-mono);
     font-size: var(--text-caption);
 }
 
@@ -477,8 +472,4 @@ async function addCurrent(): Promise<void> {
     background-color: var(--interactive-ghost-hover);
 }
 
-.note {
-    font-size: var(--text-caption);
-    color: var(--node-problem);
-}
 </style>

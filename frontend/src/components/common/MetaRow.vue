@@ -5,14 +5,14 @@ defineProps<{ label: string; mono?: boolean; monoLabel?: boolean }>()
 </script>
 
 <template>
-<div class="row">
+<div class="ui-meta-row">
     <dt :class="{ mono: monoLabel }">{{ label }}</dt>
     <dd :class="{ mono }"><slot /></dd>
 </div>
 </template>
 
 <style scoped>
-.row {
+.ui-meta-row {
     display: flex;
     gap: 0.8rem;
     align-items: baseline;

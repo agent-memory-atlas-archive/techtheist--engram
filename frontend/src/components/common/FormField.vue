@@ -10,15 +10,15 @@ defineProps<{ label: string; hint?: string }>()
 </script>
 
 <template>
-<label class="form-field">
-    <span class="label">{{ label }}</span>
+<label class="ui-form-field">
+    <span class="ui-form-label">{{ label }}</span>
     <slot />
     <NoteText v-if="hint" as="span">{{ hint }}</NoteText>
 </label>
 </template>
 
 <style scoped>
-.form-field {
+.ui-form-field {
     display: flex;
     flex: 1;
     flex-direction: column;
@@ -26,7 +26,7 @@ defineProps<{ label: string; hint?: string }>()
     min-width: 0;
 }
 
-.label {
+.ui-form-label {
     color: var(--text-tertiary);
     font-size: var(--text-caption);
 }

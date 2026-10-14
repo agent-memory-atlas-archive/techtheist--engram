@@ -9,7 +9,7 @@ const emit = defineEmits<{ (e: 'open'): void; (e: 'remove'): void }>()
 </script>
 
 <template>
-<li class="link-row">
+<li class="ui-link-row">
     <slot name="lead" />
     <button class="target" type="button" :class="{ struck }" @click="emit('open')">
         <span class="target-text">{{ title }}</span>
@@ -30,7 +30,7 @@ const emit = defineEmits<{ (e: 'open'): void; (e: 'remove'): void }>()
 </template>
 
 <style scoped>
-.link-row {
+.ui-link-row {
     display: flex;
     gap: 0.5rem;
     align-items: center;

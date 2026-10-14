@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import UiButton from '@/components/common/UiButton.vue'
+import NoteText from '@/components/common/NoteText.vue'
 import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import SelectMenu from '@/components/common/SelectMenu.vue'
@@ -76,10 +78,10 @@ async function apply(): Promise<void> {
     <div v-if="options.length" class="ontology">
         <label class="ontology-label" for="empty-ontology">Ontology</label>
         <SelectMenu id="empty-ontology" v-model="choice" :options="ontologyOptions" aria-label="Ontology" />
-        <button v-if="dirty" class="save" type="button" :disabled="busy" @click="apply">
+        <UiButton v-if="dirty" variant="primary" size="sm" :disabled="busy" @click="apply">
             {{ busy ? 'Saving…' : 'Save' }}
-        </button>
-        <span v-if="note" class="note">{{ note }}</span>
+        </UiButton>
+        <NoteText v-if="note" as="span">{{ note }}</NoteText>
     </div>
     <p v-if="chosen?.description" class="ontology-desc">{{ chosen.description }}</p>
 </div>
@@ -127,31 +129,6 @@ async function apply(): Promise<void> {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--text-tertiary);
-}
-
-.save {
-    padding: 0.4rem 1.2rem;
-    border: 1px solid transparent;
-    border-radius: var(--radius-control);
-    background: var(--interactive-primary);
-    color: var(--text-inverse);
-    font-size: var(--text-caption);
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.save:disabled {
-    opacity: 0.5;
-    cursor: default;
-}
-
-.save:hover:not(:disabled) {
-    background: var(--interactive-primary-hover);
-}
-
-.note {
-    font-size: var(--text-caption);
     color: var(--text-tertiary);
 }
 

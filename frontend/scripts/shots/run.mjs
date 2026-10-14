@@ -124,7 +124,7 @@ async function capture(browser, shot, url, outDir) {
             localStorage.setItem('engram.layout', layout)
             localStorage.setItem('engram.view', view)
         },
-        [shot.theme ?? 'engram-purple', shot.layout ?? 'skyline', shot.view ?? 'graph'],
+        [shot.theme ?? process.env.SHOT_THEME ?? 'engram-purple', shot.layout ?? 'skyline', shot.view ?? 'graph'],
     )
 
     const page = await context.newPage()

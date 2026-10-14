@@ -14,11 +14,12 @@ withDefaults(
 </script>
 
 <template>
-<span class="badge" :class="[tone, { pill }]"><slot /></span>
+<span class="ui-badge" :class="[`ui-badge--${tone}`, { 'ui-badge--pill': pill }]"><slot /></span>
 </template>
 
 <style scoped>
-.badge {
+.ui-badge {
+    flex: none; /* a badge never squeezes to "d…" in a busy row */
     display: inline-block;
     max-width: 100%;
     overflow: hidden;
@@ -32,32 +33,32 @@ withDefaults(
     white-space: nowrap;
 }
 
-.pill {
+.ui-badge--pill {
     padding: 0.1rem 0.6rem;
     border-radius: var(--radius-full);
 }
 
-.muted {
+.ui-badge--muted {
     color: var(--text-tertiary);
 }
 
-.accent {
+.ui-badge--accent {
     border-color: color-mix(in srgb, var(--interactive-primary) 40%, transparent);
     background-color: color-mix(in srgb, var(--interactive-primary) 14%, transparent);
     color: var(--interactive-primary);
 }
 
-.warn {
+.ui-badge--warn {
     background-color: color-mix(in srgb, var(--node-caution) 14%, transparent);
     color: var(--node-caution);
 }
 
-.ok {
+.ui-badge--ok {
     background-color: color-mix(in srgb, var(--node-resolution) 14%, transparent);
     color: var(--node-resolution);
 }
 
-.danger {
+.ui-badge--danger {
     border-color: color-mix(in srgb, var(--node-problem) 40%, transparent);
     background-color: color-mix(in srgb, var(--node-problem) 14%, transparent);
     color: var(--node-problem);

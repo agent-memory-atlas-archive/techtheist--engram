@@ -29,18 +29,18 @@ function commit(): void {
 <AutoTextarea
     v-if="editable"
     v-model="draft"
-    class="title editable"
+    class="ui-title ui-title--editable"
     :rows="1"
     aria-label="Title"
     @blur="commit"
     @keydown.enter.prevent="($event.target as HTMLTextAreaElement).blur()"
     @keydown.esc.prevent="draft = text; ($event.target as HTMLTextAreaElement).blur()"
 />
-<h2 v-else class="title">{{ text }}</h2>
+<h2 v-else class="ui-title">{{ text }}</h2>
 </template>
 
 <style scoped>
-.title {
+.ui-title {
     width: 100%;
     margin: 0;
     color: var(--text-primary);
@@ -51,7 +51,7 @@ function commit(): void {
     overflow-wrap: anywhere;
 }
 
-.editable {
+.ui-title--editable {
     width: calc(100% + 1.2rem);
     margin-left: -0.6rem;
     padding: 0.2rem 0.6rem;
@@ -60,11 +60,11 @@ function commit(): void {
     background: transparent;
 }
 
-.editable:hover {
+.ui-title--editable:hover {
     border-color: var(--border-default);
 }
 
-.editable:focus {
+.ui-title--editable:focus {
     border-color: var(--border-strong);
     background-color: var(--surface-sunken);
     outline: none;

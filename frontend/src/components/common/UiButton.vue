@@ -24,12 +24,20 @@ withDefaults(
 </script>
 
 <template>
-<button class="btn" :class="[variant, size, { block, pill }]" :type="type"><slot /></button>
+<button
+    class="ui-btn"
+    :class="[`ui-btn--${variant}`, `ui-btn--${size}`, { 'ui-btn--block': block, 'ui-btn--pill': pill }]"
+    :type="type"
+>
+    <slot />
+</button>
 </template>
 
 <style scoped>
-.btn {
+.ui-btn {
     flex: none;
+    /* Content width, even in a stretching column (PanelSection); `block` opts out. */
+    width: fit-content;
     padding: 0.7rem 1.2rem;
     border: 1px solid var(--border-default);
     border-radius: var(--radius-md);
@@ -41,65 +49,65 @@ withDefaults(
     cursor: pointer;
 }
 
-.btn.sm {
+.ui-btn--sm {
     padding: 0.4rem 0.9rem;
     font-size: var(--text-caption);
 }
 
-.btn:disabled {
+.ui-btn:disabled {
     cursor: default;
     opacity: 0.5;
 }
 
-.btn:hover:not(:disabled) {
+.ui-btn:hover:not(:disabled) {
     background-color: var(--node-hover-surface);
 }
 
-.block {
+.ui-btn--block {
     width: 100%;
 }
 
-.pill {
+.ui-btn--pill {
     border-radius: var(--radius-control);
 }
 
-.ghost {
+.ui-btn--ghost {
     background-color: transparent;
 }
 
-.subtle {
+.ui-btn--subtle {
     border-color: transparent;
     background-color: transparent;
     color: var(--text-secondary);
 }
 
-.subtle:hover:not(:disabled) {
+.ui-btn--subtle:hover:not(:disabled) {
     color: var(--text-primary);
 }
 
-.primary {
+.ui-btn--primary {
     border-color: transparent;
     background-color: var(--interactive-primary);
     color: var(--text-inverse);
 }
 
-.primary:hover:not(:disabled) {
+.ui-btn--primary:hover:not(:disabled) {
     background-color: var(--interactive-primary-hover);
 }
 
-.accent {
+.ui-btn--accent {
     border-color: var(--interactive-primary);
     background-color: transparent;
     color: var(--interactive-primary);
 }
 
-.danger {
+.ui-btn--danger {
     border-color: var(--node-problem);
     background-color: color-mix(in srgb, var(--node-problem) 16%, transparent);
     color: var(--node-problem);
 }
 
-.danger-text {
+.ui-btn--danger-text {
     border-color: transparent;
     background-color: transparent;
     color: var(--node-problem);

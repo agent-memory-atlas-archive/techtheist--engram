@@ -10,15 +10,15 @@ const emit = defineEmits<{ (e: 'update:modelValue', v: string): void }>()
 
 <template>
 <input
-    class="field"
-    :class="{ mono }"
+    class="ui-field"
+    :class="{ 'ui-field--mono': mono }"
     :value="modelValue ?? ''"
     @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
 />
 </template>
 
 <style scoped>
-.field {
+.ui-field {
     width: 100%;
     min-width: 0;
     padding: 0.7rem 0.9rem;
@@ -30,16 +30,16 @@ const emit = defineEmits<{ (e: 'update:modelValue', v: string): void }>()
     font-size: var(--text-body-sm);
 }
 
-.field:focus {
+.ui-field:focus {
     border-color: var(--border-strong);
     outline: none;
 }
 
-.field::placeholder {
+.ui-field::placeholder {
     color: var(--text-tertiary);
 }
 
-.mono {
+.ui-field--mono {
     font-family: var(--font-mono);
 }
 </style>

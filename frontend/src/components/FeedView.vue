@@ -1103,7 +1103,7 @@ const currentNode = computed(() =>
     }
 
     /* The bar's UiButtons share the row evenly when it wraps. */
-    .action-bar .btn {
+    .action-bar .ui-btn {
         flex: 1 1 auto;
         padding: 0.4rem 0.6rem;
         text-align: center;

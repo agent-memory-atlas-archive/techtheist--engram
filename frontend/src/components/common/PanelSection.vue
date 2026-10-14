@@ -7,24 +7,24 @@ defineProps<{ title: string }>()
 </script>
 
 <template>
-<section class="section">
-    <header class="section-head">
-        <h3 class="section-title">{{ title }}</h3>
-        <span v-if="$slots.actions" class="section-actions"><slot name="actions" /></span>
+<section class="ui-section">
+    <header class="ui-section-head">
+        <h3 class="ui-section-title">{{ title }}</h3>
+        <span v-if="$slots.actions" class="ui-section-actions"><slot name="actions" /></span>
     </header>
     <slot />
 </section>
 </template>
 
 <style scoped>
-.section {
+.ui-section {
     display: flex;
     flex-direction: column;
     gap: 0.6rem;
     min-width: 0;
 }
 
-.section-head {
+.ui-section-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -32,7 +32,7 @@ defineProps<{ title: string }>()
     min-height: 2.4rem;
 }
 
-.section-title {
+.ui-section-title {
     margin: 0;
     color: var(--text-tertiary);
     font-size: var(--text-caption);
@@ -41,7 +41,7 @@ defineProps<{ title: string }>()
     text-transform: uppercase;
 }
 
-.section-actions {
+.ui-section-actions {
     display: flex;
     gap: 0.6rem;
 }
