@@ -3,10 +3,11 @@ import InfoBadge from '@/components/common/InfoBadge.vue'
 import NoteText from '@/components/common/NoteText.vue'
 import UiButton from '@/components/common/UiButton.vue'
 import AutoTextarea from '@/components/common/AutoTextarea.vue'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import SegmentedControl from '@/components/common/SegmentedControl.vue'
 import { useGraphStore } from '@/stores/graph'
+import { useLayoutStore } from '@/stores/layout'
 import { isOpen, STATUS_LABELS, useTasksStore } from '@/stores/tasks'
 import type { TaskStatus, TaskView } from '@/types/graph'
 
@@ -20,11 +21,21 @@ import type { TaskStatus, TaskView } from '@/types/graph'
  */
 const tasks = useTasksStore()
 const graph = useGraphStore()
+const layout = useLayoutStore()
 const { topLevel, error, loaded, selectedId } = storeToRefs(tasks)
 
 onMounted(() => {
     void tasks.load()
 })
+
+// Kept alive under other screens (App): refresh the board on each return
+// (rules settle at read time, so a reload is the current truth).
+watch(
+    () => layout.view,
+    (view) => {
+        if (view === 'tasks') void tasks.load()
+    },
+)
 
 type Column = 'active' | 'delayed' | 'backlog' | 'closed'
 const COLUMNS: { id: Column; label: string; hint: string }[] = [

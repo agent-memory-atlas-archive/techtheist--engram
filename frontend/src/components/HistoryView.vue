@@ -7,6 +7,7 @@ import { storeToRefs } from 'pinia'
 import MarkdownView from '@/components/common/MarkdownView.vue'
 import { useConfigStore } from '@/stores/config'
 import { useHistoryStore } from '@/stores/history'
+import { useLayoutStore } from '@/stores/layout'
 import type { GraphConfig, HistorySession } from '@/types/graph'
 
 /**
@@ -17,6 +18,7 @@ import type { GraphConfig, HistorySession } from '@/types/graph'
  * editing — read and delete are the only gestures.
  */
 const history = useHistoryStore()
+const layout = useLayoutStore()
 const config = useConfigStore()
 const { sessions, active, messages, focusTurn, focusTs, loading, error } = storeToRefs(history)
 
@@ -29,6 +31,14 @@ onMounted(() => {
     void history.load()
     if (!config.cfg) void config.load().catch(() => undefined)
 })
+
+// Kept alive under other screens (App): refresh the lanes on each return.
+watch(
+    () => layout.view,
+    (view) => {
+        if (view === 'history') void history.load()
+    },
+)
 
 // Recording is opt-in (0.8.4): when it's off, this view is where the switch
 // (and the explanation of what it does) lives.

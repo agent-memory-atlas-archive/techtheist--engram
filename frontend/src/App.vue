@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, useTemplateRef, watch } from 'vue'
 import { onClickOutside } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import FeedView from '@/components/FeedView.vue'
 import GraphCanvas from '@/components/GraphCanvas.vue'
 import HistoryView from '@/components/HistoryView.vue'
 import TasksView from '@/components/TasksView.vue'
+import ScreenSkeleton from '@/components/common/ScreenSkeleton.vue'
 import EmptyGraph from '@/components/common/EmptyGraph.vue'
 import EngramMark from '@/components/common/EngramMark.vue'
 import ViewSwitcher from '@/components/common/ViewSwitcher.vue'
@@ -77,6 +78,67 @@ watch(
     },
 )
 
+// ---- screens: kept alive, switched by sliding (0.10.0) ---------------------
+//
+// Every screen, once visited, stays in the page; the inactive ones are
+// `content-visibility: hidden` + inert, so the browser keeps their layout and
+// skips painting them — coming back costs a paint, not a rebuild (Feed was
+// ~800 ms per visit on a 640-note graph, the canvas 400–750 ms to re-measure
+// after display:none). A switch slides the new screen in from the side of
+// its position in the toggle and the old one out, both fading, so the
+// backgrounds crossfade while the content moves; the top bar stays put.
+const SCREENS: ViewMode[] = ['graph', 'feed', 'tasks', 'history']
+/** Matches the slide keyframes' duration in the styles below. */
+const SWITCH_MS = 220
+const visited = reactive(new Set<ViewMode>([layout.view]))
+const leaving = ref<ViewMode | null>(null)
+const forward = ref(true)
+let switchTimer: number | undefined
+
+watch(
+    () => layout.view,
+    (view, prev) => {
+        visited.add(view)
+        forward.value = SCREENS.indexOf(view) > SCREENS.indexOf(prev)
+        leaving.value = prev
+        window.clearTimeout(switchTimer)
+        switchTimer = window.setTimeout(() => (leaving.value = null), SWITCH_MS + 40)
+    },
+)
+
+/**
+ * Build the other screens hidden once the browser is idle after load, so a
+ * first visit costs what a return does (Feed's first build was ~950 ms on a
+ * 640-note graph). A screen asked for before this ran shows its skeleton
+ * through the slide and builds right after (see `warm`).
+ */
+function prewarm(): void {
+    const run = () => SCREENS.forEach((s) => warm.add(s))
+    if ('requestIdleCallback' in window) window.requestIdleCallback(run, { timeout: 4000 })
+    else globalThis.setTimeout(run, 1500) // Safari
+}
+
+/** Screens whose real component is mounted (the rest show a skeleton). */
+const warm = reactive(new Set<ViewMode>([layout.view]))
+watch(
+    () => layout.view,
+    (view) => {
+        if (warm.has(view)) return
+        // Cold: slide the skeleton in, then build the real screen.
+        window.setTimeout(() => warm.add(view), SWITCH_MS + 20)
+    },
+)
+
+function screenClass(s: ViewMode): Record<string, boolean> {
+    const switching = leaving.value != null
+    return {
+        active: layout.view === s,
+        leaving: leaving.value === s,
+        entering: switching && layout.view === s,
+        back: !forward.value,
+    }
+}
+
 function startCreate(): void {
     // Claiming the right side auto-dismisses the detail drawer (usePanels).
     creating.value = true
@@ -91,20 +153,32 @@ onMounted(async () => {
     // and the ontology CSS lands as soon as it arrives.
     await Promise.all([config.load().catch(() => undefined), store.load(), tasks.load()])
     store.connect() // instant SSE for pane-originated writes
+    prewarm()
 })
 
 onBeforeUnmount(() => store.disconnect())
 </script>
 
 <template>
-<div class="app">
-    <!-- v-show keeps the canvas's zoom/positions alive across view switches;
-         the feed mounts fresh (its keyboard handling must not run under the
-         graph screen). -->
-    <GraphCanvas v-show="layout.view === 'graph'" class="canvas-layer" />
-    <FeedView v-if="layout.view === 'feed'" />
-    <TasksView v-if="layout.view === 'tasks'" />
-    <HistoryView v-if="layout.view === 'history'" />
+<div class="app" :data-view="layout.view">
+    <!-- Screens stay mounted once visited (see screenClass): the canvas
+         keeps its zoom and positions, the feed its cards, and switching
+         back is a paint, not a rebuild. -->
+    <div class="screen" :class="screenClass('graph')" :inert="layout.view !== 'graph'">
+        <GraphCanvas class="canvas-layer" />
+    </div>
+    <div v-if="visited.has('feed') || warm.has('feed')" class="screen" :class="screenClass('feed')" :inert="layout.view !== 'feed'">
+        <FeedView v-if="warm.has('feed')" />
+        <ScreenSkeleton v-else kind="feed" />
+    </div>
+    <div v-if="visited.has('tasks') || warm.has('tasks')" class="screen" :class="screenClass('tasks')" :inert="layout.view !== 'tasks'">
+        <TasksView v-if="warm.has('tasks')" />
+        <ScreenSkeleton v-else kind="tasks" />
+    </div>
+    <div v-if="visited.has('history') || warm.has('history')" class="screen" :class="screenClass('history')" :inert="layout.view !== 'history'">
+        <HistoryView v-if="warm.has('history')" />
+        <ScreenSkeleton v-else kind="history" />
+    </div>
 
     <header class="topbar">
         <div class="brand">
@@ -143,7 +217,8 @@ onBeforeUnmount(() => store.disconnect())
                 <button class="new-node" type="button" title="Create a memory node" @click="startCreate">
                     + New
                 </button>
-                <FilterMenu />
+                <!-- Filters shape the graph and the feed only. -->
+                <FilterMenu v-if="layout.view === 'graph' || layout.view === 'feed'" />
                 <ReviewPanel />
                 <CheckupPanel />
             </div>
@@ -205,6 +280,79 @@ onBeforeUnmount(() => store.disconnect())
     position: absolute;
     inset: 0;
 }
+
+/* One layer per screen. Inactive ones keep their layout but skip painting
+   (content-visibility), so a return is cheap; only the active screen and
+   the one sliding out are rendered. */
+.screen {
+    --slide: 28%;
+    position: absolute;
+    inset: 0;
+    content-visibility: hidden;
+}
+
+.screen.active,
+.screen.leaving {
+    content-visibility: visible;
+}
+
+/* The leaving screen stays under the arriving one and takes no input. */
+.screen.leaving {
+    pointer-events: none;
+    animation: screen-out-fwd 220ms cubic-bezier(0.3, 0.7, 0.2, 1) both;
+}
+
+.screen.entering {
+    animation: screen-in-fwd 220ms cubic-bezier(0.3, 0.7, 0.2, 1) both;
+}
+
+.screen.leaving.back {
+    animation-name: screen-out-back;
+}
+
+.screen.entering.back {
+    animation-name: screen-in-back;
+}
+
+/* Forward (to a screen right of this one in the toggle): the new screen
+   comes in from the right, the old one leaves to the left; back mirrors it.
+   A partial distance plus a fade: content visibly moves, backgrounds
+   crossfade instead of sliding as hard edges. */
+@keyframes screen-in-fwd {
+    from {
+        opacity: 0;
+        transform: translateX(var(--slide));
+    }
+}
+
+@keyframes screen-in-back {
+    from {
+        opacity: 0;
+        transform: translateX(calc(-1 * var(--slide)));
+    }
+}
+
+@keyframes screen-out-fwd {
+    to {
+        opacity: 0;
+        transform: translateX(calc(-1 * var(--slide)));
+    }
+}
+
+@keyframes screen-out-back {
+    to {
+        opacity: 0;
+        transform: translateX(var(--slide));
+    }
+}
+
+/* Reduced motion: no travel, just the crossfade. */
+@media (prefers-reduced-motion: reduce) {
+    .screen {
+        --slide: 0%;
+    }
+}
+
 
 .topbar {
     position: absolute;

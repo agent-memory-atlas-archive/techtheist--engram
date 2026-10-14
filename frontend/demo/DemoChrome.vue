@@ -73,9 +73,7 @@ function reset(): void {
 }
 
 /* The feed, tasks and history screens have no minimap — sit in the corner. */
-.app:has(> .feed-screen) .demo-chrome,
-.app:has(> .tasks) .demo-chrome,
-.app:has(> .history) .demo-chrome {
+.app:not([data-view="graph"]) .demo-chrome {
     bottom: 2rem;
 }
 
@@ -83,7 +81,7 @@ function reset(): void {
    (CSS anchor positioning — a browser without it, or a feed with no card
    selected, falls back to the corner). */
 @media (width <= 700px) {
-    .app:has(> .feed-screen) .demo-chrome {
+    .app[data-view="feed"] .demo-chrome {
         position-anchor: --feed-action-bar;
         bottom: calc(anchor(top, 1.2rem) + 0.8rem);
     }

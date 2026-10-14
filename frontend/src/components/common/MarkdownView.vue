@@ -6,7 +6,32 @@ import DOMPurify from 'dompurify'
 const props = defineProps<{ content: string }>()
 
 const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
-const html = computed(() => DOMPurify.sanitize(md.render(props.content)))
+
+/*
+ * Rendered + sanitized HTML by source text, shared by every instance. The
+ * feed mounts a card per note and each one used to parse markdown and run
+ * DOMPurify again on every visit — on a 640-note graph that was most of a
+ * screen switch. Same text, same output, so a bounded LRU is safe; the
+ * oldest entries fall out past CACHE_CAP.
+ */
+const CACHE_CAP = 4000
+const cache = new Map<string, string>()
+
+function render(content: string): string {
+    const hit = cache.get(content)
+    if (hit !== undefined) {
+        // Refresh recency: re-insert at the end of the Map's order.
+        cache.delete(content)
+        cache.set(content, hit)
+        return hit
+    }
+    const out = DOMPurify.sanitize(md.render(content))
+    cache.set(content, out)
+    if (cache.size > CACHE_CAP) cache.delete(cache.keys().next().value!)
+    return out
+}
+
+const html = computed(() => render(props.content))
 </script>
 
 <template>

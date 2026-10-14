@@ -297,6 +297,9 @@ onProjectSwitch(() => {
 })
 
 function onKey(e: KeyboardEvent): void {
+    // The feed stays mounted under other screens (App keeps screens alive);
+    // its keys belong to it only while it is the screen on show.
+    if (layout.view !== 'feed') return
     const t = e.target as HTMLElement | null
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'j' && e.key !== 'k') return
@@ -322,9 +325,9 @@ function onKey(e: KeyboardEvent): void {
     }
 }
 
-onMounted(() => {
-    window.addEventListener('keydown', onKey)
-    // Graph→feed sync: arrive centered on the node selected on the canvas.
+/** Arrive centered on the canvas's selection (graph→feed sync). Runs on
+ *  first mount and every time the feed becomes the screen again. */
+function arrive(): void {
     const sel = store.selectedId
     if (sel && nodes.value.has(sel)) {
         ensureInFeed(sel)
@@ -334,20 +337,38 @@ onMounted(() => {
         queueRestyle()
         scheduleSettle()
     })
+}
+
+/**
+ * Feed→graph sync on the way out: the centered card becomes the canvas
+ * selection, with its drawer open only when the graph is where we're going.
+ * Leaving for tasks or history keeps the selection quietly, so a later
+ * return to the canvas centers on it without a drawer nobody asked for.
+ */
+function handOff(): void {
+    if (currentId.value && nodes.value.has(currentId.value)) {
+        if (layout.view === 'graph') store.select(currentId.value)
+        else store.setSelection(currentId.value)
+    }
+}
+
+watch(
+    () => layout.view,
+    (view, prev) => {
+        if (view === 'feed') arrive()
+        else if (prev === 'feed') handOff()
+    },
+)
+
+onMounted(() => {
+    window.addEventListener('keydown', onKey)
+    arrive()
 })
 
 onBeforeUnmount(() => {
     window.removeEventListener('keydown', onKey)
     if (raf) cancelAnimationFrame(raf)
     window.clearTimeout(settleTimer)
-    // Feed→graph sync: the centered card becomes the canvas selection, with
-    // its drawer open only when the graph is where we're going. Leaving for
-    // tasks or history keeps the selection quietly, so a later return to the
-    // canvas centers on it without a drawer nobody asked for.
-    if (currentId.value && nodes.value.has(currentId.value)) {
-        if (layout.view === 'graph') store.select(currentId.value)
-        else store.setSelection(currentId.value)
-    }
 })
 
 // ---- card content helpers --------------------------------------------------
