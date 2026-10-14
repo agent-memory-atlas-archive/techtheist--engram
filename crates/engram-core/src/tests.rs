@@ -7715,9 +7715,7 @@ fn current_cycle_work_leads_the_brief_under_the_version_line() {
     open("the bench pads every row to 512", NodeType::Problem);
 
     let brief = e.brief(16_000).unwrap();
-    let cycle = brief
-        .find("## Current cycle — 0.9.9")
-        .expect("cycle section");
+    let cycle = brief.find("## Current cycle\n").expect("cycle section");
     assert_eq!(cycle, brief.find("##").unwrap(), "first section: {brief}");
     // The section ends at the next heading; other versions' work lives on
     // below it (Recently added or Open, whichever claims it first).
@@ -7725,6 +7723,14 @@ fn current_cycle_work_leads_the_brief_under_the_version_line() {
     let body = &brief[cycle..end];
     assert!(body.contains("measure the new judge on every shape"));
     assert!(body.contains("the bench pads every row to 512"));
+    // The working version is named once up top, not on every line; an older
+    // stamp still shows where it lands.
+    assert_eq!(
+        brief.matches("0.9.9").count(),
+        2,
+        "version line + during_version hint: {brief}"
+    );
+    assert!(brief.contains("0.9.8 open]"), "{brief}");
     assert!(
         !body.contains(&old.title),
         "other versions stay out: {brief}"

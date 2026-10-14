@@ -4361,7 +4361,7 @@ impl Engine {
             if cfg.versioning.enabled {
                 let line = match working_version.clone() {
                     Some(v) => format!(
-                        "Current working version: {v} — new notes are stamped with it; call `set_version` when the project moves on."
+                        "Current working version: {v} — new notes are stamped with it, and brief lines show a version only when it is an older one; call `set_version` when the project moves on."
                     ),
                     None => "Current working version: not set — call `set_version` once you know it (a release tag, a date, anything).".to_string(),
                 };
@@ -4393,13 +4393,18 @@ impl Engine {
             };
             if let Some(v) = working_version.as_deref().filter(|_| !cycle.is_empty()) {
                 let heading = format!(
-                    "\n## Current cycle — {v}\nOpen work stamped with the working version: what this cycle set out to do and still owes. `search` with `during_version: \"{v}\"` reads everything captured in it."
+                    "\n## Current cycle\nOpen work stamped with the working version: what this cycle set out to do and still owes. `search` with `during_version: \"{v}\"` reads everything captured in it."
                 );
                 if !push_line(&mut out, &heading) {
                     break 'assemble;
                 }
                 for n in cycle.iter().take(bc.cycle.cap) {
-                    let line = node_line_cfg(n, ex(bc.cycle.excerpt), Some(&cfg));
+                    let line = node_line_cfg(
+                        n,
+                        ex(bc.cycle.excerpt),
+                        Some(&cfg),
+                        working_version.as_deref(),
+                    );
                     if !push_line(&mut out, &line) {
                         break 'assemble;
                     }
@@ -4433,7 +4438,12 @@ impl Engine {
                     break 'assemble;
                 }
                 for n in handoff.iter().take(bc.handoff.cap) {
-                    let line = node_line_cfg(n, ex(bc.handoff.excerpt), Some(&cfg));
+                    let line = node_line_cfg(
+                        n,
+                        ex(bc.handoff.excerpt),
+                        Some(&cfg),
+                        working_version.as_deref(),
+                    );
                     if !push_line(&mut out, &line) {
                         break 'assemble;
                     }
@@ -4575,7 +4585,12 @@ impl Engine {
                 break 'assemble;
             }
             for n in recent {
-                let line = node_line_cfg(&n, ex(bc.recent.excerpt), Some(&cfg));
+                let line = node_line_cfg(
+                    &n,
+                    ex(bc.recent.excerpt),
+                    Some(&cfg),
+                    working_version.as_deref(),
+                );
                 if !push_line(&mut out, &line) {
                     break 'assemble;
                 }
@@ -4609,7 +4624,12 @@ impl Engine {
                 break 'assemble;
             }
             for n in open.iter().take(bc.open.cap) {
-                let line = node_line_cfg(n, ex(bc.open.excerpt), Some(&cfg));
+                let line = node_line_cfg(
+                    n,
+                    ex(bc.open.excerpt),
+                    Some(&cfg),
+                    working_version.as_deref(),
+                );
                 if !push_line(&mut out, &line) {
                     break 'assemble;
                 }
@@ -4658,7 +4678,8 @@ impl Engine {
                 }
                 let shown = nodes.len();
                 for n in nodes {
-                    let line = node_line_cfg(&n, ex(excerpt), Some(&cfg));
+                    let line =
+                        node_line_cfg(&n, ex(excerpt), Some(&cfg), working_version.as_deref());
                     if !push_line(&mut out, &line) {
                         break 'assemble;
                     }
@@ -6488,18 +6509,21 @@ pub const EXCERPT_CHARS: usize = 140;
 /// the assistant can act on it directly (`get_node`, `traverse`,
 /// `update_node`) without a `search` round-trip.
 pub fn node_line(n: &Node, excerpt_max: usize) -> String {
-    node_line_cfg(n, excerpt_max, None)
+    node_line_cfg(n, excerpt_max, None, None)
 }
 
 /// [`node_line`] with the graph's config in hand: custom fields flagged
 /// `show_in_brief` render as `{name: value; …}` before the excerpt (0.9.0).
+/// A version stamp equal to `working` is left out (0.10.0): the brief's first
+/// line already names the working version, so only older stamps say anything.
 pub fn node_line_cfg(
     n: &Node,
     excerpt_max: usize,
     cfg: Option<&crate::config::GraphConfig>,
+    working: Option<&str>,
 ) -> String {
     let mut line = format!("- {} [{} {}", n.title, n.node_type.as_str(), n.id);
-    if let Some(version) = n.version.as_deref() {
+    if let Some(version) = n.version.as_deref().filter(|v| Some(*v) != working) {
         line.push(' ');
         line.push_str(version);
     }
