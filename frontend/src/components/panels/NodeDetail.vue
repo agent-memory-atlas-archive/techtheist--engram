@@ -10,9 +10,9 @@ import TextField from '@/components/common/TextField.vue'
 import UiButton from '@/components/common/UiButton.vue'
 import DetailDrawer from '@/components/common/detail/DetailDrawer.vue'
 import DetailLink from '@/components/common/detail/DetailLink.vue'
-import DetailMeta from '@/components/common/detail/DetailMeta.vue'
-import DetailMetaRow from '@/components/common/detail/DetailMetaRow.vue'
-import DetailSection from '@/components/common/detail/DetailSection.vue'
+import MetaList from '@/components/common/MetaList.vue'
+import MetaRow from '@/components/common/MetaRow.vue'
+import PanelSection from '@/components/common/PanelSection.vue'
 import DetailTitle from '@/components/common/detail/DetailTitle.vue'
 import FieldInput from '@/components/common/FieldInput.vue'
 import TagEditor from '@/components/common/TagEditor.vue'
@@ -531,7 +531,7 @@ function close(): void {
 
         <MarkdownView v-if="selected.body && !editing" :content="selected.body" class="body" />
 
-        <DetailSection v-if="selected.code_refs.length" title="Code refs">
+        <PanelSection v-if="selected.code_refs.length" title="Code refs">
             <div class="refs">
                 <span
                     v-for="codeRef in selected.code_refs"
@@ -541,9 +541,9 @@ function close(): void {
                     :title="missingRefs.includes(codeRef) ? 'This file no longer exists in the project' : undefined"
                 >{{ codeRef }}</span>
             </div>
-        </DetailSection>
+        </PanelSection>
 
-        <DetailSection v-if="relations.length" title="Connections">
+        <PanelSection v-if="relations.length" title="Connections">
             <ul class="relations">
                 <DetailLink
                     v-for="r in relations"
@@ -573,9 +573,9 @@ function close(): void {
                 </DetailLink>
             </ul>
             <p class="rel-hint">Drag between node handles on the canvas to add a connection.</p>
-        </DetailSection>
+        </PanelSection>
 
-        <DetailSection v-if="timeline.length > 1" title="History">
+        <PanelSection v-if="timeline.length > 1" title="History">
             <ol class="timeline">
                 <li
                     v-for="entry in timeline"
@@ -600,15 +600,15 @@ function close(): void {
                     </div>
                 </li>
             </ol>
-        </DetailSection>
+        </PanelSection>
 
-        <DetailSection title="Provenance">
-            <DetailMeta>
-                <DetailMetaRow label="Created">{{ fmtDate(selected.created_at) }} · by {{ selected.source }}</DetailMetaRow>
+        <PanelSection title="Provenance">
+            <MetaList>
+                <MetaRow label="Created">{{ fmtDate(selected.created_at) }} · by {{ selected.source }}</MetaRow>
                 <!-- Not every note has an mcp session (pane/HTTP writes carry
                      none) — but born-in provenance can still exist, so the
                      row shows whenever there is anything to link or say. -->
-                <DetailMetaRow v-if="selected.session_id || bornIn || timeSession" label="Session">
+                <MetaRow v-if="selected.session_id || bornIn || timeSession" label="Session">
                     <button
                         v-if="bornIn"
                         class="session-chip session-link"
@@ -628,15 +628,15 @@ function close(): void {
                         {{ selected.session_id ?? 'recorded session' }} ≈⤴
                     </button>
                     <span v-else class="session-chip">{{ selected.session_id }}</span>
-                </DetailMetaRow>
-                <DetailMetaRow v-if="selected.last_seen != null" label="Last retrieved" :title="BADGE_TIPS.lastSeen">{{ fmtDate(selected.last_seen) }}</DetailMetaRow>
-                <DetailMetaRow v-if="selected.confirmed_at != null" label="Confirmed" :title="BADGE_TIPS.confirmed">{{ fmtDate(selected.confirmed_at) }}</DetailMetaRow>
-                <DetailMetaRow v-if="selected.approved_at != null" label="Approved" :title="BADGE_TIPS.approved">{{ fmtDate(selected.approved_at) }}</DetailMetaRow>
-                <DetailMetaRow v-if="selected.demoted_at != null" label="Demoted" :title="BADGE_TIPS.demoted">{{ fmtDate(selected.demoted_at) }}</DetailMetaRow>
-                <DetailMetaRow v-if="archived" label="Archived">{{ fmtDate(selected.valid_until) }}</DetailMetaRow>
+                </MetaRow>
+                <MetaRow v-if="selected.last_seen != null" label="Last retrieved" :title="BADGE_TIPS.lastSeen">{{ fmtDate(selected.last_seen) }}</MetaRow>
+                <MetaRow v-if="selected.confirmed_at != null" label="Confirmed" :title="BADGE_TIPS.confirmed">{{ fmtDate(selected.confirmed_at) }}</MetaRow>
+                <MetaRow v-if="selected.approved_at != null" label="Approved" :title="BADGE_TIPS.approved">{{ fmtDate(selected.approved_at) }}</MetaRow>
+                <MetaRow v-if="selected.demoted_at != null" label="Demoted" :title="BADGE_TIPS.demoted">{{ fmtDate(selected.demoted_at) }}</MetaRow>
+                <MetaRow v-if="archived" label="Archived">{{ fmtDate(selected.valid_until) }}</MetaRow>
                 <!-- Computed backlinks (0.10.0): tasks point at notes, notes
                      never store a pointer back. -->
-                <DetailMetaRow v-if="taskRefs.length" label="Tasks">
+                <MetaRow v-if="taskRefs.length" label="Tasks">
                     <button
                         v-for="t in taskRefs"
                         :key="t.id"
@@ -647,9 +647,9 @@ function close(): void {
                     >
                         {{ t.title }} ⤴
                     </button>
-                </DetailMetaRow>
-            </DetailMeta>
-        </DetailSection>
+                </MetaRow>
+            </MetaList>
+        </PanelSection>
     </template>
 
     <template v-if="selected" #actions>

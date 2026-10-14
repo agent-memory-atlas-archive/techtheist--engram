@@ -10,9 +10,9 @@ import TextField from '@/components/common/TextField.vue'
 import UiButton from '@/components/common/UiButton.vue'
 import DetailDrawer from '@/components/common/detail/DetailDrawer.vue'
 import DetailLink from '@/components/common/detail/DetailLink.vue'
-import DetailMeta from '@/components/common/detail/DetailMeta.vue'
-import DetailMetaRow from '@/components/common/detail/DetailMetaRow.vue'
-import DetailSection from '@/components/common/detail/DetailSection.vue'
+import MetaList from '@/components/common/MetaList.vue'
+import MetaRow from '@/components/common/MetaRow.vue'
+import PanelSection from '@/components/common/PanelSection.vue'
 import DetailTitle from '@/components/common/detail/DetailTitle.vue'
 import { api } from '@/services/api'
 import { useConfigStore } from '@/stores/config'
@@ -248,7 +248,7 @@ async function remove(): Promise<void> {
             <UiButton type="submit" :disabled="!progressLine.trim()">Add note</UiButton>
         </form>
 
-        <DetailSection v-if="isGroup" title="In this group">
+        <PanelSection v-if="isGroup" title="In this group">
             <ul class="links">
                 <DetailLink
                     v-for="c in children"
@@ -262,9 +262,9 @@ async function remove(): Promise<void> {
                     </template>
                 </DetailLink>
             </ul>
-        </DetailSection>
+        </PanelSection>
 
-        <DetailSection v-else title="Group">
+        <PanelSection v-else title="Group">
             <SelectMenu
                 :model-value="task.parent ?? ''"
                 :options="groupOptions"
@@ -272,9 +272,9 @@ async function remove(): Promise<void> {
                 block
                 @update:model-value="save({ parent: $event })"
             />
-        </DetailSection>
+        </PanelSection>
 
-        <DetailSection title="Automatically">
+        <PanelSection title="Automatically">
             <div class="field">
                 <span class="field-label">Mark done</span>
                 <RulePicker
@@ -295,9 +295,9 @@ async function remove(): Promise<void> {
                     @update:model-value="saveRule('wake', $event)"
                 />
             </div>
-        </DetailSection>
+        </PanelSection>
 
-        <DetailSection title="Linked notes">
+        <PanelSection title="Linked notes">
             <ul v-if="task.refs?.length" class="links">
                 <DetailLink
                     v-for="r in task.refs"
@@ -325,17 +325,17 @@ async function remove(): Promise<void> {
                     </template>
                 </DetailLink>
             </ul>
-        </DetailSection>
+        </PanelSection>
 
-        <DetailSection title="Provenance">
-            <DetailMeta>
-                <DetailMetaRow label="Created">{{ when(task.created_at) }}</DetailMetaRow>
-                <DetailMetaRow label="Updated">{{ when(task.updated_at) }}</DetailMetaRow>
-                <DetailMetaRow v-if="task.closed_at" label="Closed">
+        <PanelSection title="Provenance">
+            <MetaList>
+                <MetaRow label="Created">{{ when(task.created_at) }}</MetaRow>
+                <MetaRow label="Updated">{{ when(task.updated_at) }}</MetaRow>
+                <MetaRow v-if="task.closed_at" label="Closed">
                     {{ when(task.closed_at) }}<template v-if="task.closed_version"> · in {{ task.closed_version }}</template>
-                </DetailMetaRow>
-            </DetailMeta>
-        </DetailSection>
+                </MetaRow>
+            </MetaList>
+        </PanelSection>
     </template>
 
     <template v-if="task" #actions>

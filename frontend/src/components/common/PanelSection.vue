@@ -1,5 +1,8 @@
 <script setup lang="ts">
-/** A titled block of the detail card; `#actions` sits right of the title. */
+/**
+ * A titled block of any panel or card — the one section heading the pane
+ * has (caption, uppercase, tertiary). `#actions` sits right of the title.
+ */
 defineProps<{ title: string }>()
 </script>
 

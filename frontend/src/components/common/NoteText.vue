@@ -1,0 +1,36 @@
+<script setup lang="ts">
+/**
+ * Small explanatory text: a hint under a control, a note after a run, an
+ * empty state, an error. One size and color per tone across every panel.
+ */
+withDefaults(defineProps<{ tone?: 'hint' | 'body' | 'error' | 'empty'; as?: 'p' | 'span' | 'div' }>(), {
+    tone: 'hint',
+    as: 'p',
+})
+</script>
+
+<template>
+<component :is="as" class="note" :class="tone"><slot /></component>
+</template>
+
+<style scoped>
+.note {
+    margin: 0;
+    color: var(--text-tertiary);
+    font-size: var(--text-caption);
+    line-height: var(--leading-normal);
+}
+
+.body {
+    color: var(--text-secondary);
+}
+
+.error {
+    color: var(--node-problem);
+}
+
+.empty {
+    padding: 0.6rem 0;
+    font-size: var(--text-body-sm);
+}
+</style>

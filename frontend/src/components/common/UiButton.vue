@@ -1,21 +1,26 @@
 <script setup lang="ts">
 /**
  * The pane's button for card and drawer actions. `primary` is the one
- * filled action of a row, `ghost` the quiet ones, `danger` a confirmed
- * destructive step, `danger-text` the entry to one.
+ * outlined-in-accent action of a row, `ghost` an outlined quiet one,
+ * `subtle` a borderless one (a toolbar's secondary gesture), `danger` a
+ * confirmed destructive step, `danger-text` the entry to one. `sm` is the
+ * inline size (rows, list items, section headers). Every panel uses this —
+ * no local button styles.
  */
 withDefaults(
     defineProps<{
-        variant?: 'default' | 'primary' | 'ghost' | 'danger' | 'danger-text'
+        variant?: 'default' | 'primary' | 'ghost' | 'subtle' | 'danger' | 'danger-text'
         size?: 'md' | 'sm'
         type?: 'button' | 'submit'
+        /** Full width of its container. */
+        block?: boolean
     }>(),
-    { variant: 'default', size: 'md', type: 'button' },
+    { variant: 'default', size: 'md', type: 'button', block: false },
 )
 </script>
 
 <template>
-<button class="btn" :class="[variant, size]" :type="type"><slot /></button>
+<button class="btn" :class="[variant, size, { block }]" :type="type"><slot /></button>
 </template>
 
 <style scoped>
@@ -46,8 +51,22 @@ withDefaults(
     background-color: var(--node-hover-surface);
 }
 
+.block {
+    width: 100%;
+}
+
 .ghost {
     background-color: transparent;
+}
+
+.subtle {
+    border-color: transparent;
+    background-color: transparent;
+    color: var(--text-secondary);
+}
+
+.subtle:hover:not(:disabled) {
+    color: var(--text-primary);
 }
 
 .primary {

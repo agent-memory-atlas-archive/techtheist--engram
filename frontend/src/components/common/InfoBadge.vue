@@ -3,11 +3,18 @@
  * A small fact about the thing on screen (durability, version, status…).
  * One shape for nodes and tasks; tone carries meaning, never decoration.
  */
-withDefaults(defineProps<{ tone?: 'neutral' | 'muted' | 'accent' | 'warn' | 'danger' }>(), { tone: 'neutral' })
+withDefaults(
+    defineProps<{
+        tone?: 'neutral' | 'muted' | 'accent' | 'warn' | 'danger' | 'ok'
+        /** Rounded and tighter — the compact form for cards and list rows. */
+        pill?: boolean
+    }>(),
+    { tone: 'neutral', pill: false },
+)
 </script>
 
 <template>
-<span class="badge" :class="tone"><slot /></span>
+<span class="badge" :class="[tone, { pill }]"><slot /></span>
 </template>
 
 <style scoped>
@@ -25,6 +32,11 @@ withDefaults(defineProps<{ tone?: 'neutral' | 'muted' | 'accent' | 'warn' | 'dan
     white-space: nowrap;
 }
 
+.pill {
+    padding: 0.1rem 0.6rem;
+    border-radius: var(--radius-full);
+}
+
 .muted {
     color: var(--text-tertiary);
 }
@@ -38,6 +50,11 @@ withDefaults(defineProps<{ tone?: 'neutral' | 'muted' | 'accent' | 'warn' | 'dan
 .warn {
     background-color: color-mix(in srgb, var(--node-caution) 14%, transparent);
     color: var(--node-caution);
+}
+
+.ok {
+    background-color: color-mix(in srgb, var(--node-resolution) 14%, transparent);
+    color: var(--node-resolution);
 }
 
 .danger {

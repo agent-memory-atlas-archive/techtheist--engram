@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** Label/value rows (provenance and the like); children are DetailMetaRow. */
+/** Label/value rows (provenance, system facts); children are MetaRow. */
 </script>
 
 <template>
