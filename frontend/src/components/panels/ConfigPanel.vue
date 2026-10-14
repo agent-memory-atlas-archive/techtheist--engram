@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import NoteText from '@/components/common/NoteText.vue'
+import TextField from '@/components/common/TextField.vue'
 import PanelSection from '@/components/common/PanelSection.vue'
 import UiButton from '@/components/common/UiButton.vue'
 import AutoTextarea from '@/components/common/AutoTextarea.vue'
@@ -562,29 +564,19 @@ const twinOrder = computed({
     style="--panel-gap: 1.2rem"
 >
     <template #actions>
-        <button
-            v-if="dirty"
-            class="bar-btn ghost"
-            type="button"
-            :disabled="busy"
-            @click="resetDraft"
-        >
-            Revert
-        </button>
-        <button class="bar-btn" type="button" :disabled="!dirty || busy" @click="save">
-            Save
-        </button>
+        <UiButton v-if="dirty" size="sm" variant="ghost" :disabled="busy" @click="resetDraft">Revert</UiButton>
+        <UiButton size="sm" variant="primary" :disabled="!dirty || busy" @click="save">Save</UiButton>
     </template>
 
-    <p v-if="error" class="state error">{{ error }}</p>
-    <p v-else-if="notice" class="state ok">{{ notice }}</p>
+    <NoteText v-if="error" tone="error">{{ error }}</NoteText>
+    <NoteText v-else-if="notice" tone="ok">{{ notice }}</NoteText>
 
     <template v-if="draft">
         <PanelSection title="Ontology presets">
-            <p class="hint">
+            <NoteText>
                 A preset replaces the whole configuration — types, verbs, policy, brief. The
                 current shape is <strong>{{ draft.ontology.preset }}</strong>.
-            </p>
+            </NoteText>
             <div v-for="p in config.presets" :key="p.id" class="preset-line">
                 <div class="preset-text">
                     <span class="preset-name">{{ p.name }}</span>
@@ -601,10 +593,10 @@ const twinOrder = computed({
         </PanelSection>
 
         <PanelSection title="Node types">
-            <p class="hint">
+            <NoteText>
                 The name is what the assistant writes; the roles are what the engine does with
                 it. Renaming bulk-retypes every stored node — nothing is lost.
-            </p>
+            </NoteText>
             <article
                 v-for="t in draft.ontology.types"
                 :key="t.name"
@@ -614,13 +606,11 @@ const twinOrder = computed({
                 <header class="card-head">
                     <span class="swatch" :style="{ background: swatch(t) }" />
                     <template v-if="renaming?.kind === 'type' && renaming.from === t.name">
-                        <input
+                        <TextField
                             v-model="renaming.to"
-                            class="edit-input rename-input"
-                            type="text"
                             :aria-label="`New name for ${t.name}`"
-                            @keydown.enter="commitRename"
-                            @keydown.escape="renaming = null"
+                            class="rename-input"
+                            @keydown.enter="commitRename" @keydown.escape="renaming = null"
                         />
                         <UiButton size="sm" :disabled="busy" @click="commitRename">
                             rename {{ countNodes(t.name) ? `(${countNodes(t.name)} nodes follow)` : '' }}
@@ -651,12 +641,10 @@ const twinOrder = computed({
                 </label>
 
                 <label class="row-label">
-                    <input
+                    <TextField
                         v-model="t.thought"
-                        class="edit-input grow"
-                        type="text"
                         placeholder="the thought this type captures — e.g. &quot;we chose this, for a reason&quot;"
-                        :aria-label="`${t.name} thought`"
+                        :aria-label="`${t.name} thought`" class="grow"
                     />
                 </label>
 
@@ -737,10 +725,10 @@ const twinOrder = computed({
         </PanelSection>
 
         <PanelSection title="Edge verbs">
-            <p class="hint">
+            <NoteText>
                 A triple must read as English — "A {{ config.supersessionVerb }} B". Exactly one
                 verb supersedes and exactly one contradicts; those two make the graph active.
-            </p>
+            </NoteText>
             <article
                 v-for="v in draft.ontology.verbs"
                 :key="v.name"
@@ -749,13 +737,11 @@ const twinOrder = computed({
             >
                 <header class="card-head">
                     <template v-if="renaming?.kind === 'verb' && renaming.from === v.name">
-                        <input
+                        <TextField
                             v-model="renaming.to"
-                            class="edit-input rename-input"
-                            type="text"
                             :aria-label="`New name for ${v.name}`"
-                            @keydown.enter="commitRename"
-                            @keydown.escape="renaming = null"
+                            class="rename-input"
+                            @keydown.enter="commitRename" @keydown.escape="renaming = null"
                         />
                         <UiButton size="sm" :disabled="busy" @click="commitRename">rename</UiButton>
                         <UiButton size="sm" variant="ghost" @click="renaming = null">cancel</UiButton>
@@ -776,12 +762,10 @@ const twinOrder = computed({
                 </header>
                 <label class="row-label">
                     Reads as
-                    <input
+                    <TextField
                         v-model="v.reads_as"
-                        class="edit-input grow"
-                        type="text"
                         placeholder="Decision because Principle"
-                        :aria-label="`${v.name} example`"
+                        :aria-label="`${v.name} example`" class="grow"
                     />
                 </label>
                 <div class="checks">
@@ -824,12 +808,12 @@ const twinOrder = computed({
         </PanelSection>
 
         <PanelSection title="Custom fields">
-            <p class="hint">
+            <NoteText>
                 Your own first-class values on every note — enforced at write time for every
                 surface (assistant writes included), beside the built-ins below. A
                 <span class="mono">required</span> field refuses writes that omit it;
                 <span class="mono">indexed</span> puts the value into search.
-            </p>
+            </NoteText>
             <details class="builtin-ref">
                 <summary>Built-in fields (the whole picture)</summary>
                 <table class="builtin-table">
@@ -841,20 +825,18 @@ const twinOrder = computed({
                         </tr>
                     </tbody>
                 </table>
-                <p class="hint">
+                <NoteText>
                     Custom field names can't shadow any of these — Save refuses the collision.
-                </p>
+                </NoteText>
             </details>
             <article v-for="f in draft.fields" :key="f.name" class="card">
                 <header class="card-head">
                     <template v-if="renaming?.kind === 'field' && renaming.from === f.name">
-                        <input
+                        <TextField
                             v-model="renaming.to"
-                            class="edit-input rename-input"
-                            type="text"
                             :aria-label="`New name for ${f.name}`"
-                            @keydown.enter="commitRename"
-                            @keydown.escape="renaming = null"
+                            class="rename-input"
+                            @keydown.enter="commitRename" @keydown.escape="renaming = null"
                         />
                         <UiButton size="sm" :disabled="busy" @click="commitRename">rename</UiButton>
                         <UiButton size="sm" variant="ghost" @click="renaming = null">cancel</UiButton>
@@ -876,12 +858,10 @@ const twinOrder = computed({
                 <div class="field-rows">
                     <label class="row-label">
                         Label
-                        <input
+                        <TextField
                             v-model="f.label"
-                            class="edit-input grow"
-                            type="text"
                             :placeholder="f.name"
-                            :aria-label="`${f.name} display label`"
+                            :aria-label="`${f.name} display label`" class="grow"
                         />
                     </label>
                     <label class="row-label">
@@ -890,10 +870,9 @@ const twinOrder = computed({
                     </label>
                     <label v-if="f.kind === 'enum'" class="row-label">
                         Values
-                        <input
-                            :value="valuesLine(f)"
-                            class="edit-input grow"
-                            type="text"
+                        <TextField
+                            :model-value="valuesLine(f)"
+                            class="grow"
                             placeholder="low, medium, high"
                             :aria-label="`${f.name} enum values`"
                             @change="setValuesLine(f, ($event.target as HTMLInputElement).value)"
@@ -950,7 +929,7 @@ const twinOrder = computed({
                 <label>NLI gate ≥ <StepperInput v-model="draft.policy.nli_sweep_min_confidence" :step="0.05" :max="1" aria-label="NLI gate" /></label>
                 <label>title contradiction ≥ <StepperInput v-model="nliGate" :step="0.05" :max="1" aria-label="title contradiction gate (0 = off)" /></label>
             </div>
-            <p v-for="(line, i) in policyWords" :key="i" class="hint words">{{ line }}</p>
+            <NoteText v-for="(line, i) in policyWords" :key="i" tone="body">{{ line }}</NoteText>
         </PanelSection>
 
         <PanelSection title="Calibrated delivery">
@@ -974,7 +953,7 @@ const twinOrder = computed({
                     title="At session boundaries the graph refits its conflict threshold from your judgment history and its weak-evidence line from phantom probes — journaled, and off means never"
                 />
             </div>
-            <p v-for="(line, i) in deliveryWords" :key="i" class="hint words">{{ line }}</p>
+            <NoteText v-for="(line, i) in deliveryWords" :key="i" tone="body">{{ line }}</NoteText>
         </PanelSection>
 
         <PanelSection title="Brief composition">
@@ -1027,10 +1006,10 @@ const twinOrder = computed({
                     <label title="Sessions that briefed without an open task changing before it is marked idle (0 = never)">idle after (sessions) <StepperInput v-model="draft.brief.tasks.idle_sessions" :max="100" aria-label="idle after sessions" /></label>
                 </div>
             </template>
-            <p class="hint">
+            <NoteText>
                 Per-type canon sections (Principles, Decisions, …) are configured on each type
                 above. The worklist section shows every type carrying the worklist role.
-            </p>
+            </NoteText>
         </PanelSection>
 
         <PanelSection title="Version tracking">
@@ -1043,34 +1022,32 @@ const twinOrder = computed({
                 <span class="check">(save to apply)</span>
             </div>
             <div v-if="draft.versioning.enabled" class="skill-row">
-                <input
+                <TextField
                     v-model="currentVersion"
-                    class="edit-input grow"
-                    type="text"
                     placeholder="current working version — v0.7.0, 26.7.23, …"
-                    aria-label="Current working version"
+                    aria-label="Current working version" class="grow"
                 />
                 <UiButton size="sm" :disabled="busy" @click="applyVersion">
                     {{ currentVersion.trim() ? 'Set' : 'Clear' }}
                 </UiButton>
                 <span v-if="savedVersion" class="count">now: {{ savedVersion }}</span>
             </div>
-            <p v-if="draft.versioning.enabled" class="hint">
+            <NoteText v-if="draft.versioning.enabled">
                 Which types carry the stamp is per-type — the "versioned" check on each type
                 card above. Assistants manage the version via the <span class="mono">set_version</span>
                 MCP tool; switch history lives in the audit journal.
-            </p>
+            </NoteText>
         </PanelSection>
 
         <PanelSection title="Session history">
-            <p class="hint">
+            <NoteText>
                 Opt-in: when recording is on, the daemon indexes your coding-assistant
                 conversations into a separate store, sealed at rest — searchable only as
                 a labeled fall-through when curated memory likely doesn't hold the
                 answer, and browsable in the history view. It never mixes with the
                 curated graph. Sealing keeps a key in your OS keystore, so macOS may ask
                 for keychain access when it starts.
-            </p>
+            </NoteText>
             <div class="switch-rows">
                 <ToggleSwitch
                     v-model="draft.history.enabled"
@@ -1105,7 +1082,7 @@ const twinOrder = computed({
                     }} excluded
                 </span>
             </div>
-            <p v-if="historyStatus" class="hint">
+            <NoteText v-if="historyStatus">
                 <template v-if="historyStatus.stats">
                     Recorded so far: {{ historyStatus.stats.nodes }} nodes
                     ({{ historyStatus.stats.embedded }} embedded) in
@@ -1114,7 +1091,7 @@ const twinOrder = computed({
                 <template v-else-if="!historyStatus.open">
                     The history store is closed{{ historyStatus.enabled ? ' (opening on next write)' : ' — recording is off' }}.
                 </template>
-            </p>
+            </NoteText>
             <div class="skill-row">
                 <UiButton size="sm" variant="danger" :disabled="busy" @click="wipeHistory">
                     Delete all history
@@ -1129,14 +1106,14 @@ const twinOrder = computed({
                 >
                     <div class="modal glass-panel" role="dialog" aria-label="Ignored paths">
                         <h4 class="modal-title">Ignored paths</h4>
-                        <p class="hint">
+                        <NoteText>
                             The harvester never reads these — one absolute path per line, a
                             file or a whole directory. Deleting a recorded session adds its
                             transcript here automatically. Save the settings to apply.
-                        </p>
+                        </NoteText>
                         <AutoTextarea
                             v-model="excludePathsText"
-                            class="edit-input grow"
+                            class="grow"
                             :rows="8"
                             placeholder="/Users/you/private-repo"
                             aria-label="History exclude paths"
@@ -1152,7 +1129,7 @@ const twinOrder = computed({
         </PanelSection>
 
         <PanelSection title="Assistant skill">
-            <p class="hint">
+            <NoteText>
                 The capture skill teaches the assistant this graph's vocabulary.
                 <template v-if="customOntology">
                     This ontology is customized, so the installed file is <strong>generated</strong>
@@ -1162,7 +1139,7 @@ const twinOrder = computed({
                     This graph runs the shipped ontology, so the canonical skill text installs
                     verbatim.
                 </template>
-            </p>
+            </NoteText>
             <div class="skill-row">
                 <SegmentedControl
                     v-model="skillVariant"
@@ -1173,42 +1150,20 @@ const twinOrder = computed({
                     Install into project
                 </UiButton>
             </div>
-            <p class="hint">
+            <NoteText>
                 relaxed captures sparingly · normal is the middle ground · aggressive is
                 maximum capture.
-            </p>
-            <p class="hint">
+            </NoteText>
+            <NoteText>
                 Writes <span class="mono">.claude/skills/engram/SKILL.md</span> in the project's
                 repository. Symlinked skill folders are left untouched.
-            </p>
+            </NoteText>
         </PanelSection>
     </template>
 </SidePanel>
 </template>
 
 <style scoped>
-.state {
-    font-size: var(--text-body-sm);
-    color: var(--text-secondary);
-}
-
-.state.error {
-    color: var(--node-problem);
-}
-
-.state.ok {
-    color: var(--interactive-primary);
-}
-
-.hint {
-    margin: 0;
-    font-size: var(--text-caption);
-    color: var(--text-tertiary);
-}
-
-.hint.words {
-    color: var(--text-secondary);
-}
 
 .preset-line {
     display: flex;
@@ -1307,16 +1262,7 @@ const twinOrder = computed({
     white-space: nowrap;
 }
 
-.edit-input {
-    padding: 0.5rem 0.9rem;
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-md);
-    background: var(--surface-sunken);
-    font-size: var(--text-body-sm);
-    color: var(--text-primary);
-}
-
-.edit-input.grow {
+.grow {
     flex: 1;
 }
 
@@ -1377,27 +1323,6 @@ const twinOrder = computed({
 
 .mini.add {
     align-self: flex-start;
-}
-
-.bar-btn {
-    padding: 0.3rem 0.9rem;
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-control);
-    background: var(--interactive-primary);
-    font-size: var(--text-caption);
-    font-weight: 600;
-    color: var(--text-inverse);
-    cursor: pointer;
-}
-
-.bar-btn:disabled {
-    opacity: 0.45;
-    cursor: default;
-}
-
-.bar-btn.ghost {
-    background: none;
-    color: var(--text-secondary);
 }
 
 .mono {

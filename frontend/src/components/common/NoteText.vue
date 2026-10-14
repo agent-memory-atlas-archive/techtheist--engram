@@ -3,7 +3,7 @@
  * Small explanatory text: a hint under a control, a note after a run, an
  * empty state, an error. One size and color per tone across every panel.
  */
-withDefaults(defineProps<{ tone?: 'hint' | 'body' | 'warn' | 'error' | 'empty'; as?: 'p' | 'span' | 'div' }>(), {
+withDefaults(defineProps<{ tone?: 'hint' | 'body' | 'ok' | 'warn' | 'error' | 'empty'; as?: 'p' | 'span' | 'div' }>(), {
     tone: 'hint',
     as: 'p',
 })
@@ -30,6 +30,10 @@ withDefaults(defineProps<{ tone?: 'hint' | 'body' | 'warn' | 'error' | 'empty'; 
 
 .body {
     color: var(--text-secondary);
+}
+
+.ok {
+    color: var(--node-resolution);
 }
 
 .warn {
