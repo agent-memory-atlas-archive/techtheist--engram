@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import NoteText from '@/components/common/NoteText.vue'
+import UiButton from '@/components/common/UiButton.vue'
+import PanelSection from '@/components/common/PanelSection.vue'
 import AutoTextarea from '@/components/common/AutoTextarea.vue'
 import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
@@ -278,46 +281,39 @@ const STRUCT_CAP = 8
             the sweeps below will report it; structural checks still work.
         </p>
 
-        <section class="block">
-            <h3 class="block-title">Deep sweeps — local models, zero tokens</h3>
+        <PanelSection title="Deep sweeps — local models, zero tokens">
             <div class="sweep">
-                <button
-                    class="run"
-                    type="button"
+                <UiButton 
                     :disabled="running != null"
                     title="Rescan look-alike pairs and keep only ones the NLI model reads as contradictions — findings land in Review for your judgment"
                     @click="runSweep('conflicts')"
                 >
                     {{ running === 'conflicts' ? 'Sweeping…' : 'Find hidden conflicts' }}
-                </button>
-                <span v-if="sweepNote.conflicts" class="note">{{ sweepNote.conflicts }}</span>
+                </UiButton>
+                <NoteText v-if="sweepNote.conflicts" as="span">{{ sweepNote.conflicts }}</NoteText>
             </div>
             <div class="sweep">
-                <button
-                    class="run"
-                    type="button"
+                <UiButton 
                     :disabled="running != null"
                     title="Find pairs that state the same thing (mutual entailment) — judge them as Replaces in Review to merge histories"
                     @click="runSweep('duplicates')"
                 >
                     {{ running === 'duplicates' ? 'Sweeping…' : 'Find duplicates' }}
-                </button>
-                <span v-if="sweepNote.duplicates" class="note">{{ sweepNote.duplicates }}</span>
+                </UiButton>
+                <NoteText v-if="sweepNote.duplicates" as="span">{{ sweepNote.duplicates }}</NoteText>
             </div>
             <div class="sweep">
-                <button
-                    class="run"
-                    type="button"
+                <UiButton 
                     :disabled="running != null"
                     title="Does any Decision/Resolution/Insight already answer an open Problem? Nominations only — you link and resolve"
                     @click="runAnswered"
                 >
                     {{ running === 'answered' ? 'Checking…' : 'Check open problems' }}
-                </button>
-                <span v-if="sweepNote.answered" class="note">{{ sweepNote.answered }}</span>
+                </UiButton>
+                <NoteText v-if="sweepNote.answered" as="span">{{ sweepNote.answered }}</NoteText>
             </div>
             <div v-if="answered" class="results">
-                <p v-if="answered.length === 0" class="note">no open problem looks answered</p>
+                <NoteText v-if="answered.length === 0">no open problem looks answered</NoteText>
                 <div v-for="h in answered" :key="h.problem.id + h.candidate.id" class="pair-row">
                     <button class="row-link" type="button" :title="h.problem.title" @click="store.select(h.problem.id)">
                         {{ h.problem.title }}
@@ -334,19 +330,17 @@ const STRUCT_CAP = 8
                 </div>
             </div>
             <div class="sweep">
-                <button
-                    class="run"
-                    type="button"
+                <UiButton 
                     :disabled="running != null"
                     title="What does the live canon suggest for each stale note — confirm it, judge it as a conflict, or archive it?"
                     @click="runStaleTriage"
                 >
                     {{ running === 'stale' ? 'Triaging…' : 'Triage stale notes' }}
-                </button>
-                <span v-if="sweepNote.stale" class="note">{{ sweepNote.stale }}</span>
+                </UiButton>
+                <NoteText v-if="sweepNote.stale" as="span">{{ sweepNote.stale }}</NoteText>
             </div>
             <div v-if="staleTriage" class="results">
-                <p v-if="staleTriage.length === 0" class="note">no stale notes to triage</p>
+                <NoteText v-if="staleTriage.length === 0">no stale notes to triage</NoteText>
                 <div v-for="t in staleTriage" :key="t.node.id" class="pair-row">
                     <button class="row-link" type="button" :title="t.node.title" @click="store.select(t.node.id)">
                         {{ t.node.title }}
@@ -364,14 +358,13 @@ const STRUCT_CAP = 8
                     <span v-if="t.score" class="pct">{{ Math.round(t.score * 100) }}%</span>
                 </div>
             </div>
-        </section>
+        </PanelSection>
 
-        <section v-if="agreement && agreement.judged > 0" class="block">
-            <h3 class="block-title">NLI scoreboard — models nominate, people judge</h3>
-            <p v-if="agreement.with_hint === 0" class="note">
+        <PanelSection v-if="agreement && agreement.judged > 0" title="NLI scoreboard — models nominate, people judge">
+            <NoteText v-if="agreement.with_hint === 0">
                 none of the {{ agreement.judged }} judged pairs carried an NLI hint —
                 the scoreboard fills in as hinted suspects get judged in Review
-            </p>
+            </NoteText>
             <template v-else>
                 <p class="struct-line">
                     the model's hint matched your verdict on
@@ -384,32 +377,29 @@ const STRUCT_CAP = 8
                     <b>{{ agreement.misses }}</b> unflagged yet confirmed ·
                     <b>{{ agreement.passes }}</b> unflagged and dismissed
                 </p>
-                <p v-if="agreement.judged > agreement.with_hint" class="note">
+                <NoteText v-if="agreement.judged > agreement.with_hint">
                     {{ agreement.judged - agreement.with_hint }} more judged
                     pair{{ agreement.judged - agreement.with_hint > 1 ? 's' : '' }} carried no hint
                     (judged before the NLI layer, or the model wasn't loaded)
-                </p>
+                </NoteText>
             </template>
-        </section>
+        </PanelSection>
 
-        <section class="block">
-            <h3 class="block-title">Cross-project — promote shared canon</h3>
+        <PanelSection title="Cross-project — promote shared canon">
             <div class="sweep">
-                <button
-                    class="run"
-                    type="button"
+                <UiButton 
                     :disabled="running != null"
                     title="Find Principles/Cautions that recur in your other projects' graphs — candidates for the shared home graph. Nominations only; you approve each"
                     @click="runPromotions"
                 >
                     {{ running === 'promotions' ? 'Scanning…' : 'Find promotion candidates' }}
-                </button>
-                <span v-if="sweepNote.promotions" class="note">{{ sweepNote.promotions }}</span>
+                </UiButton>
+                <NoteText v-if="sweepNote.promotions" as="span">{{ sweepNote.promotions }}</NoteText>
             </div>
             <div v-if="promotions" class="results">
-                <p v-if="promotions.length === 0" class="note">
+                <NoteText v-if="promotions.length === 0">
                     nothing recurs across projects that isn't already in the home graph
-                </p>
+                </NoteText>
                 <div v-for="c in promotions" :key="c.node.id" class="promo-row">
                     <button class="row-link" type="button" :title="c.node.title" @click="store.select(c.node.id)">
                         <span class="dot" :style="{ background: config.accent(c.node.type) }" />
@@ -418,22 +408,21 @@ const STRUCT_CAP = 8
                     <span class="verb">
                         also in {{ c.matches.map((m) => m.project).filter((v, i, a) => a.indexOf(v) === i).join(', ') }}
                     </span>
-                    <button
+                    <UiButton
                         v-if="!promoted.has(c.node.id)"
-                        class="promote-btn"
-                        type="button"
+                        size="sm"
+                        variant="accent"
                         title="Copy this into the shared home graph (project copies stay put)"
                         @click="promote(c)"
                     >
                         Promote to home
-                    </button>
-                    <span v-else class="note">promoted ✓</span>
+                    </UiButton>
+                    <NoteText v-else as="span">promoted ✓</NoteText>
                 </div>
             </div>
-        </section>
+        </PanelSection>
 
-        <section class="block">
-            <h3 class="block-title">Check a claim against the canon</h3>
+        <PanelSection title="Check a claim against the canon">
             <AutoTextarea
                 v-model="claim"
                 class="claim-input"
@@ -441,10 +430,10 @@ const STRUCT_CAP = 8
                 placeholder="One declarative sentence, e.g. “we store sessions in localStorage”"
                 @keydown.enter.exact.prevent="runClaim"
             />
-            <button class="run" type="button" :disabled="running != null || !claim.trim()" @click="runClaim">
+            <UiButton :disabled="running != null || !claim.trim()" @click="runClaim">
                 {{ running === 'claim' ? 'Checking…' : 'Check' }}
-            </button>
-            <span v-if="sweepNote.claim" class="note">{{ sweepNote.claim }}</span>
+            </UiButton>
+            <NoteText v-if="sweepNote.claim" as="span">{{ sweepNote.claim }}</NoteText>
             <div v-if="report" class="results">
                 <template
                     v-for="(group, label) in {
@@ -476,14 +465,13 @@ const STRUCT_CAP = 8
                         <span class="pct">{{ Math.round(Math.max(v.entailment, v.contradiction, v.neutral) * 100) }}%</span>
                     </button>
                 </template>
-                <p v-if="!report.contradicts.length && !report.supports.length && !report.retracted?.length" class="note">
+                <NoteText v-if="!report.contradicts.length && !report.supports.length && !report.retracted?.length">
                     the canon is silent on this — if it matters, it's worth capturing
-                </p>
+                </NoteText>
             </div>
-        </section>
+        </PanelSection>
 
-        <section class="block">
-            <h3 class="block-title">Structure — instant, no models</h3>
+        <PanelSection title="Structure — instant, no models">
             <p class="struct-line">
                 <b>{{ unjustified.length }}</b> decisions without a recorded reason (<code>because</code>)
             </p>
@@ -537,7 +525,7 @@ const STRUCT_CAP = 8
                 <span class="dot" :style="{ background: config.accent(n.type) }" />
                 <span class="row-title">{{ n.title }}</span>
             </button>
-        </section>
+        </PanelSection>
     </SidePanel>
 </div>
 </template>
@@ -569,46 +557,11 @@ const STRUCT_CAP = 8
     background-color: color-mix(in srgb, var(--node-caution) 10%, transparent);
 }
 
-.block-title {
-    margin-bottom: 0.8rem;
-    font-size: var(--text-caption);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-tertiary);
-}
-
 .sweep {
     display: flex;
     align-items: center;
     gap: 0.8rem;
     margin-bottom: 0.6rem;
-}
-
-.run {
-    flex: none;
-    padding: 0.6rem 1rem;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border-default);
-    background-color: var(--surface-elevated);
-    color: var(--text-primary);
-    font-size: var(--text-label);
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.run:disabled {
-    opacity: 0.5;
-    cursor: default;
-}
-
-.run:hover:not(:disabled) {
-    background-color: var(--node-hover-surface);
-}
-
-.note {
-    font-size: var(--text-caption);
-    color: var(--text-tertiary);
 }
 
 .results {
@@ -746,20 +699,4 @@ const STRUCT_CAP = 8
     flex: 1;
 }
 
-.promote-btn {
-    flex: none;
-    margin-left: auto;
-    padding: 0.3rem 0.8rem;
-    border-radius: var(--radius-control);
-    border: 1px solid color-mix(in srgb, var(--interactive-primary) 55%, transparent);
-    background-color: color-mix(in srgb, var(--interactive-primary) 12%, transparent);
-    color: var(--interactive-primary);
-    font-size: var(--text-caption);
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.promote-btn:hover {
-    background-color: color-mix(in srgb, var(--interactive-primary) 22%, transparent);
-}
 </style>
