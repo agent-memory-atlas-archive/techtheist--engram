@@ -130,11 +130,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKey))
 </script>
 
 <template>
-<!-- Feed view goes solid: the feed is a composited scroller, and Chromium's
-     backdrop-filter can't sample its content — cards slid under the glass
-     pixel-crisp, reading as a bug. Opaque beats broken glass there; the
-     graph view (transform-panned, samples fine) keeps the blur. -->
-<div class="search" :class="{ solid: layout.view === 'feed' }">
+<div class="search">
     <div class="field glass-panel">
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
             <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2" />
@@ -198,13 +194,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKey))
     max-width: 100%;
 }
 
-/* Solid variant (feed view): opaque surface, no backdrop sampling. Covers
-   the field and its dropdowns; a no-op outside engram-purple, where the
-   glass tokens are already opaque. */
-.search.solid .glass-panel {
-    background-color: var(--surface-elevated);
-    backdrop-filter: none;
-}
 
 .field {
     display: flex;
