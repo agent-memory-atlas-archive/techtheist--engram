@@ -142,29 +142,6 @@ watch(
     },
 )
 
-/**
- * The canvas is the one screen that does not stay warm: GRAPH_RELEASE_MS
- * after leaving it, it unmounts and its DOM (hundreds of nodes and edges)
- * is freed. Not at once — rebuilding it costs 1–2 s on a 600-note graph
- * (browser layout of every node), so a quick look at the feed and back
- * stays instant; a longer stay elsewhere releases it.
- */
-const GRAPH_RELEASE_MS = 30_000
-const graphMounted = ref(true)
-let graphReleaseTimer: number | undefined
-watch(
-    () => layout.view,
-    (view) => {
-        window.clearTimeout(graphReleaseTimer)
-        if (view === 'graph') {
-            graphMounted.value = true
-            return
-        }
-        graphReleaseTimer = window.setTimeout(() => (graphMounted.value = false), GRAPH_RELEASE_MS)
-    },
-    { immediate: true },
-)
-
 function screenClass(s: ViewMode): Record<string, boolean> {
     const switching = leaving.value != null
     return {
@@ -208,10 +185,7 @@ onBeforeUnmount(() => store.disconnect())
          keeps its zoom and positions, the feed its cards, and switching
          back is a paint, not a rebuild. -->
     <div class="screen" :class="screenClass('graph')" :inert="layout.view !== 'graph'">
-        <!-- Released after a while on other screens (graphMounted): the
-             heaviest screen doesn't sit in the background; GraphCanvas keeps
-             the viewport and hand placements across remounts. -->
-        <GraphCanvas v-if="graphMounted" class="canvas-layer" />
+        <GraphCanvas class="canvas-layer" />
     </div>
     <div v-if="visited.has('feed') || warm.has('feed')" class="screen" :class="screenClass('feed')" :inert="layout.view !== 'feed'">
         <FeedView v-if="warm.has('feed')" />
@@ -558,14 +532,14 @@ onBeforeUnmount(() => store.disconnect())
     }
 }
 
-@media (width <= 380px) {
+@media (width <= 470px) {
     .brand .brand-chip,
     .brand .live {
         display: none;
     }
 }
 
-@media (width <= 275px) {
+@media (width <= 345px) {
     .brand .switcher-root {
         display: none;
     }
