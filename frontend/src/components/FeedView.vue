@@ -161,10 +161,21 @@ watch(
 
 const currentId = ref<string | null>(null)
 
+/**
+ * Center a card in the feed. Scrolls the feed's own scroller, vertically
+ * only — scrollIntoView would also scroll every ancestor on both axes, and
+ * mid-switch the card sits slid off to the side, so it dragged the whole app
+ * sideways.
+ */
 function scrollToNode(id: string, smooth = true): void {
     void nextTick(() => {
-        const el = feedEl.value?.querySelector<HTMLElement>(`[data-node-id="${id}"]`)
-        el?.scrollIntoView({ behavior: smooth ? 'smooth' : 'instant', block: 'center' })
+        const root = feedEl.value
+        const el = root?.querySelector<HTMLElement>(`[data-node-id="${id}"]`)
+        if (!root || !el) return
+        root.scrollTo({
+            top: el.offsetTop + el.offsetHeight / 2 - root.clientHeight / 2,
+            behavior: smooth ? 'smooth' : 'instant',
+        })
     })
 }
 

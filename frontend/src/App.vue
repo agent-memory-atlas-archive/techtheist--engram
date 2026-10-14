@@ -291,7 +291,10 @@ onBeforeUnmount(() => store.disconnect())
 .app {
     position: fixed;
     inset: 0;
-    overflow: hidden;
+    /* clip, not hidden: a hidden box is still a scroll container, and a
+       scrollIntoView aimed at sliding content (it sits 28% off to the side
+       mid-switch) scrolled the whole app sideways — top bar included. */
+    overflow: clip;
     background-color: var(--canvas-bg);
     color: var(--text-primary);
     font-family: var(--font-sans);
@@ -468,7 +471,7 @@ onBeforeUnmount(() => store.disconnect())
     height: 1.6rem;
 }
 
-@media (width <= 1020px) {
+@media (width <= 1100px) {
     .burger {
         display: flex;
     }

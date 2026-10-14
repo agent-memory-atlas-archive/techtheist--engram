@@ -75,9 +75,13 @@ watch(messages, async () => {
     }
     await nextTick()
     if (!focusId.value || !thread.value) return
-    thread.value
-        .querySelector(`[data-mid="${focusId.value}"]`)
-        ?.scrollIntoView({ block: 'center' })
+    // Scroll the thread itself, vertically only: scrollIntoView would also
+    // scroll the app sideways while this screen is still sliding in.
+    const el = thread.value.querySelector<HTMLElement>(`[data-mid="${focusId.value}"]`)
+    if (!el) return
+    const box = thread.value.getBoundingClientRect()
+    const at = el.getBoundingClientRect()
+    thread.value.scrollTop += at.top - box.top - (box.height - at.height) / 2
 })
 
 function day(ts: number): string {
