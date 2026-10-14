@@ -452,6 +452,20 @@ impl TepinStore {
         Ok(serde_json::from_value(doc)?)
     }
 
+    /// Nodes matching an equality filter on an indexed field (type,
+    /// session_id), hydrated like `all_nodes`, oldest first. Only the
+    /// matching documents are read and unsealed.
+    fn nodes_matching(&self, filter: Value) -> Result<Vec<Node>> {
+        let policy = self.policy();
+        let mut out: Vec<Node> = self
+            .find_docs(NODES, &filter)?
+            .into_iter()
+            .map(|d| self.node_from_doc(d, &policy))
+            .collect::<Result<_>>()?;
+        out.sort_by(|a, b| (a.created_at, &a.id).cmp(&(b.created_at, &b.id)));
+        Ok(out)
+    }
+
     fn edges_matching(&self, field: &str, id: &str) -> Result<Vec<Edge>> {
         self.find_docs(EDGES, &json!({ field: id }))?
             .into_iter()
@@ -490,6 +504,16 @@ fn configure(db: &Db) -> Result<()> {
     for field in ["from_id", "to_id"] {
         if !info(EDGES).is_some_and(|c| c.indexes.iter().any(|i| i == field)) {
             db.create_index(EDGES, field)?;
+        }
+    }
+    // Nodes by type and by session (0.10.0): the brief reads canon one type
+    // at a time, and the history store lists Session nodes and reads one
+    // conversation's messages — without these every such read deserialized
+    // (and unsealed) the whole store. Created once; the first open of an
+    // older store backfills them.
+    for field in ["type", "session_id"] {
+        if !info(NODES).is_some_and(|c| c.indexes.iter().any(|i| i == field)) {
+            db.create_index(NODES, field)?;
         }
     }
     let purposes = [
@@ -916,6 +940,14 @@ impl Store for TepinStore {
             .collect::<Result<_>>()?;
         out.sort_by(|a, b| (a.created_at, &a.id).cmp(&(b.created_at, &b.id)));
         Ok(out)
+    }
+
+    fn nodes_of_type(&self, t: &str) -> Result<Vec<Node>> {
+        self.nodes_matching(json!({ "type": t }))
+    }
+
+    fn nodes_in_session(&self, session: &str) -> Result<Vec<Node>> {
+        self.nodes_matching(json!({ "session_id": session }))
     }
 
     fn touch(&self, ids: &[String]) -> Result<()> {

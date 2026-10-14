@@ -699,13 +699,12 @@ impl Engine {
         session: &str,
     ) -> Result<Vec<crate::history::HistoryMessageView>> {
         let msgs = self
+            // Indexed (0.10.0): only this conversation's nodes are read and
+            // unsealed, not the whole recording.
             .with_history(|s| -> Result<Vec<crate::types::Node>> {
-                Ok(s.all_nodes()?
+                Ok(s.nodes_in_session(session)?
                     .into_iter()
-                    .filter(|n| {
-                        n.node_type.as_str() == crate::history::MESSAGE_TYPE
-                            && n.session_id.as_deref() == Some(session)
-                    })
+                    .filter(|n| n.node_type.as_str() == crate::history::MESSAGE_TYPE)
                     .collect())
             })
             .transpose()?
@@ -786,11 +785,13 @@ impl Engine {
 
     pub fn list_history_sessions(&self) -> Result<Vec<crate::history::HistorySessionView>> {
         let mut out: Vec<crate::history::HistorySessionView> = self
-            .with_history(|s| {
-                s.nodes_by_type_active(
-                    &crate::types::NodeType::parse(crate::history::SESSION_TYPE)?,
-                    usize::MAX,
-                )
+            // Indexed by type (0.10.0): the Session nodes alone, not every
+            // recorded message.
+            .with_history(|s| -> Result<Vec<crate::types::Node>> {
+                Ok(s.nodes_of_type(crate::history::SESSION_TYPE)?
+                    .into_iter()
+                    .filter(|n| n.valid_until.is_none())
+                    .collect())
             })
             .transpose()?
             .unwrap_or_default()
@@ -821,11 +822,7 @@ impl Engine {
     pub fn delete_history_session(&self, session: &str) -> Result<usize> {
         let (removed, transcript) = self
             .with_history(|s| -> Result<(usize, Option<String>)> {
-                let nodes: Vec<Node> = s
-                    .all_nodes()?
-                    .into_iter()
-                    .filter(|n| n.session_id.as_deref() == Some(session))
-                    .collect();
+                let nodes: Vec<Node> = s.nodes_in_session(session)?;
                 let transcript = nodes
                     .iter()
                     .find(|n| n.node_type.as_str() == crate::history::SESSION_TYPE)
@@ -932,10 +929,8 @@ impl Engine {
         let born: Born = self
             .with_history(|s| -> Result<Born> {
                 let mut out = Vec::new();
-                for n in s.all_nodes()? {
-                    if n.node_type.as_str() != crate::history::MESSAGE_TYPE
-                        || n.session_id.as_deref() != Some(session)
-                    {
+                for n in s.nodes_in_session(session)? {
+                    if n.node_type.as_str() != crate::history::MESSAGE_TYPE {
                         continue;
                     }
                     let turn = n

@@ -223,6 +223,25 @@ pub trait Store: Send {
         Ok(n)
     }
     fn all_nodes(&self) -> Result<Vec<Node>>;
+    /// Every node of one type (any state), oldest first. A backend with an
+    /// index on `type` answers from it (TepinDB, 0.10.0) instead of reading
+    /// — and unsealing — every node in the store.
+    fn nodes_of_type(&self, t: &str) -> Result<Vec<Node>> {
+        Ok(self
+            .all_nodes()?
+            .into_iter()
+            .filter(|n| n.node_type.as_str() == t)
+            .collect())
+    }
+    /// Every node stamped with one session id, oldest first — a recorded
+    /// conversation's messages in the history store. Indexed on TepinDB.
+    fn nodes_in_session(&self, session: &str) -> Result<Vec<Node>> {
+        Ok(self
+            .all_nodes()?
+            .into_iter()
+            .filter(|n| n.session_id.as_deref() == Some(session))
+            .collect())
+    }
     /// Stamp `last_seen`: retrieval surfaced these nodes. Observability only —
     /// trust never reads this stamp.
     fn touch(&self, ids: &[String]) -> Result<()>;
@@ -439,9 +458,9 @@ pub trait Store: Send {
     /// How many current (non-archived) nodes of one type exist.
     fn count_by_type_active(&self, t: &NodeType) -> Result<i64> {
         Ok(self
-            .all_nodes()?
+            .nodes_of_type(t.as_str())?
             .iter()
-            .filter(|n| n.valid_until.is_none() && n.node_type == *t)
+            .filter(|n| n.valid_until.is_none())
             .count() as i64)
     }
 
@@ -451,9 +470,9 @@ pub trait Store: Send {
     /// last_seen), a self-reinforcing loop.
     fn nodes_by_type_active(&self, t: &NodeType, limit: usize) -> Result<Vec<Node>> {
         let mut out: Vec<Node> = self
-            .all_nodes()?
+            .nodes_of_type(t.as_str())?
             .into_iter()
-            .filter(|n| n.valid_until.is_none() && n.node_type == *t)
+            .filter(|n| n.valid_until.is_none())
             .collect();
         out.sort_by(|a, b| {
             let key = |n: &Node| {
