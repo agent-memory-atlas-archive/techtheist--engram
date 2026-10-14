@@ -75,6 +75,10 @@ onBeforeUnmount(() => observer?.disconnect())
 .segments {
     position: relative;
     display: inline-flex;
+    /* Never squeezed: a scrollable rail in a column (the narrow board's
+       column picker, the drawer's status) had min-height 0 and collapsed to
+       its 3 px of padding in the IDE pane. */
+    flex-shrink: 0;
     gap: 0.2rem;
     padding: 0.25rem;
     border: 1px solid var(--border-default);

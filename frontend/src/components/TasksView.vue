@@ -3,7 +3,7 @@ import InfoBadge from '@/components/common/InfoBadge.vue'
 import NoteText from '@/components/common/NoteText.vue'
 import UiButton from '@/components/common/UiButton.vue'
 import AutoTextarea from '@/components/common/AutoTextarea.vue'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import SegmentedControl from '@/components/common/SegmentedControl.vue'
 import { useGraphStore } from '@/stores/graph'
@@ -108,28 +108,105 @@ async function toggleDone(t: TaskView): Promise<void> {
 }
 
 // --- drag: reorder within a column, move between columns ---------------------
+//
+// Pointer events, not HTML5 drag-and-drop: JCEF (the JetBrains tool window)
+// never completes a native drag — the card greyed out and stayed grey — and
+// VS Code webviews and touch screens are unreliable with it too. A press
+// that travels DRAG_THRESHOLD px starts a drag; a copy of the card follows
+// the pointer on <body> (a column's scroller would clip the card itself),
+// and the column/card under the pointer is the target.
 
+const DRAG_THRESHOLD = 6
 const dragId = ref<string | null>(null)
 const overId = ref<string | null>(null)
 const overColumn = ref<Column | null>(null)
 
-function onDragStart(e: DragEvent, t: TaskView): void {
-    dragId.value = t.id
-    e.dataTransfer?.setData('text/plain', t.id)
-    if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
+let press: { id: string; x: number; y: number; el: HTMLElement } | null = null
+let ghost: { el: HTMLElement; left: number; top: number } | null = null
+
+function onPress(e: PointerEvent, t: TaskView): void {
+    if (e.button !== 0 || isClosedGroup(t)) return
+    const target = e.target as HTMLElement
+    // Controls keep their own gestures; titles are buttons but drag handles.
+    if (target.closest('input, textarea, .check, form')) return
+    press = { id: t.id, x: e.clientX, y: e.clientY, el: e.currentTarget as HTMLElement }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', endDrag)
+    window.addEventListener('keydown', onDragKey)
 }
 
-function onDragEnd(): void {
+function startGhost(el: HTMLElement): void {
+    const r = el.getBoundingClientRect()
+    const copy = el.cloneNode(true) as HTMLElement
+    copy.classList.add('drag-ghost')
+    Object.assign(copy.style, {
+        position: 'fixed',
+        left: `${r.left}px`,
+        top: `${r.top}px`,
+        width: `${r.width}px`,
+        margin: '0',
+        zIndex: '1000',
+        pointerEvents: 'none',
+    })
+    document.body.appendChild(copy)
+    ghost = { el: copy, left: r.left, top: r.top }
+}
+
+function onMove(e: PointerEvent): void {
+    if (!press) return
+    const dx = e.clientX - press.x
+    const dy = e.clientY - press.y
+    if (!dragId.value) {
+        if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return
+        dragId.value = press.id
+        startGhost(press.el)
+    }
+    e.preventDefault()
+    if (ghost) ghost.el.style.transform = `translate(${dx}px, ${dy}px) rotate(1deg)`
+    const under = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null
+    overColumn.value = (under?.closest<HTMLElement>('[data-col]')?.dataset.col as Column | undefined) ?? null
+    overId.value = under?.closest<HTMLElement>('.card[data-task-id]')?.dataset.taskId ?? null
+}
+
+function onUp(): void {
+    const id = dragId.value
+    const col = overColumn.value
+    const before = overId.value
+    endDrag()
+    if (!id) return
+    // The click a drag may end with must not open the task drawer; when the
+    // pointer lands elsewhere no click comes, so the guard lifts next tick
+    // instead of eating the user's next real click.
+    window.addEventListener('click', swallowClick, true)
+    window.setTimeout(() => window.removeEventListener('click', swallowClick, true), 0)
+    if (col) void drop(id, col, before)
+}
+
+function swallowClick(e: MouseEvent): void {
+    e.stopPropagation()
+    e.preventDefault()
+}
+
+function onDragKey(e: KeyboardEvent): void {
+    if (e.key === 'Escape') endDrag()
+}
+
+function endDrag(): void {
+    press = null
+    ghost?.el.remove()
+    ghost = null
     dragId.value = null
     overId.value = null
     overColumn.value = null
+    window.removeEventListener('pointermove', onMove)
+    window.removeEventListener('pointerup', onUp)
+    window.removeEventListener('pointercancel', endDrag)
+    window.removeEventListener('keydown', onDragKey)
 }
+onBeforeUnmount(endDrag)
 
-async function onDrop(col: Column): Promise<void> {
-    const id = dragId.value
-    const before = overId.value
-    onDragEnd()
-    if (!id) return
+async function drop(id: string, col: Column, before: string | null): Promise<void> {
     const task = tasks.byId.get(id)
     if (!task) return
     // Into Closed = done (a closed card stays as it was); into an open column
@@ -188,10 +265,8 @@ function progressPct(t: TaskView): number {
             v-for="col in COLUMNS"
             :key="col.id"
             class="column"
-            :class="[`col-${col.id}`, { over: overColumn === col.id }]"
-            @dragover.prevent="overColumn = col.id"
-            @dragleave.self="overColumn = null"
-            @drop.prevent="onDrop(col.id)"
+            :class="[`col-${col.id}`, { over: dragId && overColumn === col.id }]"
+            :data-col="col.id"
         >
             <header class="column-head" :title="col.hint">
                 <span class="column-label">{{ col.label }}</span>
@@ -225,10 +300,8 @@ function progressPct(t: TaskView): number {
                         closed: !isOpen(t.status),
                         group: !!t.progress,
                     }"
-                    :draggable="!isClosedGroup(t)"
-                    @dragstart="onDragStart($event, t)"
-                    @dragend="onDragEnd"
-                    @dragover.prevent="overId = t.id"
+                    :data-task-id="t.id"
+                    @pointerdown="onPress($event, t)"
                 >
                     <div class="card-row">
                         <button
@@ -268,9 +341,7 @@ function progressPct(t: TaskView): number {
                             :key="c.id"
                             class="child"
                             :class="[c.status, { selected: selectedId === c.id, dragging: dragId === c.id }]"
-                            draggable="true"
-                            @dragstart.stop="onDragStart($event, c)"
-                            @dragend="onDragEnd"
+                            @pointerdown.stop="onPress($event, c)"
                         >
                             <button
                                 class="check small"
@@ -447,6 +518,8 @@ function progressPct(t: TaskView): number {
 }
 
 .card {
+    /* Touch: vertical swipes scroll the column, sideways ones drag. */
+    touch-action: pan-y;
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -464,8 +537,14 @@ function progressPct(t: TaskView): number {
     border-color: var(--interactive-primary);
 }
 
-.card.dragging {
-    opacity: 0.4;
+.card.dragging,
+
+/* The copy that follows the pointer (lives on <body>; scoped attributes
+   travel with the clone, so it keeps the card's look). */
+.drag-ghost {
+    box-shadow: var(--shadow-lg);
+    opacity: 0.95;
+    cursor: grabbing;
 }
 
 .card.drop-before {
