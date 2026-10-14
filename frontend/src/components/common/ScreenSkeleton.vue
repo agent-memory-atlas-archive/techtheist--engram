@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import SkeletonBlock from '@/components/common/SkeletonBlock.vue'
+
 /**
  * A screen's wireframe (0.10.0): what slides in while the real screen is
  * still being built — a handful of plain blocks in the screen's own layout,
@@ -17,23 +19,30 @@ const BUBBLES = [['user', 5], ['assistant', 9], ['user', 4], ['assistant', 7]] a
 <div class="skeleton" :class="kind" aria-busy="true" aria-label="Loading">
     <template v-if="kind === 'feed'">
         <div class="feed-col">
-            <div v-for="(h, i) in FEED_CARDS" :key="i" class="block card" :style="{ height: `${h}rem` }" />
+            <SkeletonBlock v-for="(h, i) in FEED_CARDS" :key="i" class="card" :height="`${h}rem`" />
         </div>
     </template>
 
     <template v-else-if="kind === 'tasks'">
         <div v-for="(n, c) in TASK_COLUMNS" :key="c" class="task-col">
-            <div class="block head" />
-            <div v-for="i in n" :key="i" class="block task" />
+            <SkeletonBlock class="head" width="40%" />
+            <SkeletonBlock v-for="i in n" :key="i" class="task" height="7rem" />
         </div>
     </template>
 
     <template v-else>
         <div class="lanes">
-            <div v-for="i in LANES" :key="i" class="block lane" />
+            <SkeletonBlock v-for="i in LANES" :key="i" height="4.4rem" />
         </div>
         <div class="thread">
-            <div v-for="([who, h], i) in BUBBLES" :key="i" class="block bubble" :class="who" :style="{ height: `${h}rem` }" />
+            <SkeletonBlock
+                v-for="([who, h], i) in BUBBLES"
+                :key="i"
+                class="bubble"
+                :class="who"
+                width="60%"
+                :height="`${h}rem`"
+            />
         </div>
     </template>
 </div>
@@ -48,42 +57,6 @@ const BUBBLES = [['user', 5], ['assistant', 9], ['user', 4], ['assistant', 7]] a
     padding: 12px;
     overflow: hidden;
     pointer-events: none;
-}
-
-/* A slow sheen: reads as "arriving", not as content. */
-.block {
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-lg);
-    background:
-        linear-gradient(
-            100deg,
-            transparent 30%,
-            color-mix(in srgb, var(--text-primary) 5%, transparent) 50%,
-            transparent 70%
-        )
-        0 0 / 300% 100%,
-        var(--surface-elevated);
-    animation: sheen 1.4s ease-in-out infinite;
-}
-
-@keyframes sheen {
-    from {
-        background-position:
-            100% 0,
-            0 0;
-    }
-
-    to {
-        background-position:
-            0 0,
-            0 0;
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .block {
-        animation: none;
-    }
 }
 
 /* Feed: the centered card column. */
@@ -108,16 +81,6 @@ const BUBBLES = [['user', 5], ['assistant', 9], ['user', 4], ['assistant', 7]] a
     min-width: 0;
 }
 
-.head {
-    width: 40%;
-    height: 1.6rem;
-    border-radius: var(--radius-md);
-}
-
-.task {
-    height: 7rem;
-}
-
 /* History: lanes on the left, a conversation beside them. */
 .lanes {
     display: flex;
@@ -127,11 +90,6 @@ const BUBBLES = [['user', 5], ['assistant', 9], ['user', 4], ['assistant', 7]] a
     width: 300px;
 }
 
-.lane {
-    height: 4.4rem;
-    border-radius: var(--radius-md);
-}
-
 .thread {
     display: flex;
     flex: 1;
@@ -139,10 +97,6 @@ const BUBBLES = [['user', 5], ['assistant', 9], ['user', 4], ['assistant', 7]] a
     gap: 10px;
     max-width: 900px;
     margin: 0 auto;
-}
-
-.bubble {
-    width: 60%;
 }
 
 .bubble.assistant {

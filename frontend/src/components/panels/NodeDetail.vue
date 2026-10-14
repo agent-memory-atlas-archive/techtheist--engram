@@ -6,6 +6,7 @@ import { storeToRefs } from 'pinia'
 import MarkdownView from '@/components/common/MarkdownView.vue'
 import SelectMenu from '@/components/common/SelectMenu.vue'
 import FormField from '@/components/common/FormField.vue'
+import SkeletonBlock from '@/components/common/SkeletonBlock.vue'
 import InfoBadge from '@/components/common/InfoBadge.vue'
 import NoteText from '@/components/common/NoteText.vue'
 import TextField from '@/components/common/TextField.vue'
@@ -88,19 +89,32 @@ const standingKey = computed(() => {
     return [n.id, n.trust_override, n.approved_at, n.confirmed_at, n.stale, n.valid_until, touching].join('|')
 })
 
+const standingPending = ref(false)
+/** Which node `standing` describes — a refresh of the same node keeps it. */
+let standingFor: string | null = null
+
 watch(
     standingKey,
     async (key) => {
         const id = selected.value?.id
         if (!key || !id) {
             standing.value = null
+            standingPending.value = false
             return
         }
+        // Hold the line's place while it loads (a skeleton), so it doesn't
+        // push the body down when it lands.
+        standingPending.value = standingFor !== id
         try {
             const s = await api.standing(id)
-            if (selected.value?.id === id) standing.value = s
+            if (selected.value?.id === id) {
+                standing.value = s
+                standingFor = id
+            }
         } catch {
             standing.value = null // an older daemon without the route
+        } finally {
+            if (selected.value?.id === id) standingPending.value = false
         }
     },
     { immediate: true },
@@ -494,7 +508,8 @@ function close(): void {
 
         <NoteText>{{ explainTrust(selected, config.cfg?.policy) }}</NoteText>
 
-        <p v-if="standing" class="standing-line">
+        <SkeletonBlock v-if="standingPending" width="70%" height="2rem" />
+        <p v-else-if="standing" class="standing-line">
             <StandingChip :standing="standing" />
             <span class="standing-reason">
                 <template v-if="standingOther">
