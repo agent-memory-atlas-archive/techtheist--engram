@@ -6,7 +6,9 @@ import { nextTick, onBeforeUnmount, onMounted, useTemplateRef, watch } from 'vue
  * offering a resize grip — `rows` is the floor, `maxRows` (optional) the
  * ceiling, past which it scrolls. Measured in JS rather than with
  * `field-sizing: content` so every webview the pane runs in (JCEF, VS Code,
- * Safari) sizes it the same way. Native attributes and listeners
+ * Safari) sizes it the same way. It wears the field look of TextField;
+ * a caller restyles it with its own class (the board's borderless
+ * composer). Native attributes and listeners
  * (placeholder, aria-label, @keydown…) fall through to the <textarea>.
  */
 const props = withDefaults(
@@ -77,7 +79,25 @@ defineExpose({ focus: () => el.value?.focus() })
 <style scoped>
 .auto-textarea {
     display: block;
+    width: 100%;
+    padding: 0.7rem 0.9rem;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    background-color: var(--surface-sunken);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: var(--text-body-sm);
+    line-height: var(--leading-normal);
     overflow-y: hidden;
     resize: none;
+}
+
+.auto-textarea:focus {
+    border-color: var(--border-strong);
+    outline: none;
+}
+
+.auto-textarea::placeholder {
+    color: var(--text-tertiary);
 }
 </style>

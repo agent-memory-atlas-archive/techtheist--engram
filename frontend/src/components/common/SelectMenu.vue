@@ -315,7 +315,7 @@ onBeforeUnmount(() => {
     list-style: none;
     overflow-y: auto;
     border: 1px solid var(--border-default);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-popover);
     background: var(--surface-elevated);
     box-shadow: var(--shadow-md);
     color: var(--text-primary);

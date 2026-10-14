@@ -71,6 +71,9 @@
     --radius-lg: 1.2rem;
     --radius-xl: 1.6rem;
     --radius-full: 9999px;
+    /* Floating menus and pickers (date picker, dropdown lists): a touch
+       rounder than fields; the IDE themes take the host's corner. */
+    --radius-popover: var(--radius-lg);
 
     --shadow-sm: 0 1px 2px rgb(0 0 0 / 25%);
     --shadow-md: 0 8px 24px rgb(0 0 0 / 28%), 0 2px 8px rgb(0 0 0 / 18%);

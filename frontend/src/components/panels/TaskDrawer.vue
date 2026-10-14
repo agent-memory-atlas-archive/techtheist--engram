@@ -1,37 +1,49 @@
 <script setup lang="ts">
-import AutoTextarea from '@/components/common/AutoTextarea.vue'
 import { computed, ref, watch } from 'vue'
+import AutoTextarea from '@/components/common/AutoTextarea.vue'
+import InfoBadge from '@/components/common/InfoBadge.vue'
 import MarkdownView from '@/components/common/MarkdownView.vue'
 import RulePicker from '@/components/common/RulePicker.vue'
 import SegmentedControl from '@/components/common/SegmentedControl.vue'
 import SelectMenu from '@/components/common/SelectMenu.vue'
-import SidePanel from '@/components/common/SidePanel.vue'
+import TextField from '@/components/common/TextField.vue'
+import UiButton from '@/components/common/UiButton.vue'
+import DetailDrawer from '@/components/common/detail/DetailDrawer.vue'
+import DetailLink from '@/components/common/detail/DetailLink.vue'
+import DetailMeta from '@/components/common/detail/DetailMeta.vue'
+import DetailMetaRow from '@/components/common/detail/DetailMetaRow.vue'
+import DetailSection from '@/components/common/detail/DetailSection.vue'
+import DetailTitle from '@/components/common/detail/DetailTitle.vue'
 import { api } from '@/services/api'
+import { useConfigStore } from '@/stores/config'
 import { useGraphStore } from '@/stores/graph'
-import { useHistoryStore } from '@/stores/history'
 import { useLayoutStore } from '@/stores/layout'
 import { isOpen, STATUS_LABELS, useTasksStore } from '@/stores/tasks'
 import type { SearchHit, TaskPatch, TaskStatus } from '@/types/graph'
 
 /**
- * One task, editable (0.10.0): title, status, group, the markdown body with
- * a progress line, the wake/close rules, and refs into memory. Every field
- * saves on its own — there is no form-level Save, the board is a working
- * surface. Hard delete lives here and only here (user-only, like nodes).
+ * One task in the shared detail card (0.10.0) — the same shell, order and
+ * type sizes as a node: kind pill, title, badges, controls, the plan as the
+ * body, titled sections, provenance, an actions footer. Fields save on their
+ * own; hard delete is here and nowhere else (user-only, like nodes).
  */
 const tasks = useTasksStore()
 const graph = useGraphStore()
+const config = useConfigStore()
 const layout = useLayoutStore()
-const historyStore = useHistoryStore()
 
 const task = computed(() => tasks.selected)
 const children = computed(() => (task.value ? tasks.childrenOf(task.value.id) : []))
+const isGroup = computed(() => children.value.length > 0)
+/** A closed group can't be reopened by itself: every task in it is closed,
+ *  so it would close again at once. Its tasks are the way back. */
+const closedGroup = computed(() => isGroup.value && !!task.value && !isOpen(task.value.status))
 const error = ref<string | null>(null)
 
-const title = ref('')
 const body = ref('')
-const editingBody = ref(false)
+const editingPlan = ref(false)
 const progressLine = ref('')
+const confirmingDelete = ref(false)
 // Declared before the immediate `task` watcher below, which resets them —
 // a later declaration is a TDZ crash whenever the drawer mounts with a task
 // already selected (coming back to the Tasks screen).
@@ -45,17 +57,26 @@ watch(
         if (!t) return
         // Keep in-flight edits when the same task merely reloads.
         if (prev?.id !== t.id) {
-            editingBody.value = false
+            editingPlan.value = false
+            confirmingDelete.value = false
             progressLine.value = ''
             error.value = null
             refQuery.value = ''
             refHits.value = []
         }
-        title.value = t.title
-        if (!editingBody.value) body.value = t.body ?? ''
+        if (!editingPlan.value) body.value = t.body ?? ''
     },
     { immediate: true },
 )
+
+/** The pill and edge strip follow the status. */
+const STATUS_ACCENT: Record<TaskStatus, string> = {
+    active: 'var(--interactive-primary)',
+    delayed: 'var(--node-caution)',
+    backlog: 'var(--node-anchor)',
+    done: 'var(--node-resolution)',
+    dropped: 'var(--text-tertiary)',
+}
 
 async function save(p: TaskPatch): Promise<void> {
     if (!task.value) return
@@ -67,14 +88,14 @@ async function save(p: TaskPatch): Promise<void> {
     }
 }
 
-function saveTitle(): void {
-    const t = title.value.trim()
-    if (task.value && t && t !== task.value.title) void save({ title: t })
+async function savePlan(): Promise<void> {
+    await save({ body: body.value })
+    if (!error.value) editingPlan.value = false
 }
 
-async function saveBody(): Promise<void> {
-    await save({ body: body.value })
-    if (!error.value) editingBody.value = false
+function cancelPlan(): void {
+    editingPlan.value = false
+    body.value = task.value?.body ?? ''
 }
 
 async function addProgress(): Promise<void> {
@@ -89,21 +110,12 @@ function saveRule(kind: 'wake' | 'close', value: string): void {
     void save({ [kind]: value })
 }
 
-/** Linked notes, titled — what "when a linked note resolves" can wait on. */
-const linkedNotes = computed(() => (task.value?.refs ?? []).map((id) => ({ id, title: refTitle(id) })))
-
-/** Wake only means something for parked work (or a rule already set). */
-const showWake = computed(
-    () => !!task.value && (task.value.status === 'delayed' || task.value.status === 'backlog' || !!task.value.wake),
-)
-
 const STATUS_OPTIONS = (['active', 'delayed', 'backlog', 'done', 'dropped'] as TaskStatus[]).map((s) => ({
     value: s,
     label: STATUS_LABELS[s],
 }))
 
-/** Groups a task can join: top-level tasks other than itself. A group can't
- *  join another group (one level), so its own picker is disabled. */
+/** Groups a task can join: open top-level tasks other than itself. */
 const groupOptions = computed(() => {
     const own = task.value?.id
     return [
@@ -113,13 +125,13 @@ const groupOptions = computed(() => {
             .map((t) => ({ value: t.id, label: t.title })),
     ]
 })
-const isGroup = computed(() => children.value.length > 0)
-/** A closed group can't be reopened by itself: every task in it is closed,
- *  so it would close again at once. Its tasks are the way back. */
-const closedGroup = computed(() => isGroup.value && !!task.value && !isOpen(task.value.status))
 
-// --- refs: links into memory ----------------------------------------------
+/** Wake only means something for parked work (or a rule already set). */
+const showWake = computed(
+    () => !!task.value && (task.value.status === 'delayed' || task.value.status === 'backlog' || !!task.value.wake),
+)
 
+// --- linked notes ------------------------------------------------------------
 
 watch(refQuery, async (q) => {
     const seq = ++searchSeq
@@ -135,9 +147,17 @@ watch(refQuery, async (q) => {
     }
 })
 
-function refTitle(id: string): string {
+function noteTitle(id: string): string {
     return graph.nodes.get(id)?.title ?? id
 }
+
+/** The note's type color — the same dot the canvas and feed draw. */
+function noteColor(type: string | undefined): string {
+    return type ? config.accent(type) : 'var(--text-tertiary)'
+}
+
+/** Linked notes, titled — what "when a linked note resolves" can wait on. */
+const linkedNotes = computed(() => (task.value?.refs ?? []).map((id) => ({ id, title: noteTitle(id) })))
 
 function addRef(id: string): void {
     if (!task.value) return
@@ -167,65 +187,37 @@ function when(ts: number): string {
     })
 }
 
-/** The recorded session around the task's creation (time-window guess, the
- *  same slack NodeDetail allows pre-history notes). */
-const timeSession = computed(() => {
-    const t = task.value?.created_at
-    if (t == null) return null
-    let best: { session: string; gap: number } | null = null
-    for (const s of historyStore.sessions) {
-        const end = s.ended ?? s.started
-        if (t < s.started - 600 || t > end + 3600) continue
-        const gap = t < s.started ? s.started - t : t > end ? t - end : 0
-        if (!best || gap < best.gap) best = { session: s.session, gap }
-    }
-    return best?.session ?? null
-})
-watch(task, (t) => {
-    if (t && !historyStore.sessions.length) void historyStore.load()
-})
-
-function openSession(): void {
-    if (!timeSession.value || !task.value) return
-    layout.setView('history')
-    void historyStore.open(timeSession.value, null, task.value.created_at)
-}
-
 async function remove(): Promise<void> {
-    const t = task.value
-    if (!t) return
-    const extra = children.value.length ? ` and its ${children.value.length} task(s)` : ''
-    if (!window.confirm(`Delete “${t.title}”${extra} for good? Closing keeps history; deleting does not.`)) return
-    await tasks.remove(t.id)
+    if (task.value) await tasks.remove(task.value.id)
 }
 </script>
 
 <template>
-<SidePanel
+<DetailDrawer
     :open="task != null"
-    side="right"
     panel-id="task"
-    :default-rem="42"
-    :min-rem="28"
+    :kind="isGroup ? 'Group' : 'Task'"
+    :accent="task ? STATUS_ACCENT[task.status] : 'var(--interactive-primary)'"
     :dismiss="() => tasks.open(null)"
 >
-    <template #header>
-        <header v-if="task" class="head">
-            <span class="pill">{{ isGroup ? 'Group' : task.parent ? 'Task in a group' : 'Task' }}</span>
-            <button class="close" type="button" aria-label="Close" @click="tasks.open(null)">×</button>
-        </header>
+    <template v-if="task" #title>
+        <DetailTitle :text="task.title" editable @commit="save({ title: $event })" />
     </template>
 
-    <div v-if="task" class="drawer">
-        <input
-            v-model="title"
-            class="field-input title-input"
-            type="text"
-            aria-label="Task title"
-            @blur="saveTitle"
-            @keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
-        />
-        <p v-if="error" class="msg error">{{ error }}</p>
+    <template v-if="task" #badges>
+        <InfoBadge>{{ STATUS_LABELS[task.status].toLowerCase() }}</InfoBadge>
+        <InfoBadge v-if="task.progress">{{ task.progress[0] }}/{{ task.progress[1] }} done</InfoBadge>
+        <InfoBadge v-if="task.version" title="Working version when the task was created">{{ task.version }}</InfoBadge>
+        <InfoBadge v-if="task.carried_from" tone="warn" title="Opened under an older version and still open">↻ carried</InfoBadge>
+        <InfoBadge v-if="task.idle_sessions" tone="warn" title="Sessions briefed without this task changing">
+            idle {{ task.idle_sessions }}
+        </InfoBadge>
+        <InfoBadge v-if="task.origin" title="Who created it">by {{ task.origin }}</InfoBadge>
+    </template>
+
+    <template v-if="task">
+        <p v-if="task.auto" class="note">Last automatic change: {{ task.auto }}</p>
+        <p v-if="error" class="note error">{{ error }}</p>
 
         <SegmentedControl
             class="status"
@@ -235,66 +227,56 @@ async function remove(): Promise<void> {
             aria-label="Status"
             @update:model-value="save({ status: $event as TaskStatus })"
         />
-        <p v-if="closedGroup" class="hint">A closed group follows its tasks — reopen one of them to reopen the group.</p>
-        <p v-if="task.auto" class="auto">Last automatic change: {{ task.auto }}</p>
+        <p v-if="closedGroup" class="note">A closed group follows its tasks — reopen one of them to reopen the group.</p>
 
-        <label class="field">
-            <span class="label">Group</span>
+        <template v-if="editingPlan">
+            <AutoTextarea v-model="body" class="mono" :rows="8" aria-label="Plan (markdown)" />
+            <div class="row">
+                <UiButton @click="savePlan">Save</UiButton>
+                <UiButton variant="ghost" @click="cancelPlan">Cancel</UiButton>
+            </div>
+        </template>
+        <MarkdownView v-else-if="task.body" :content="task.body" class="body" />
+        <p v-else class="note">No plan yet — Edit plan adds one; steps go in as a checklist.</p>
+
+        <form class="row" @submit.prevent="addProgress">
+            <TextField
+                v-model="progressLine"
+                placeholder="Where it stands now…"
+                aria-label="Progress note, added under today's date"
+            />
+            <UiButton type="submit" :disabled="!progressLine.trim()">Add note</UiButton>
+        </form>
+
+        <DetailSection v-if="isGroup" title="In this group">
+            <ul class="links">
+                <DetailLink
+                    v-for="c in children"
+                    :key="c.id"
+                    :title="c.title"
+                    :struck="!isOpen(c.status)"
+                    @open="tasks.open(c.id)"
+                >
+                    <template #trail>
+                        <InfoBadge tone="muted">{{ STATUS_LABELS[c.status].toLowerCase() }}</InfoBadge>
+                    </template>
+                </DetailLink>
+            </ul>
+        </DetailSection>
+
+        <DetailSection v-else title="Group">
             <SelectMenu
                 :model-value="task.parent ?? ''"
                 :options="groupOptions"
-                :disabled="isGroup"
                 aria-label="Group"
                 block
                 @update:model-value="save({ parent: $event })"
             />
-            <span v-if="isGroup" class="hint">A group can't join another group — groups are one level deep.</span>
-        </label>
+        </DetailSection>
 
-        <section v-if="isGroup" class="block">
-            <h3 class="block-title">In this group ({{ task.progress?.[0] ?? 0 }}/{{ task.progress?.[1] ?? 0 }} closed)</h3>
-            <ul class="kids">
-                <li v-for="c in children" :key="c.id">
-                    <button class="link" type="button" :class="{ closed: !isOpen(c.status) }" @click="tasks.open(c.id)">
-                        {{ c.title }}
-                    </button>
-                    <span class="chip">{{ STATUS_LABELS[c.status].toLowerCase() }}</span>
-                </li>
-            </ul>
-        </section>
-
-        <section class="block">
-            <header class="block-head">
-                <h3 class="block-title">Plan</h3>
-                <button v-if="!editingBody && task.body" class="mini" type="button" @click="editingBody = true">Edit</button>
-            </header>
-            <template v-if="editingBody">
-                <AutoTextarea v-model="body" class="body-input" :rows="10" aria-label="Plan (markdown)" />
-                <div class="row end">
-                    <button class="mini" type="button" @click="editingBody = false; body = task.body ?? ''">Cancel</button>
-                    <button class="mini accent" type="button" @click="saveBody">Save</button>
-                </div>
-            </template>
-            <MarkdownView v-else-if="task.body" class="plan" :content="task.body" />
-            <button v-else class="empty-plan" type="button" @click="editingBody = true">
-                Write the plan — steps as a checklist
-            </button>
-            <form class="progress" @submit.prevent="addProgress">
-                <input
-                    v-model="progressLine"
-                    class="field-input"
-                    type="text"
-                    placeholder="Where it stands now…"
-                    aria-label="Progress note, added under today's date"
-                />
-                <button class="mini" type="submit" :disabled="!progressLine.trim()">Add note</button>
-            </form>
-        </section>
-
-        <section class="block">
-            <h3 class="block-title">Automatically</h3>
+        <DetailSection title="Automatically">
             <div class="field">
-                <span class="label">Mark done</span>
+                <span class="field-label">Mark done</span>
                 <RulePicker
                     :model-value="task.close ?? ''"
                     :current-version="tasks.currentVersion"
@@ -304,7 +286,7 @@ async function remove(): Promise<void> {
                 />
             </div>
             <div v-if="showWake" class="field">
-                <span class="label">Back to active</span>
+                <span class="field-label">Back to active</span>
                 <RulePicker
                     :model-value="task.wake ?? ''"
                     :current-version="tasks.currentVersion"
@@ -313,131 +295,79 @@ async function remove(): Promise<void> {
                     @update:model-value="saveRule('wake', $event)"
                 />
             </div>
-        </section>
+        </DetailSection>
 
-        <section class="block">
-            <h3 class="block-title">Linked notes</h3>
-            <ul v-if="task.refs?.length" class="refs">
-                <li v-for="r in task.refs" :key="r">
-                    <button class="link" type="button" :title="`Open ${r} in the graph`" @click="openRef(r)">{{ refTitle(r) }}</button>
-                    <button class="x" type="button" :aria-label="`Remove ref ${r}`" @click="removeRef(r)">×</button>
-                </li>
+        <DetailSection title="Linked notes">
+            <ul v-if="task.refs?.length" class="links">
+                <DetailLink
+                    v-for="r in task.refs"
+                    :key="r"
+                    :title="noteTitle(r)"
+                    removable
+                    :remove-label="`Unlink ${noteTitle(r)}`"
+                    @open="openRef(r)"
+                    @remove="removeRef(r)"
+                >
+                    <template #lead>
+                        <span
+                            class="type-dot"
+                            :style="{ backgroundColor: noteColor(graph.nodes.get(r)?.type) }"
+                            :title="graph.nodes.get(r)?.type"
+                        />
+                    </template>
+                </DetailLink>
             </ul>
-            <p v-else class="hint">None yet.</p>
-            <input v-model="refQuery" class="field-input" type="text" placeholder="Search memory to link a note…" aria-label="Search notes to link" />
-            <ul v-if="refHits.length" class="hits">
-                <li v-for="h in refHits" :key="h.id">
-                    <button class="link" type="button" @click="addRef(h.id)">
-                        <span class="chip">{{ h.type }}</span> {{ h.title }}
-                    </button>
-                </li>
+            <TextField v-model="refQuery" placeholder="Search memory to link a note…" aria-label="Search notes to link" />
+            <ul v-if="refHits.length" class="links">
+                <DetailLink v-for="h in refHits" :key="h.id" :title="h.title" @open="addRef(h.id)">
+                    <template #lead>
+                        <span class="type-dot" :style="{ backgroundColor: noteColor(h.type) }" :title="h.type" />
+                    </template>
+                </DetailLink>
             </ul>
-        </section>
+        </DetailSection>
 
-        <section class="block">
-            <h3 class="block-title">Provenance</h3>
-            <dl class="meta">
-                <div><dt>Created</dt><dd>{{ when(task.created_at) }}<template v-if="task.origin"> · by {{ task.origin }}</template></dd></div>
-                <div v-if="task.version"><dt>Version</dt><dd>{{ task.version }}<template v-if="task.carried_from"> · still open</template></dd></div>
-                <div v-if="task.closed_at"><dt>Closed</dt><dd>{{ when(task.closed_at) }}<template v-if="task.closed_version"> · in {{ task.closed_version }}</template></dd></div>
-                <div><dt>Updated</dt><dd>{{ when(task.updated_at) }}</dd></div>
-                <div v-if="task.session_id || timeSession">
-                    <dt>Session</dt>
-                    <dd>
-                        <button v-if="timeSession" class="link mono" type="button" title="Open the session recorded around this task's creation" @click="openSession">
-                            {{ task.session_id ?? 'recorded session' }} ≈⤴
-                        </button>
-                        <span v-else class="mono">{{ task.session_id }}</span>
-                    </dd>
-                </div>
-            </dl>
-        </section>
+        <DetailSection title="Provenance">
+            <DetailMeta>
+                <DetailMetaRow label="Created">{{ when(task.created_at) }}</DetailMetaRow>
+                <DetailMetaRow label="Updated">{{ when(task.updated_at) }}</DetailMetaRow>
+                <DetailMetaRow v-if="task.closed_at" label="Closed">
+                    {{ when(task.closed_at) }}<template v-if="task.closed_version"> · in {{ task.closed_version }}</template>
+                </DetailMetaRow>
+            </DetailMeta>
+        </DetailSection>
+    </template>
 
-        <footer class="foot">
-            <button class="mini danger" type="button" @click="remove">Delete for good</button>
-        </footer>
-    </div>
-</SidePanel>
+    <template v-if="task" #actions>
+        <UiButton v-if="!editingPlan" variant="ghost" @click="editingPlan = true">Edit plan</UiButton>
+        <template v-if="confirmingDelete">
+            <UiButton variant="danger" @click="remove">
+                Confirm delete{{ children.length ? ` (and ${children.length} task${children.length === 1 ? '' : 's'})` : '' }}
+            </UiButton>
+            <UiButton variant="ghost" @click="confirmingDelete = false">Cancel</UiButton>
+        </template>
+        <UiButton
+            v-else
+            variant="danger-text"
+            title="Hard delete — closing keeps history, deleting does not (user-only; assistants can only close or drop)"
+            @click="confirmingDelete = true"
+        >
+            Delete
+        </UiButton>
+    </template>
+</DetailDrawer>
 </template>
 
 <style scoped>
-.head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.pill {
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: rgb(139 92 246 / 18%);
-    font-size: var(--text-caption, 11px);
-    color: var(--text-secondary);
-}
-
-.close {
-    padding: 0 6px;
-    border: none;
-    background: none;
-    color: var(--text-secondary);
-    font-size: 2rem;
-    line-height: 1;
-    cursor: pointer;
-}
-
-.drawer {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.field-input,
-.body-input {
-    width: 100%;
-    padding: 0.6rem 0.9rem;
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-md);
-    background-color: var(--surface-sunken);
-    color: var(--text-primary);
-    font: inherit;
-    font-size: var(--text-body-sm);
-}
-
-.title-input {
-    font-size: var(--text-body);
-    font-weight: 600;
-}
-
-.body-input {
-    font-family: var(--font-mono);
+.note {
+    margin: 0;
+    color: var(--text-tertiary);
+    font-size: var(--text-caption);
     line-height: var(--leading-normal);
 }
 
-.field-input:focus,
-.body-input:focus {
-    outline: 2px solid var(--focus-ring);
-    outline-offset: -1px;
-}
-
-.plan {
-    padding: 0.8rem 1rem;
-    border-radius: var(--radius-md);
-    background-color: var(--surface-sunken);
-}
-
-.empty-plan {
-    padding: 1.2rem;
-    border: 1px dashed var(--border-default);
-    border-radius: var(--radius-md);
-    background: transparent;
-    color: var(--text-tertiary);
-    font-size: var(--text-body-sm);
-    cursor: pointer;
-}
-
-.empty-plan:hover {
-    border-color: var(--border-strong);
-    color: var(--text-secondary);
+.note.error {
+    color: var(--node-problem);
 }
 
 .status {
@@ -446,187 +376,46 @@ async function remove(): Promise<void> {
     overflow-x: auto;
 }
 
-.field {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.label,
-.block-title {
-    margin: 0;
-    font-size: var(--text-caption, 11px);
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--text-tertiary);
-}
-
-.block {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding-top: 10px;
-    border-top: 1px solid var(--border-subtle);
-}
-
-.block-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.row {
-    display: flex;
-    gap: 6px;
-}
-
-.row.end {
-    justify-content: flex-end;
-}
-
-.hint,
-.auto {
-    margin: 0;
-    font-size: var(--text-caption, 11px);
-    color: var(--text-tertiary);
-}
-
-.auto {
-    font-style: italic;
-}
-
-.hint code {
-    font-family: var(--font-mono);
-}
-
-.msg.error {
-    margin: 0;
+.body {
     font-size: var(--text-body-sm);
-    color: var(--node-problem);
-}
-
-.progress {
-    display: flex;
-    gap: 6px;
-}
-
-.kids,
-.refs,
-.hits {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-}
-
-.kids li,
-.refs li {
-    display: flex;
-    gap: 6px;
-    align-items: baseline;
-    justify-content: space-between;
-}
-
-.link {
-    padding: 0;
-    border: none;
-    background: none;
-    color: var(--interactive-primary);
-    font: inherit;
-    font-size: var(--text-body-sm);
-    text-align: left;
-    cursor: pointer;
-}
-
-.link:hover {
-    text-decoration: underline;
-}
-
-.link.closed {
-    color: var(--text-secondary);
-    text-decoration: line-through;
+    line-height: var(--leading-normal);
 }
 
 .mono {
     font-family: var(--font-mono);
 }
 
-.x {
-    border: none;
-    background: none;
-    color: var(--text-tertiary);
-    cursor: pointer;
+.row {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
 }
 
-.chip {
-    padding: 1px 6px;
-    border-radius: 999px;
-    white-space: nowrap;
-    background: rgb(148 163 184 / 15%);
-    font-size: var(--text-caption, 11px);
-    color: var(--text-secondary);
-}
-
-.meta {
+.links {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 0.3rem;
     margin: 0;
-    font-size: var(--text-body-sm);
+    padding: 0;
+    list-style: none;
 }
 
-.meta div {
+.field {
     display: flex;
-    gap: 8px;
+    flex-direction: column;
+    gap: 0.3rem;
 }
 
-.meta dt {
-    flex: none;
-    width: 7rem;
+.field-label {
     color: var(--text-tertiary);
+    font-size: var(--text-caption);
 }
 
-.meta dd {
-    margin: 0;
-    min-width: 0;
-    overflow-wrap: anywhere;
-    color: var(--text-secondary);
-}
-
-.foot {
-    display: flex;
-    justify-content: flex-end;
-    padding-top: 10px;
-    border-top: 1px solid var(--border-subtle);
-}
-
-.mini {
+.type-dot {
     flex: none;
-    padding: 4px 10px;
-    white-space: nowrap;
-    border: 1px solid rgb(148 163 184 / 35%);
-    border-radius: 6px;
-    background: transparent;
-    color: var(--text-primary);
-    font-size: var(--text-body-sm);
-    cursor: pointer;
-}
-
-.mini.accent {
-    border-color: var(--interactive-primary);
-    color: var(--interactive-primary);
-}
-
-.mini.danger {
-    border-color: rgb(239 68 68 / 45%);
-    color: var(--node-problem);
-}
-
-.mini:disabled {
-    cursor: default;
-    opacity: 0.5;
+    width: 0.8rem;
+    height: 0.8rem;
+    margin-left: 0.4rem;
+    border-radius: var(--radius-full);
 }
 </style>

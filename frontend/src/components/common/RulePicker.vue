@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import DatePicker from '@/components/common/DatePicker.vue'
 import SelectMenu from '@/components/common/SelectMenu.vue'
 
 /**
@@ -123,7 +124,7 @@ const noteOptions = computed(() => props.notes.map((n) => ({ value: n.id, label:
         </div>
     </template>
     <template v-else-if="kind === 'date'">
-        <input v-model="value" class="value" type="date" :aria-label="`${label}: date`" @change="commit" />
+        <DatePicker v-model="value" :aria-label="`${label}: date`" @update:model-value="commit" />
         <div class="chips">
             <button v-for="c in DATE_CHIPS" :key="c.label" class="chip" type="button" @click="value = dayFromNow(c.days); commit()">
                 {{ c.label }}

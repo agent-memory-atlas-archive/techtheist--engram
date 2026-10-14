@@ -5,7 +5,15 @@ import { onClickOutside } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import MarkdownView from '@/components/common/MarkdownView.vue'
 import SelectMenu from '@/components/common/SelectMenu.vue'
-import SidePanel from '@/components/common/SidePanel.vue'
+import InfoBadge from '@/components/common/InfoBadge.vue'
+import TextField from '@/components/common/TextField.vue'
+import UiButton from '@/components/common/UiButton.vue'
+import DetailDrawer from '@/components/common/detail/DetailDrawer.vue'
+import DetailLink from '@/components/common/detail/DetailLink.vue'
+import DetailMeta from '@/components/common/detail/DetailMeta.vue'
+import DetailMetaRow from '@/components/common/detail/DetailMetaRow.vue'
+import DetailSection from '@/components/common/detail/DetailSection.vue'
+import DetailTitle from '@/components/common/detail/DetailTitle.vue'
 import FieldInput from '@/components/common/FieldInput.vue'
 import TagEditor from '@/components/common/TagEditor.vue'
 import StandingChip from '@/components/common/StandingChip.vue'
@@ -411,27 +419,40 @@ function close(): void {
 </script>
 
 <template>
-<SidePanel
+<DetailDrawer
     :open="selected != null && detailOpen"
-    side="right"
     panel-id="detail"
-    :default-rem="42"
-    :min-rem="28"
-    :dismiss="close"
+    :kind="selected?.type ?? ''"
     :accent="accent"
-    :style="{ '--accent': accent }"
+    :dismiss="close"
 >
-    <template #header>
-        <header v-if="selected" class="head">
-            <span class="type-pill">{{ selected.type }}</span>
-            <button class="close" type="button" aria-label="Close" @click="close">×</button>
-        </header>
+    <template v-if="selected && !editing" #title>
+        <DetailTitle :text="selected.title" />
+    </template>
+
+    <template v-if="selected" #badges>
+        <InfoBadge v-if="selected.version" title="Project version this note was captured at (version tracking)">{{ selected.version }}</InfoBadge>
+        <InfoBadge :title="BADGE_TIPS.durability[selected.durability]">{{ selected.durability }}</InfoBadge>
+        <InfoBadge :title="BADGE_TIPS.source[selected.source]">{{ selected.source }}</InfoBadge>
+        <InfoBadge v-if="selected.status" :title="BADGE_TIPS.status[selected.status]">{{ selected.status }}</InfoBadge>
+        <InfoBadge v-if="trustPct != null" :title="explainTrust(selected, config.cfg?.policy)">trust {{ trustPct }}%</InfoBadge>
+        <InfoBadge v-if="pinned" tone="accent" :title="BADGE_TIPS.pinned">📌 pinned</InfoBadge>
+        <InfoBadge v-if="selected.demoted_at != null && !pinned" tone="danger" :title="BADGE_TIPS.demoted">demoted</InfoBadge>
+        <InfoBadge v-if="selected.stale" tone="danger" :title="BADGE_TIPS.stale">stale</InfoBadge>
+        <InfoBadge
+            v-if="missingRefs.length"
+            tone="warn"
+            title="Some code refs no longer exist in the project — the code moved, this memory may be stale"
+        >
+            drifted
+        </InfoBadge>
+        <InfoBadge v-if="archived" tone="muted" title="Superseded or decayed out — kept for history, hidden from retrieval">archived</InfoBadge>
     </template>
 
     <template v-if="selected">
         <template v-if="editing">
-            <input v-model="draft.title" class="edit-input" type="text" aria-label="Title" />
-            <AutoTextarea v-model="draft.body" class="edit-input edit-body" :rows="8" aria-label="Body (markdown)" />
+            <TextField v-model="draft.title" class="edit-title" aria-label="Title" />
+            <AutoTextarea v-model="draft.body" class="mono" :rows="8" aria-label="Body (markdown)" />
             <div class="edit-row">
                 <label class="edit-label">
                     Type
@@ -450,7 +471,7 @@ function close(): void {
                 Code refs
                 <AutoTextarea
                     v-model="draft.codeRefsText"
-                    class="edit-input edit-refs"
+                    class="mono small"
                     :rows="4"
                     placeholder="One repo-relative path per line…"
                     aria-label="Code refs"
@@ -469,37 +490,10 @@ function close(): void {
                 />
             </div>
             <div class="edit-actions">
-                <button class="btn" type="button" :disabled="busy || !draft.title.trim()" @click="saveEdit">
-                    Save
-                </button>
-                <button class="btn ghost" type="button" :disabled="busy" @click="editing = false">
-                    Cancel
-                </button>
+                <UiButton :disabled="busy || !draft.title.trim()" @click="saveEdit">Save</UiButton>
+                <UiButton variant="ghost" :disabled="busy" @click="editing = false">Cancel</UiButton>
             </div>
         </template>
-
-        <h2 v-if="!editing" class="title">{{ selected.title }}</h2>
-
-        <div class="badges">
-            <span
-                v-if="selected.version"
-                class="badge"
-                title="Project version this note was captured at (version tracking)"
-            >{{ selected.version }}</span>
-            <span class="badge" :title="BADGE_TIPS.durability[selected.durability]">{{ selected.durability }}</span>
-            <span class="badge" :title="BADGE_TIPS.source[selected.source]">{{ selected.source }}</span>
-            <span v-if="selected.status" class="badge" :title="BADGE_TIPS.status[selected.status]">{{ selected.status }}</span>
-            <span v-if="trustPct != null" class="badge" :title="explainTrust(selected, config.cfg?.policy)">trust {{ trustPct }}%</span>
-            <span v-if="pinned" class="badge pinned" :title="BADGE_TIPS.pinned">📌 pinned</span>
-            <span v-if="selected.demoted_at != null && !pinned" class="badge stale" :title="BADGE_TIPS.demoted">demoted</span>
-            <span v-if="selected.stale" class="badge stale" :title="BADGE_TIPS.stale">stale</span>
-            <span
-                v-if="missingRefs.length"
-                class="badge drifted"
-                title="Some code refs no longer exist in the project — the code moved, this memory may be stale"
-            >drifted</span>
-            <span v-if="archived" class="badge archived" title="Superseded or decayed out — kept for history, hidden from retrieval">archived</span>
-        </div>
 
         <p class="trust-note">{{ explainTrust(selected, config.cfg?.policy) }}</p>
 
@@ -537,8 +531,7 @@ function close(): void {
 
         <MarkdownView v-if="selected.body && !editing" :content="selected.body" class="body" />
 
-        <section v-if="selected.code_refs.length" class="block">
-            <h3 class="block-title">Code refs</h3>
+        <DetailSection v-if="selected.code_refs.length" title="Code refs">
             <div class="refs">
                 <span
                     v-for="codeRef in selected.code_refs"
@@ -548,45 +541,41 @@ function close(): void {
                     :title="missingRefs.includes(codeRef) ? 'This file no longer exists in the project' : undefined"
                 >{{ codeRef }}</span>
             </div>
-        </section>
+        </DetailSection>
 
-        <section v-if="relations.length" class="block">
-            <h3 class="block-title">Connections</h3>
+        <DetailSection v-if="relations.length" title="Connections">
             <ul class="relations">
-                <li v-for="r in relations" :key="r.edge.id" class="relation-row">
-                    <span class="rel-dir" :style="{ color: config.edgeColor(r.edge.type) }">
-                        {{ r.dir === 'out' ? '→' : '←' }}
-                    </span>
-                    <SelectMenu
-                        size="sm"
-                        :model-value="r.edge.type"
-                        :options="verbOptions"
-                        :disabled="busy"
-                        :color="config.edgeColor(r.edge.type)"
-                        aria-label="Connection verb"
-                        title="Change the connection verb"
-                        @update:model-value="retypeEdge(r.edge, $event)"
-                    />
-                    <button class="relation" type="button" @click="store.select(r.otherId)">
-                        <span class="rel-target">{{ r.otherTitle }}</span>
-                    </button>
-                    <button
-                        class="rel-delete"
-                        type="button"
-                        :disabled="busy"
-                        :aria-label="`Delete ${r.edge.type} connection`"
-                        title="Delete this connection"
-                        @click="removeEdge(r.edge)"
-                    >
-                        ×
-                    </button>
-                </li>
+                <DetailLink
+                    v-for="r in relations"
+                    :key="r.edge.id"
+                    :title="r.otherTitle"
+                    removable
+                    :disabled="busy"
+                    :remove-label="`Delete ${r.edge.type} connection`"
+                    @open="store.select(r.otherId)"
+                    @remove="removeEdge(r.edge)"
+                >
+                    <template #lead>
+                        <span class="rel-dir" :style="{ color: config.edgeColor(r.edge.type) }">
+                            {{ r.dir === 'out' ? '→' : '←' }}
+                        </span>
+                        <SelectMenu
+                            size="sm"
+                            :model-value="r.edge.type"
+                            :options="verbOptions"
+                            :disabled="busy"
+                            :color="config.edgeColor(r.edge.type)"
+                            aria-label="Connection verb"
+                            title="Change the connection verb"
+                            @update:model-value="retypeEdge(r.edge, $event)"
+                        />
+                    </template>
+                </DetailLink>
             </ul>
             <p class="rel-hint">Drag between node handles on the canvas to add a connection.</p>
-        </section>
+        </DetailSection>
 
-        <section v-if="timeline.length > 1" class="block">
-            <h3 class="block-title">History</h3>
+        <DetailSection v-if="timeline.length > 1" title="History">
             <ol class="timeline">
                 <li
                     v-for="entry in timeline"
@@ -611,261 +600,187 @@ function close(): void {
                     </div>
                 </li>
             </ol>
-        </section>
+        </DetailSection>
 
-        <section class="block">
-            <h3 class="block-title">Provenance</h3>
-            <dl class="meta">
-                <div><dt>Created</dt><dd>{{ fmtDate(selected.created_at) }} · by {{ selected.source }}</dd></div>
+        <DetailSection title="Provenance">
+            <DetailMeta>
+                <DetailMetaRow label="Created">{{ fmtDate(selected.created_at) }} · by {{ selected.source }}</DetailMetaRow>
                 <!-- Not every note has an mcp session (pane/HTTP writes carry
                      none) — but born-in provenance can still exist, so the
                      row shows whenever there is anything to link or say. -->
-                <div v-if="selected.session_id || bornIn || timeSession">
-                    <dt>Session</dt>
-                    <dd>
-                        <button
-                            v-if="bornIn"
-                            class="session-chip session-link"
-                            type="button"
-                            title="This note was captured during a recorded session — open the exact exchange in the history view"
-                            @click="openBirth"
-                        >
-                            {{ selected.session_id ?? 'recorded session' }} ⤴
-                        </button>
-                        <button
-                            v-else-if="timeSession"
-                            class="session-chip session-link"
-                            type="button"
-                            title="No exact record for this note — open the session recorded around its capture time"
-                            @click="openBirth"
-                        >
-                            {{ selected.session_id ?? 'recorded session' }} ≈⤴
-                        </button>
-                        <span v-else class="session-chip">{{ selected.session_id }}</span>
-                    </dd>
-                </div>
-                <div v-if="selected.last_seen != null" :title="BADGE_TIPS.lastSeen">
-                    <dt>Last retrieved</dt><dd>{{ fmtDate(selected.last_seen) }}</dd>
-                </div>
-                <div v-if="selected.confirmed_at != null" :title="BADGE_TIPS.confirmed">
-                    <dt>Confirmed</dt><dd>{{ fmtDate(selected.confirmed_at) }}</dd>
-                </div>
-                <div v-if="selected.approved_at != null" :title="BADGE_TIPS.approved">
-                    <dt>Approved</dt><dd>{{ fmtDate(selected.approved_at) }}</dd>
-                </div>
-                <div v-if="selected.demoted_at != null" :title="BADGE_TIPS.demoted">
-                    <dt>Demoted</dt><dd>{{ fmtDate(selected.demoted_at) }}</dd>
-                </div>
-                <div v-if="archived"><dt>Archived</dt><dd>{{ fmtDate(selected.valid_until) }}</dd></div>
+                <DetailMetaRow v-if="selected.session_id || bornIn || timeSession" label="Session">
+                    <button
+                        v-if="bornIn"
+                        class="session-chip session-link"
+                        type="button"
+                        title="This note was captured during a recorded session — open the exact exchange in the history view"
+                        @click="openBirth"
+                    >
+                        {{ selected.session_id ?? 'recorded session' }} ⤴
+                    </button>
+                    <button
+                        v-else-if="timeSession"
+                        class="session-chip session-link"
+                        type="button"
+                        title="No exact record for this note — open the session recorded around its capture time"
+                        @click="openBirth"
+                    >
+                        {{ selected.session_id ?? 'recorded session' }} ≈⤴
+                    </button>
+                    <span v-else class="session-chip">{{ selected.session_id }}</span>
+                </DetailMetaRow>
+                <DetailMetaRow v-if="selected.last_seen != null" label="Last retrieved" :title="BADGE_TIPS.lastSeen">{{ fmtDate(selected.last_seen) }}</DetailMetaRow>
+                <DetailMetaRow v-if="selected.confirmed_at != null" label="Confirmed" :title="BADGE_TIPS.confirmed">{{ fmtDate(selected.confirmed_at) }}</DetailMetaRow>
+                <DetailMetaRow v-if="selected.approved_at != null" label="Approved" :title="BADGE_TIPS.approved">{{ fmtDate(selected.approved_at) }}</DetailMetaRow>
+                <DetailMetaRow v-if="selected.demoted_at != null" label="Demoted" :title="BADGE_TIPS.demoted">{{ fmtDate(selected.demoted_at) }}</DetailMetaRow>
+                <DetailMetaRow v-if="archived" label="Archived">{{ fmtDate(selected.valid_until) }}</DetailMetaRow>
                 <!-- Computed backlinks (0.10.0): tasks point at notes, notes
                      never store a pointer back. -->
-                <div v-if="taskRefs.length">
-                    <dt>Tasks</dt>
-                    <dd class="task-refs">
-                        <button
-                            v-for="t in taskRefs"
-                            :key="t.id"
-                            class="session-chip session-link"
-                            type="button"
-                            :title="`Open task: ${t.title}`"
-                            @click="openTask(t.id)"
-                        >
-                            {{ t.title }} ⤴
-                        </button>
-                    </dd>
-                </div>
-            </dl>
-        </section>
+                <DetailMetaRow v-if="taskRefs.length" label="Tasks">
+                    <button
+                        v-for="t in taskRefs"
+                        :key="t.id"
+                        class="session-chip session-link"
+                        type="button"
+                        :title="`Open task: ${t.title}`"
+                        @click="openTask(t.id)"
+                    >
+                        {{ t.title }} ⤴
+                    </button>
+                </DetailMetaRow>
+            </DetailMeta>
+        </DetailSection>
+    </template>
 
-        <footer class="actions">
-            <button
-                class="btn"
-                type="button"
-                :disabled="busy"
-                :title="selected.approved_at != null
-                    ? 'Re-approve: restamp the approval, restarting trust at 100%'
-                    : 'Approve: you vouch for this — trust restarts at 100%'"
-                @click="approve"
-            >
-                {{ selected.approved_at != null ? 'Re-approve' : 'Approve' }}
-            </button>
-            <button v-if="!editing" class="btn ghost" type="button" :disabled="busy" @click="startEdit">
-                Edit
-            </button>
-            <button
-                class="btn ghost"
-                type="button"
-                :disabled="busy"
-                :title="pinned
-                    ? 'Unpin: hand trust back to the model (decay and evidence apply again)'
-                    : 'Pin: lock trust at 100% forever — for the rare constraint that must never fade'"
-                @click="togglePin"
-            >
-                {{ pinned ? 'Unpin' : '📌 Pin' }}
-            </button>
+    <template v-if="selected" #actions>
+        <UiButton
+            :disabled="busy"
+            :title="selected.approved_at != null
+                ? 'Re-approve: restamp the approval, restarting trust at 100%'
+                : 'Approve: you vouch for this — trust restarts at 100%'"
+            @click="approve"
+        >
+            {{ selected.approved_at != null ? 'Re-approve' : 'Approve' }}
+        </UiButton>
+        <UiButton v-if="!editing" variant="ghost" :disabled="busy" @click="startEdit">Edit</UiButton>
+        <UiButton
+            variant="ghost"
+            :disabled="busy"
+            :title="pinned
+                ? 'Unpin: hand trust back to the model (decay and evidence apply again)'
+                : 'Pin: lock trust at 100% forever — for the rare constraint that must never fade'"
+            @click="togglePin"
+        >
+            {{ pinned ? 'Unpin' : '📌 Pin' }}
+        </UiButton>
 
-            <div ref="menuRoot" class="menu-wrap">
+        <div ref="menuRoot" class="menu-wrap">
+            <UiButton
+                variant="ghost"
+                :disabled="busy"
+                title="More trust actions"
+                aria-label="More trust actions"
+                @click="menuOpen = !menuOpen"
+            >
+                …
+            </UiButton>
+            <div v-if="menuOpen" class="menu glass-panel">
                 <button
-                    class="btn ghost"
+                    class="menu-item"
                     type="button"
                     :disabled="busy"
-                    title="More trust actions"
-                    aria-label="More trust actions"
-                    @click="menuOpen = !menuOpen"
+                    title="Stamp this node as verified still true — restarts unapproved trust at 60% and clears any evidence demotion"
+                    @click="confirmStillTrue"
                 >
-                    …
+                    Confirm still true
                 </button>
-                <div v-if="menuOpen" class="menu glass-panel">
-                    <button
-                        class="menu-item"
-                        type="button"
-                        :disabled="busy"
-                        title="Stamp this node as verified still true — restarts unapproved trust at 60% and clears any evidence demotion"
-                        @click="confirmStillTrue"
-                    >
-                        Confirm still true
-                    </button>
-                    <button
-                        class="menu-item"
-                        type="button"
-                        :disabled="busy || (selected.approved_at == null && !pinned)"
-                        title="Withdraw your approval and any pin — trust falls back to its last confirmed anchor"
-                        @click="revokeApproval"
-                    >
-                        Revoke approval
-                    </button>
-                    <button
-                        class="menu-item"
-                        type="button"
-                        :disabled="busy"
-                        title="Freeze trust at an exact percentage — a partial pin for knowledge you half-believe"
-                        @click="settingTrust = !settingTrust"
-                    >
-                        Set constant trust %
-                    </button>
-                    <div v-if="settingTrust" class="trust-set-row">
-                        <input
-                            v-model.number="trustDraft"
-                            class="trust-input"
-                            type="number"
-                            min="0"
-                            max="100"
-                            aria-label="Constant trust percentage"
-                        />
-                        <button
-                            class="btn"
-                            type="button"
-                            :disabled="busy || !trustDraftValid"
-                            @click="applyTrustOverride"
-                        >
-                            Set
-                        </button>
-                    </div>
+                <button
+                    class="menu-item"
+                    type="button"
+                    :disabled="busy || (selected.approved_at == null && !pinned)"
+                    title="Withdraw your approval and any pin — trust falls back to its last confirmed anchor"
+                    @click="revokeApproval"
+                >
+                    Revoke approval
+                </button>
+                <button
+                    class="menu-item"
+                    type="button"
+                    :disabled="busy"
+                    title="Freeze trust at an exact percentage — a partial pin for knowledge you half-believe"
+                    @click="settingTrust = !settingTrust"
+                >
+                    Set constant trust %
+                </button>
+                <div v-if="settingTrust" class="trust-set-row">
+                    <input
+                        v-model.number="trustDraft"
+                        class="trust-input"
+                        type="number"
+                        min="0"
+                        max="100"
+                        aria-label="Constant trust percentage"
+                    />
+                    <UiButton :disabled="busy || !trustDraftValid" @click="applyTrustOverride">Set</UiButton>
                 </div>
             </div>
+        </div>
 
-            <template v-if="confirmingDelete">
-                <div v-if="config.tombstoneType" class="tombstone-opt">
-                    <label class="tombstone-check">
-                        <input v-model="leaveTombstone" type="checkbox" :disabled="busy" />
-                        Leave a {{ config.tombstoneType }} (records what was removed, so it isn't re-learned)
-                    </label>
-                    <input
-                        v-if="leaveTombstone"
-                        v-model="tombstoneReason"
-                        class="tombstone-reason"
-                        type="text"
-                        placeholder="Why is this being removed? (optional)"
-                        :disabled="busy"
-                    />
-                    <label
-                        v-if="leaveTombstone"
-                        class="tombstone-check"
-                        title="Carries the body, tags and code refs into the Tombstone, so a rewrite of the removed content is caught — untick to purge the text and keep only what was removed and why"
-                    >
-                        <input v-model="keepRemovedText" type="checkbox" :disabled="busy" />
-                        Keep the removed text in the {{ config.tombstoneType }}
-                    </label>
-                </div>
-                <button class="btn danger" type="button" :disabled="busy" @click="remove">
-                    Confirm delete
-                </button>
-                <button class="btn ghost" type="button" :disabled="busy" @click="confirmingDelete = false">
-                    Cancel
-                </button>
-            </template>
-            <button
-                v-else
-                class="btn ghost danger-text"
-                type="button"
-                :disabled="busy"
-                title="Hard delete — removes the node and its connections permanently (user-only; the assistant can never do this)"
-                @click="confirmingDelete = true"
-            >
-                Delete
-            </button>
-        </footer>
+        <template v-if="confirmingDelete">
+            <div v-if="config.tombstoneType" class="tombstone-opt">
+                <label class="tombstone-check">
+                    <input v-model="leaveTombstone" type="checkbox" :disabled="busy" />
+                    Leave a {{ config.tombstoneType }} (records what was removed, so it isn't re-learned)
+                </label>
+                <input
+                    v-if="leaveTombstone"
+                    v-model="tombstoneReason"
+                    class="tombstone-reason"
+                    type="text"
+                    placeholder="Why is this being removed? (optional)"
+                    :disabled="busy"
+                />
+                <label
+                    v-if="leaveTombstone"
+                    class="tombstone-check"
+                    title="Carries the body, tags and code refs into the Tombstone, so a rewrite of the removed content is caught — untick to purge the text and keep only what was removed and why"
+                >
+                    <input v-model="keepRemovedText" type="checkbox" :disabled="busy" />
+                    Keep the removed text in the {{ config.tombstoneType }}
+                </label>
+            </div>
+            <UiButton variant="danger" :disabled="busy" @click="remove">Confirm delete</UiButton>
+            <UiButton variant="ghost" :disabled="busy" @click="confirmingDelete = false">Cancel</UiButton>
+        </template>
+        <UiButton
+            v-else
+            variant="danger-text"
+            :disabled="busy"
+            title="Hard delete — removes the node and its connections permanently (user-only; the assistant can never do this)"
+            @click="confirmingDelete = true"
+        >
+            Delete
+        </UiButton>
     </template>
-</SidePanel>
+</DetailDrawer>
 </template>
 
 <style scoped>
-.head {
+.mono {
+    font-family: var(--font-mono);
+}
+
+.mono.small {
+    font-size: var(--text-caption);
+}
+
+.relations {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.type-pill {
-    padding: 0.3rem 0.9rem;
-    border-radius: var(--radius-md);
-    font-size: var(--text-caption);
-    font-weight: 600;
-    color: var(--accent);
-    background-color: color-mix(in srgb, var(--accent) 16%, transparent);
-    border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
-}
-
-.close {
-    border: none;
-    background: transparent;
-    color: var(--text-tertiary);
-    font-size: 2.4rem;
-    line-height: 1;
-    cursor: pointer;
-}
-
-.close:hover {
-    color: var(--text-primary);
-}
-
-.title {
-    font-size: var(--text-h2);
-    font-weight: 700;
-    line-height: var(--leading-tight);
-    color: var(--text-primary);
-}
-
-.edit-input {
-    width: 100%;
-    padding: 0.7rem 0.9rem;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border-default);
-    background-color: var(--surface-sunken);
-    color: var(--text-primary);
-    font-size: var(--text-body-sm);
-    font-family: inherit;
-}
-
-.edit-body {
-    font-family: var(--font-mono);
-    line-height: var(--leading-normal);
-}
-
-.edit-refs {
-    font-family: var(--font-mono);
-    font-size: var(--text-caption);
-    line-height: var(--leading-normal);
+    flex-direction: column;
+    gap: 0.3rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
 }
 
 .field-hint {
@@ -890,24 +805,6 @@ function close(): void {
 .edit-actions {
     display: flex;
     gap: 0.6rem;
-}
-
-.badges {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-}
-
-.badge {
-    padding: 0.3rem 0.7rem;
-    border-radius: var(--radius-md);
-    font-size: var(--text-caption);
-    color: var(--text-secondary);
-    background-color: var(--surface-muted);
-}
-
-.badge.archived {
-    color: var(--text-tertiary);
 }
 
 /* One stale badge across the pane — same shape here, in Review, in the feed. */
@@ -936,23 +833,6 @@ function close(): void {
 
 .standing-other:hover {
     text-decoration: underline;
-}
-
-.badge.stale {
-    color: var(--node-problem);
-    background-color: color-mix(in srgb, var(--node-problem) 14%, transparent);
-    border: 1px solid color-mix(in srgb, var(--node-problem) 40%, transparent);
-}
-
-.badge.drifted {
-    color: var(--node-caution);
-    background-color: color-mix(in srgb, var(--node-caution) 14%, transparent);
-}
-
-.badge.pinned {
-    color: var(--interactive-primary);
-    background-color: color-mix(in srgb, var(--interactive-primary) 14%, transparent);
-    border: 1px solid color-mix(in srgb, var(--interactive-primary) 40%, transparent);
 }
 
 /* The plain-words answer to "why is trust this number". */
@@ -1021,15 +901,6 @@ function close(): void {
     line-height: var(--leading-normal);
 }
 
-.block-title {
-    margin-bottom: 0.6rem;
-    font-size: var(--text-caption);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-tertiary);
-}
-
 .refs {
     display: flex;
     flex-wrap: wrap;
@@ -1071,69 +942,16 @@ function close(): void {
     border: 1px solid color-mix(in srgb, var(--interactive-primary) 40%, transparent);
 }
 
-.relations {
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-    list-style: none;
-}
-
-.relation-row {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
 .rel-dir {
     flex: none;
     font-size: var(--text-caption);
     font-weight: 600;
 }
 
-.rel-delete {
-    flex: none;
-    border: none;
-    background: transparent;
-    color: var(--text-tertiary);
-    font-size: 1.6rem;
-    line-height: 1;
-    cursor: pointer;
-}
-
-.rel-delete:hover:not(:disabled) {
-    color: var(--node-problem);
-}
-
 .rel-hint {
     margin-top: 0.5rem;
     font-size: var(--text-caption);
     color: var(--text-tertiary);
-}
-
-.relation {
-    display: flex;
-    align-items: baseline;
-    gap: 0.8rem;
-    flex: 1;
-    min-width: 0;
-    padding: 0.6rem 0.8rem;
-    border: none;
-    border-radius: var(--radius-md);
-    background: transparent;
-    text-align: left;
-    cursor: pointer;
-}
-
-.relation:hover {
-    background-color: var(--interactive-ghost-hover);
-}
-
-.rel-target {
-    font-size: var(--text-body-sm);
-    color: var(--text-primary);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 .timeline {
@@ -1222,27 +1040,6 @@ function close(): void {
     color: var(--text-tertiary);
 }
 
-.meta {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-    font-size: var(--text-caption);
-}
-
-.meta div {
-    display: flex;
-    gap: 0.8rem;
-}
-
-.meta dt {
-    width: 7rem;
-    color: var(--text-tertiary);
-}
-
-.meta dd {
-    color: var(--text-secondary);
-}
-
 .session-chip {
     display: inline-block;
     max-width: 100%;
@@ -1265,61 +1062,6 @@ function close(): void {
 
 .session-link:hover {
     text-decoration: underline;
-}
-
-.task-refs {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-}
-
-.task-refs .session-chip {
-    font-family: var(--font-sans);
-    text-overflow: ellipsis;
-    overflow: hidden;
-}
-
-.actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.6rem;
-    margin-top: auto;
-    padding-top: 0.6rem;
-}
-
-.btn {
-    padding: 0.7rem 1.2rem;
-    border-radius: var(--radius-md);
-    font-size: var(--text-label);
-    font-weight: 600;
-    cursor: pointer;
-    border: 1px solid var(--border-default);
-    background-color: var(--surface-elevated);
-    color: var(--text-primary);
-}
-
-.btn:disabled {
-    opacity: 0.5;
-    cursor: default;
-}
-
-.btn:hover:not(:disabled) {
-    background-color: var(--node-hover-surface);
-}
-
-.btn.ghost {
-    background-color: transparent;
-}
-
-.btn.danger {
-    border-color: var(--node-problem);
-    background-color: color-mix(in srgb, var(--node-problem) 16%, transparent);
-    color: var(--node-problem);
-}
-
-.btn.danger-text {
-    color: var(--node-problem);
-    border-color: transparent;
 }
 
 .fields-edit {

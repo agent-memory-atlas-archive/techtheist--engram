@@ -193,7 +193,7 @@ function onKey(e: KeyboardEvent): void {
     inset: 0.4rem 0 0;
     z-index: -1;
     border: 1px solid var(--border-default);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-popover);
     background-color: var(--surface-elevated);
     box-shadow: var(--shadow-lg);
 }
