@@ -71,7 +71,12 @@ body of its GitHub Release (draft-release.yml lifts it automatically).
   pointer instead of the browser's drag-and-drop, which the JetBrains tool
   window never finishes (a card greyed out and stayed that way). Escape
   cancels a drag, and it works on touchscreens too. In a narrow IDE pane the
-  board's column switch no longer collapses to a sliver.
+  board's column switch no longer collapses to a sliver. Pressing a card
+  never selects its text, and nothing on the page is selected while a card
+  is being dragged.
+- **On phones the pane no longer zooms.** Pinching, double-tapping and
+  tapping into a text box leave the page at its size; the graph canvas
+  still zooms on its own.
 - **The History screen opens sessions faster.** Listing sessions and
   opening one used to read every recorded message, about 0.1 s per request
   on a graph with ~4,700 recorded messages, growing with every session. They

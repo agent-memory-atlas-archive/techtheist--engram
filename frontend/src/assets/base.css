@@ -5,6 +5,8 @@
         background-color: var(--surface-base);
         color: var(--text-primary);
         scrollbar-color: var(--border-default) var(--surface-sunken);
+        /* No double-tap zoom on phones (pinch is handled in main.ts). */
+        touch-action: manipulation;
     }
 
     /* Text boxes grow with their text (AutoTextarea) — never a resize grip. */
@@ -32,6 +34,16 @@
     *::before,
     *::after {
         box-sizing: border-box;
+    }
+
+    /* A task card in flight (TasksView): nothing on the page selects.
+       Safari still only knows the prefixed property. */
+    html.ui-dragging,
+    html.ui-dragging * {
+        /* stylelint-disable-next-line property-no-vendor-prefix */
+        -webkit-user-select: none;
+        user-select: none;
+        cursor: grabbing;
     }
 
     :focus {

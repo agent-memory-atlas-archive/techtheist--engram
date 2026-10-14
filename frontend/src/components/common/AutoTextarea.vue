@@ -79,6 +79,10 @@ defineExpose({ focus: () => el.value?.focus() })
 <style scoped>
 .auto-textarea {
     display: block;
+    /* Its height is the measured one: a scrolling flex column (a drawer body)
+       would otherwise shrink it — overflow:hidden makes its min-height 0, so
+       Safari squeezed the edit body to its padding. */
+    flex-shrink: 0;
     width: 100%;
     padding: 0.7rem 0.9rem;
     border: 1px solid var(--border-default);

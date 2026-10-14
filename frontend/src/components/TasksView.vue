@@ -161,6 +161,9 @@ function onMove(e: PointerEvent): void {
         if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return
         dragId.value = press.id
         startGhost(press.el)
+        // Nothing gets selected while a card travels over text.
+        window.getSelection()?.removeAllRanges()
+        document.documentElement.classList.add('ui-dragging')
     }
     e.preventDefault()
     if (ghost) ghost.el.style.transform = `translate(${dx}px, ${dy}px) rotate(1deg)`
@@ -193,6 +196,7 @@ function onDragKey(e: KeyboardEvent): void {
 }
 
 function endDrag(): void {
+    document.documentElement.classList.remove('ui-dragging')
     press = null
     ghost?.el.remove()
     ghost = null
@@ -520,6 +524,12 @@ function progressPct(t: TaskView): number {
 .card {
     /* Touch: vertical swipes scroll the column, sideways ones drag. */
     touch-action: pan-y;
+    /* A card is a drag handle: a press never starts a text selection (a
+       touch long-press would select the title, not pick the card up). */
+    -webkit-touch-callout: none;
+    /* stylelint-disable-next-line property-no-vendor-prefix */
+    -webkit-user-select: none;
+    user-select: none;
     display: flex;
     flex-direction: column;
     gap: 6px;

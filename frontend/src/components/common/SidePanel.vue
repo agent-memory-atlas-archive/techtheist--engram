@@ -250,6 +250,13 @@ function startSwipe(down: PointerEvent): void {
     overscroll-behavior: contain;
 }
 
+/* The body scrolls; it never squeezes what it holds. A child with
+   overflow:hidden (a text box, a clipped list) has a min-height of 0 and
+   would collapse once the content outgrows the drawer. */
+.scroll > :deep(*) {
+    flex-shrink: 0;
+}
+
 .panel-head + .scroll {
     padding-top: 1.2rem;
 }
