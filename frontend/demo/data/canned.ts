@@ -1,16 +1,16 @@
 /**
  * The payloads no browser can compute.
  *
- * Search ranking, claim checking and the Checkup sweeps are the local
- * cortex's work — an embedding model, a cross-encoder reranker and an NLI
- * model, none of which are going to be downloaded into a demo tab. So these
- * are fixed, hand-written responses, shaped exactly like the daemon's, and
- * the demo banner says plainly that they are pre-recorded rather than
- * dressing up a keyword match as semantic recall.
+ * Claim checking and the Checkup sweeps are the local cortex's work — an
+ * embedding model, a cross-encoder reranker and an NLI model, none of which
+ * are going to be downloaded into a demo tab. So these are fixed,
+ * hand-written responses, shaped exactly like the daemon's, and the demo
+ * banner says plainly that they are pre-recorded. (Search is answered live
+ * instead, by a keyword match the banner names as one — `demo/match.ts`.)
  *
- * The hits are real nodes from the demo graph, so selecting one focuses the
- * node it names, and what they say about how the memory works is true of the
- * shipped product.
+ * The verdicts name real nodes from the demo graph, so selecting one focuses
+ * the node it names, and what they say about how the memory works is true of
+ * the shipped product.
  */
 import type {
     AnsweredHint,
@@ -21,65 +21,8 @@ import type {
     HistoryMessage,
     HistorySession,
     ProjectInfo,
-    SearchHit,
 } from '@/types/graph'
 import { synthId } from '../engine'
-
-/** Ages for the canned payloads, so anything dated or time-ordered shows real dates. */
-const HIT_NOW = Math.floor(Date.now() / 1000)
-const hitAge = (d: number): number => HIT_NOW - d * 86_400
-
-/** The backend marks keyword matches with these; SearchBar turns them into <mark>. */
-const HI = '\uE000'
-const OFF = '\uE001'
-
-/**
- * Four results, returned for every query. Together they answer "what does
- * this thing actually remember, and why should I trust it?" — which is the
- * question a visitor typing into the search box is really asking.
- */
-export const SEARCH_HITS: SearchHit[] = [
-    {
-        id: synthId('p-research-first'),
-        type: 'Principle',
-        title: 'Research-first: a retrieval change cites a measured run or it does not ship',
-        snippet: `Ranking, recall and relevance work is judged by the ${HI}eval${OFF} harness, never by how the diff reads or how one query felt in the demo library. A change with no measured before/after is a hypothesis, and hypotheses live in Intents — not in main.`,
-        score: 0.94,
-        durability: 'stable',
-        status: null,
-        created_at: hitAge(96),
-    },
-    {
-        id: synthId('i-stable-doesnt-rot'),
-        type: 'Insight',
-        title: 'Trust that decays with time punished notes that were simply true and old',
-        snippet: `When every note faded on a clock, "SQLite is the only store" was quietly rated less trustworthy than a three-week-old guess. ${HI}Durability${OFF} is what separates them: stable knowledge holds flat until evidence moves it, while episodic notes genuinely do expire.`,
-        score: 0.81,
-        durability: 'episodic',
-        status: null,
-        created_at: hitAge(41),
-    },
-    {
-        id: synthId('c-conflicts-surfaced'),
-        type: 'Caution',
-        title: 'A conflict is surfaced, never auto-resolved',
-        snippet: `The scan finds candidate pairs; a person judges them. Two notes that genuinely disagree are information, and the failure mode of resolving them automatically is that the graph looks ${HI}consistent${OFF} while quietly holding the wrong half.`,
-        score: 0.76,
-        durability: 'stable',
-        status: null,
-        created_at: hitAge(63),
-    },
-    {
-        id: synthId('d-on-device-search'),
-        type: 'Decision',
-        title: 'Semantic search runs on-device with a small encoder — no cloud calls, ever',
-        snippet: `A 384-dim encoder (~40 MB quantized) embeds titles, chapter headings and highlight text at import. Hosted embeddings are off the table entirely, because sending a library's contents to an API is the one thing the whole product ${HI}promises${OFF} not to do.`,
-        score: 0.71,
-        durability: 'stable',
-        status: null,
-        created_at: hitAge(12),
-    },
-]
 
 /** One pre-recorded claim check, echoing whatever claim was typed. */
 export function claimReport(claim: string): ClaimReport {

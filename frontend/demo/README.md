@@ -45,11 +45,17 @@ renames as bulk retypes, import/export, and a generated session brief. Trust
 is a direct port of `engram_core::policy::trust`, so the numbers move for the
 reasons the daemon would move them. State persists to `sessionStorage`.
 
-**Pre-recorded** — search, claim checks and the Checkup sweep verdicts
+**Keyword search** — the memory search box runs a plain keyword match over
+the live graph (`demo/match.ts`, shared with the history search): current
+notes only, terms scored by where they land (title over tags over body), with
+snippets built the way the daemon builds them. Notes you add are findable at
+once. It is not semantic recall, and the banner says so — dressing a keyword
+match up as recall is the one lie a memory tool cannot afford.
+
+**Pre-recorded** — claim checks and the Checkup sweep verdicts
 (`demo/data/canned.ts`). Those are the local cortex's work: an embedding
 encoder, a cross-encoder reranker and an NLI model. None of that is going in
-a browser tab, and dressing a keyword match up as semantic recall is the one
-lie a memory tool cannot afford, so the demo says which results are canned.
+a browser tab, so the demo says which results are canned.
 
 **Refused** — anything that needs a filesystem: registering a project,
 installing the capture skill, swapping a model. They throw a plain-language

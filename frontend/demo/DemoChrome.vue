@@ -38,7 +38,8 @@ function reset(): void {
             so approving a note or pinning it moves the number for the same reasons.
         </p>
         <p class="faked">
-            Search and claim checks return <em>pre-recorded</em> results: those need the local
+            Search here is a plain <em>keyword match</em> over your graph, and claim checks return
+            <em>pre-recorded</em> results: the daemon's semantic recall and verdicts need the local
             models — an embedding encoder, a cross-encoder reranker and an NLI model — and none of
             them belong in a browser tab. Anything touching a real filesystem (registering a
             project, installing the skill, swapping a model) politely refuses.

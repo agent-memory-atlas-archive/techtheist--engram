@@ -10,8 +10,9 @@
  *
  * Three kinds of method live below:
  *   1. real — served by the in-tab engine, mutations and all;
- *   2. pre-recorded — cortex work (search, claim checks, sweeps) that needs
- *      local models the browser does not have;
+ *   2. pre-recorded — cortex work (claim checks, sweeps) that needs local
+ *      models the browser does not have (search is a plain keyword match
+ *      over the live graph instead — see `memoryHits`);
  *   3. refused — machine-level gestures (registering a repo, installing the
  *      skill, swapping a model) that only mean something next to a filesystem.
  * Refusals throw a plain-language Error, which the panels already render.
@@ -27,10 +28,12 @@ import type {
     GraphNode,
     ModelSelection,
     NewNode,
+    SearchHit,
     SystemInfo,
     UndoReport,
 } from '@/types/graph'
 import * as engine from './engine'
+import { queryTerms, matchesAll, snippet, termHits } from './match'
 import { HOME, LAUNCH } from './engine'
 import presets from './data/presets.json'
 import models from './data/models.json'
@@ -42,7 +45,6 @@ import {
     HISTORY_MESSAGES,
     HISTORY_SESSIONS,
     PROJECTS,
-    SEARCH_HITS,
     claimReport,
 } from './data/canned'
 
@@ -124,6 +126,66 @@ function agentSettingsView(): AgentSettings {
     }
 }
 
+/**
+ * Memory search, keyword edition. Current notes only (`valid_until` unset —
+ * superseded generations stay out, as in the daemon). Each query term scores
+ * by where it lands — title 3, tags 2, body / code refs / custom fields 1 —
+ * and the score blends coverage (share of terms found) with that weight, plus
+ * a nudge when the whole multi-word query appears as a phrase. Snippets come
+ * from the daemon's own snippet port in `match.ts`.
+ */
+function memoryHits(query: string, limit: number): SearchHit[] {
+    const terms = queryTerms(query)
+    if (terms.length === 0) return []
+    const phrase = query.trim().toLowerCase()
+    const tombstoneTypes = new Set(
+        engine.state().config.ontology.types.filter((t) => t.roles.tombstone).map((t) => t.name),
+    )
+    const scored = engine
+        .readNodes()
+        .filter((n) => n.valid_until == null)
+        .flatMap((n) => {
+            const body = n.body ?? ''
+            const tags = n.tags.join(' ')
+            const refs = n.code_refs.join(' ')
+            const custom = Object.values(n.fields ?? {})
+                .map((v) => (typeof v === 'string' ? v : JSON.stringify(v)))
+                .join(' ')
+            const where = [
+                { text: n.title, weight: 3 },
+                { text: tags, weight: 2 },
+                { text: body, weight: 1 },
+                { text: refs, weight: 1 },
+                { text: custom, weight: 1 },
+            ]
+            let weight = 0
+            let found = 0
+            for (const term of terms) {
+                const w = where.reduce((sum, f) => sum + (termHits(f.text, [term]) ? f.weight : 0), 0)
+                weight += w
+                if (w > 0) found += 1
+            }
+            if (found === 0) return []
+            const coverage = found / terms.length
+            const bonus = terms.length > 1 && `${n.title} ${body}`.toLowerCase().includes(phrase) ? 0.05 : 0
+            const score = Math.min(1, 0.6 * coverage + 0.4 * (weight / (terms.length * 8)) + bonus)
+            const hit: SearchHit = {
+                id: n.id,
+                type: n.type,
+                title: n.title,
+                snippet: snippet([n.title, body, tags, refs, custom], terms, body || n.title),
+                score: Math.round(score * 100) / 100,
+                durability: n.durability,
+                status: n.status,
+                created_at: n.created_at,
+                standing: engine.standing(n.id),
+            }
+            if (tombstoneTypes.has(n.type)) hit.tombstone = true
+            return [hit]
+        })
+    return scored.sort((a, b) => b.score - a.score || b.created_at - a.created_at).slice(0, limit)
+}
+
 export const api: EngramApi = {
     graph: () => ok({ nodes: engine.readNodes(), edges: [...engine.state().edges.values()] }),
 
@@ -139,23 +201,15 @@ export const api: EngramApi = {
 
     tags: () => ok(engine.tagStats()),
 
-    // Pre-recorded: ranking is the cortex's job and the cortex isn't here.
-    search: () =>
-        ok(
-            SEARCH_HITS.map((h) => {
-                try {
-                    return { ...h, standing: engine.standing(h.id) }
-                } catch {
-                    return h // a canned hit whose note the visitor deleted
-                }
-            }),
-        ),
+    // A keyword match over the live graph — the cortex (embeddings, reranker)
+    // isn't here, so this is the history box's matcher, ranked: see `memoryHits`.
+    search: (query: string, limit = 12) => ok(memoryHits(query, limit)),
 
-    searchHistory: (query: string) => {
-        const q = query.toLowerCase()
+    searchHistory: (query: string, limit = 8) => {
+        const terms = queryTerms(query)
         const hits = HISTORY_SESSIONS.flatMap((s) =>
             (HISTORY_MESSAGES[s.session] ?? [])
-                .filter((m) => m.text.toLowerCase().includes(q))
+                .filter((m) => matchesAll(m.text, terms))
                 .map((m) => ({
                     message_id: m.message_id,
                     session: s.session,
@@ -168,7 +222,7 @@ export const api: EngramApi = {
                     score: 0.7,
                 })),
         )
-        return ok(hits.slice(0, 8))
+        return ok(hits.slice(0, limit))
     },
 
     reconfirm: (id) => ok(engine.reconfirm(id)),
