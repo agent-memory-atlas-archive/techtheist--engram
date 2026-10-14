@@ -1,0 +1,83 @@
+<script setup lang="ts">
+import { nextTick, onBeforeUnmount, onMounted, useTemplateRef, watch } from 'vue'
+
+/**
+ * The pane's only multi-line input: it grows with its text instead of
+ * offering a resize grip — `rows` is the floor, `maxRows` (optional) the
+ * ceiling, past which it scrolls. Measured in JS rather than with
+ * `field-sizing: content` so every webview the pane runs in (JCEF, VS Code,
+ * Safari) sizes it the same way. Native attributes and listeners
+ * (placeholder, aria-label, @keydown…) fall through to the <textarea>.
+ */
+const props = withDefaults(
+    defineProps<{
+        modelValue: string
+        rows?: number
+        maxRows?: number
+    }>(),
+    { rows: 2, maxRows: undefined },
+)
+const emit = defineEmits<{ (e: 'update:modelValue', v: string): void }>()
+
+const el = useTemplateRef<HTMLTextAreaElement>('el')
+
+function fit(): void {
+    const t = el.value
+    if (!t) return
+    t.style.height = 'auto' // `rows` holds the floor while measuring
+    const cs = getComputedStyle(t)
+    const borders = parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth)
+    let height = t.scrollHeight + borders
+    if (props.maxRows) {
+        const line = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.4
+        const pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom)
+        const cap = line * props.maxRows + pad + borders
+        t.style.overflowY = height > cap ? 'auto' : 'hidden'
+        height = Math.min(height, cap)
+    }
+    t.style.height = `${height}px`
+}
+
+function onInput(e: Event): void {
+    emit('update:modelValue', (e.target as HTMLTextAreaElement).value)
+    fit()
+}
+
+// External writes (a cleared composer, a loaded draft) re-measure too.
+watch(
+    () => props.modelValue,
+    () => void nextTick(fit),
+)
+
+// Wrapping changes with width: a drawer drag or a window resize re-measures.
+let observer: ResizeObserver | null = null
+let lastWidth = 0
+onMounted(() => {
+    fit()
+    if (el.value && 'ResizeObserver' in window) {
+        observer = new ResizeObserver(([entry]) => {
+            const w = entry?.contentRect.width ?? 0
+            if (w !== lastWidth) {
+                lastWidth = w
+                fit()
+            }
+        })
+        observer.observe(el.value)
+    }
+})
+onBeforeUnmount(() => observer?.disconnect())
+
+defineExpose({ focus: () => el.value?.focus() })
+</script>
+
+<template>
+<textarea ref="el" class="auto-textarea" :value="modelValue" :rows="rows" @input="onInput" />
+</template>
+
+<style scoped>
+.auto-textarea {
+    display: block;
+    overflow-y: hidden;
+    resize: none;
+}
+</style>

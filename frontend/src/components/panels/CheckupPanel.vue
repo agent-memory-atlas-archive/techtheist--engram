@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AutoTextarea from '@/components/common/AutoTextarea.vue'
 import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import SidePanel from '@/components/common/SidePanel.vue'
@@ -433,10 +434,10 @@ const STRUCT_CAP = 8
 
         <section class="block">
             <h3 class="block-title">Check a claim against the canon</h3>
-            <textarea
+            <AutoTextarea
                 v-model="claim"
                 class="claim-input"
-                rows="2"
+                :rows="2"
                 placeholder="One declarative sentence, e.g. “we store sessions in localStorage”"
                 @keydown.enter.exact.prevent="runClaim"
             />
@@ -723,7 +724,6 @@ const STRUCT_CAP = 8
     color: var(--text-primary);
     font-size: var(--text-body-sm);
     font-family: inherit;
-    resize: vertical;
 }
 
 .struct-line {

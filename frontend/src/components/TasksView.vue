@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import AutoTextarea from '@/components/common/AutoTextarea.vue'
 import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import SegmentedControl from '@/components/common/SegmentedControl.vue'
+import { useGraphStore } from '@/stores/graph'
 import { isOpen, STATUS_LABELS, useTasksStore } from '@/stores/tasks'
 import type { TaskStatus, TaskView } from '@/types/graph'
 
@@ -14,7 +16,8 @@ import type { TaskStatus, TaskView } from '@/types/graph'
  * the card. Closed work is kept, never deleted — it folds into one column.
  */
 const tasks = useTasksStore()
-const { topLevel, loading, error, loaded, selectedId } = storeToRefs(tasks)
+const graph = useGraphStore()
+const { topLevel, error, loaded, selectedId } = storeToRefs(tasks)
 
 onMounted(() => {
     void tasks.load()
@@ -39,7 +42,7 @@ const columns = computed(() => {
 /** Narrow panes show one column at a time. */
 const narrowColumn = ref<Column>('active')
 const columnOptions = computed(() =>
-    COLUMNS.map((c) => ({ value: c.id, label: `${c.label} ${columns.value[c.id].length}` })),
+    COLUMNS.map((c) => ({ value: c.id, label: c.label, count: columns.value[c.id].length })),
 )
 
 // --- quick add -------------------------------------------------------------
@@ -49,12 +52,15 @@ const addError = ref<string | null>(null)
 const notice = ref<string | null>(null)
 
 async function quickAdd(parent?: string, title?: string): Promise<boolean> {
-    const text = (title ?? draft.value).trim()
+    // The composer's first line is the title; anything below becomes the plan.
+    const [first, ...rest] = (title ?? draft.value).trim().split('\n')
+    const text = (first ?? '').trim()
     if (!text) return false
+    const body = rest.join('\n').trim() || undefined
     addError.value = null
     notice.value = null
     try {
-        const w = await tasks.create({ title: text, parent })
+        const w = await tasks.create({ title: text, body, parent })
         if (w.matched) {
             notice.value = `An open task already covers this: “${w.matched.title}”.`
             tasks.open(w.matched.id)
@@ -76,7 +82,14 @@ async function addChild(group: string): Promise<void> {
 
 // --- status toggles ----------------------------------------------------------
 
+/** A closed group follows its tasks: dragging or reopening it alone would
+ *  close it again at once, so only its tasks move it. */
+function isClosedGroup(t: TaskView): boolean {
+    return !!t.progress && !isOpen(t.status)
+}
+
 async function toggleDone(t: TaskView): Promise<void> {
+    if (isClosedGroup(t)) return
     await tasks.patch(t.id, { status: isOpen(t.status) ? 'done' : 'active' })
 }
 
@@ -105,9 +118,12 @@ async function onDrop(col: Column): Promise<void> {
     if (!id) return
     const task = tasks.byId.get(id)
     if (!task) return
+    // Into Closed = done (a closed card stays as it was); into an open column
+    // = that status — which is how closed work comes back.
     const target: TaskStatus = col === 'closed' ? (isOpen(task.status) ? 'done' : task.status) : col
     if (target !== task.status) await tasks.patch(id, { status: target })
-    if (col === 'closed') return
+    // A task inside a group changes status only — its order lives in the group.
+    if (col === 'closed' || task.parent) return
     const ids = columns.value[col].map((t) => t.id).filter((x) => x !== id)
     const at = before && before !== id ? ids.indexOf(before) : -1
     ids.splice(at < 0 ? ids.length : at, 0, id)
@@ -122,10 +138,14 @@ const closedShown = ref(CLOSED_PAGE)
 // --- display helpers ---------------------------------------------------------
 
 function ruleText(kind: 'wake' | 'close', rule: string): string {
-    const verb = kind === 'wake' ? 'wakes' : 'closes'
-    if (rule.startsWith('node:')) return `${verb} when ${rule.slice(5, 13)}… closes`
+    const verb = kind === 'wake' ? 'wakes' : 'done'
+    if (rule.startsWith('node:')) {
+        const title = graph.nodes.get(rule.slice(5))?.title
+        const short = title && title.length > 28 ? `${title.slice(0, 27)}…` : title
+        return short ? `${verb} when “${short}” resolves` : `${verb} when a note resolves`
+    }
     if (rule.startsWith('>')) return `${verb} after ${rule.slice(1)}`
-    if (/^\d{4}-\d{2}-\d{2}T/.test(rule)) return `${verb} ${day(Date.parse(rule) / 1000)}`
+    if (/^\d{4}-\d{2}-\d{2}/.test(rule)) return `${verb} ${day(Date.parse(rule) / 1000)}`
     return `${verb} at ${rule}`
 }
 
@@ -141,52 +161,14 @@ function progressPct(t: TaskView): number {
 
 <template>
 <div class="tasks" :class="`show-${narrowColumn}`">
-    <header class="tasks-head glass-panel">
-        <div class="head-title">
-            <h2>Tasks</h2>
-            <span class="lede">
-                The assistant's working list — beside the graph, never in it. The brief lists the
-                active titles; closed work is kept.
-            </span>
-        </div>
-        <form class="quick-add" @submit.prevent="quickAdd()">
-            <input
-                v-model="draft"
-                class="add-input"
-                type="text"
-                placeholder="Add a task — a piece of work that spans sessions…"
-                aria-label="New task title"
-            />
-            <button class="mini accent" type="submit" :disabled="!draft.trim()">Add</button>
-        </form>
-        <p v-if="addError" class="msg error">{{ addError }}</p>
-        <p v-else-if="notice" class="msg">{{ notice }}</p>
-        <SegmentedControl
-            v-model="narrowColumn"
-            class="column-pick"
-            :options="columnOptions"
-            aria-label="Column"
-        />
-    </header>
+    <SegmentedControl
+        v-model="narrowColumn"
+        class="column-pick"
+        :options="columnOptions"
+        aria-label="Column"
+    />
 
     <p v-if="error" class="empty error">{{ error }}</p>
-    <div v-else-if="loaded && !topLevel.length && !loading" class="empty-hero glass-panel">
-        <h3>No tasks yet</h3>
-        <p>
-            Tasks are where an assistant keeps what it is doing between sessions — a plan,
-            the step it stopped at, the release it still owes. Agents add them with
-            <code>add_tasks</code>; you can add, reorder and close them here.
-        </p>
-        <ul>
-            <li>One task per piece of work that spans sessions, not per edit.</li>
-            <li>A feature becomes a group: its tasks live inside the card.</li>
-            <li>
-                Rules close or wake a task on their own — at a version, on a date, or when a
-                note it waits on is resolved.
-            </li>
-        </ul>
-    </div>
-
     <div v-else class="board">
         <section
             v-for="col in COLUMNS"
@@ -201,6 +183,22 @@ function progressPct(t: TaskView): number {
                 <span class="column-label">{{ col.label }}</span>
                 <span class="count">{{ columns[col.id].length }}</span>
             </header>
+            <form v-if="col.id === 'active'" class="composer glass-panel" @submit.prevent="quickAdd()">
+                <AutoTextarea
+                    v-model="draft"
+                    :rows="2"
+                    :max-rows="12"
+                    placeholder="New task"
+                    aria-label="New task — the first line is the title, the rest becomes the plan"
+                    @keydown.enter.exact.prevent="quickAdd()"
+                />
+                <div v-if="draft.trim()" class="composer-foot">
+                    <span class="composer-hint">Enter adds · Shift+Enter, new line for the plan</span>
+                    <button class="mini accent" type="submit">Add</button>
+                </div>
+                <p v-if="addError" class="msg error">{{ addError }}</p>
+                <p v-else-if="notice" class="msg">{{ notice }}</p>
+            </form>
             <ol class="cards">
                 <li
                     v-for="t in col.id === 'closed' ? columns.closed.slice(0, closedShown) : columns[col.id]"
@@ -213,7 +211,7 @@ function progressPct(t: TaskView): number {
                         closed: !isOpen(t.status),
                         group: !!t.progress,
                     }"
-                    :draggable="col.id !== 'closed'"
+                    :draggable="!isClosedGroup(t)"
                     @dragstart="onDragStart($event, t)"
                     @dragend="onDragEnd"
                     @dragover.prevent="overId = t.id"
@@ -223,7 +221,8 @@ function progressPct(t: TaskView): number {
                             class="check"
                             type="button"
                             :class="t.status"
-                            :title="isOpen(t.status) ? 'Mark done' : 'Reopen'"
+                            :disabled="isClosedGroup(t)"
+                            :title="isClosedGroup(t) ? 'Reopen one of its tasks to reopen the group' : isOpen(t.status) ? 'Mark done' : 'Reopen'"
                             :aria-label="isOpen(t.status) ? `Mark “${t.title}” done` : `Reopen “${t.title}”`"
                             @click="toggleDone(t)"
                         >
@@ -242,7 +241,7 @@ function progressPct(t: TaskView): number {
                         <span v-if="t.status === 'dropped'" class="chip quiet">dropped</span>
                         <span v-if="t.carried_from" class="chip warn" :title="`Opened under ${t.carried_from}, still open`">↻ {{ t.carried_from }}</span>
                         <span v-if="t.idle_sessions" class="chip warn" title="Sessions briefed without this task changing">idle {{ t.idle_sessions }}</span>
-                        <span v-if="t.close" class="chip rule">{{ ruleText('close', t.close) }}</span>
+                        <span v-if="t.close" class="chip rule" :title="ruleText('close', t.close)">{{ ruleText('close', t.close) }}</span>
                         <span v-if="t.wake" class="chip rule">{{ ruleText('wake', t.wake) }}</span>
                         <span v-if="t.refs?.length" class="chip quiet" title="Memory notes this task is about">{{ t.refs.length }} ref{{ t.refs.length === 1 ? '' : 's' }}</span>
                         <span v-if="t.version && !t.carried_from" class="chip quiet">{{ t.closed_version && t.closed_version !== t.version ? `${t.version}→${t.closed_version}` : t.version }}</span>
@@ -250,7 +249,15 @@ function progressPct(t: TaskView): number {
                     </div>
                     <p v-if="t.auto" class="auto">{{ t.auto }}</p>
                     <ul v-if="t.progress" class="children">
-                        <li v-for="c in tasks.childrenOf(t.id)" :key="c.id" class="child" :class="[c.status, { selected: selectedId === c.id }]">
+                        <li
+                            v-for="c in tasks.childrenOf(t.id)"
+                            :key="c.id"
+                            class="child"
+                            :class="[c.status, { selected: selectedId === c.id, dragging: dragId === c.id }]"
+                            draggable="true"
+                            @dragstart.stop="onDragStart($event, c)"
+                            @dragend="onDragEnd"
+                        >
                             <button
                                 class="check small"
                                 type="button"
@@ -269,7 +276,7 @@ function progressPct(t: TaskView): number {
                         <input
                             v-model="childDrafts[t.id]"
                             type="text"
-                            :placeholder="t.progress ? 'Add a task to this group…' : 'Split into a group: add its first task…'"
+                            :placeholder="t.progress ? 'Add a task to this group…' : 'Add a task under this one…'"
                             :aria-label="`Add a task to ${t.title}`"
                         />
                     </form>
@@ -283,8 +290,11 @@ function progressPct(t: TaskView): number {
             >
                 Show {{ Math.min(CLOSED_PAGE, columns.closed.length - closedShown) }} more
             </button>
-            <p v-if="!columns[col.id].length" class="empty column-empty">
-                {{ col.id === 'active' ? 'Nothing in progress.' : col.id === 'closed' ? 'Nothing closed yet.' : 'Empty.' }}
+            <p v-if="!columns[col.id].length && col.id !== 'active'" class="empty column-empty">
+                {{ col.id === 'closed' ? 'Nothing closed yet.' : 'Empty' }}
+            </p>
+            <p v-if="col.id === 'active' && loaded && !topLevel.length" class="empty column-empty">
+                Your assistant adds tasks with <code>add_tasks</code>; the brief lists the active ones.
             </p>
         </section>
     </div>
@@ -302,66 +312,70 @@ function progressPct(t: TaskView): number {
     overflow: hidden;
 }
 
-.tasks-head {
+.composer {
     display: flex;
-    flex-wrap: wrap;
-    gap: 10px 16px;
-    align-items: center;
-    padding: 12px 14px;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 8px;
+    padding: 8px 10px;
+    border: 1px dashed var(--border-default);
     border-radius: var(--radius-lg);
 }
 
-.head-title {
-    display: flex;
-    flex: 1 1 280px;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
+.composer:focus-within {
+    border-style: solid;
+    border-color: var(--interactive-primary);
 }
 
-.head-title h2 {
-    margin: 0;
-    font-size: var(--text-body);
-    font-weight: 600;
-}
-
-.lede {
-    font-size: var(--text-body-sm);
-    color: var(--text-secondary);
-}
-
-.quick-add {
-    display: flex;
-    flex: 2 1 320px;
-    gap: 8px;
-}
-
-.add-input,
-.child-add input {
-    flex: 1;
-    min-width: 0;
-    padding: 6px 10px;
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-control);
-    background: var(--surface-sunken);
+.composer textarea {
+    width: 100%;
+    padding: 2px 0;
+    border: none;
+    background: transparent;
     color: var(--text-primary);
     font: inherit;
     font-size: var(--text-body-sm);
+    line-height: 1.5;
+}
+
+.composer textarea:focus {
+    outline: none;
+}
+
+.composer textarea::placeholder {
+    color: var(--text-tertiary);
+}
+
+.composer-foot {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.composer-hint {
+    font-size: var(--text-caption, 11px);
+    color: var(--text-tertiary);
 }
 
 .child-add input {
+    flex: 1;
+    min-width: 0;
     padding: 4px 8px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
     font-size: var(--text-caption, 11px);
 }
 
-.add-input:focus,
 .child-add input:focus {
-    outline: 2px solid var(--focus-ring);
-    outline-offset: -1px;
+    border-color: var(--border-strong);
+    outline: none;
 }
 
 .msg {
-    flex-basis: 100%;
     margin: 0;
     font-size: var(--text-body-sm);
     color: var(--text-secondary);
@@ -441,7 +455,6 @@ function progressPct(t: TaskView): number {
 }
 
 .card.closed {
-    cursor: default;
     opacity: 0.75;
 }
 
@@ -503,8 +516,20 @@ function progressPct(t: TaskView): number {
     background: var(--text-tertiary);
 }
 
-.check:hover {
+.check:disabled {
+    cursor: default;
+}
+
+.check:hover:not(:disabled) {
     border-color: var(--interactive-primary);
+}
+
+.child {
+    cursor: grab;
+}
+
+.child.dragging {
+    opacity: 0.4;
 }
 
 .card-title,
@@ -575,9 +600,12 @@ function progressPct(t: TaskView): number {
 }
 
 .chip {
+    max-width: 100%;
+    overflow: hidden;
     padding: 1px 6px;
     border-radius: 999px;
     white-space: nowrap;
+    text-overflow: ellipsis;
     background: rgb(56 189 248 / 15%);
     font-size: var(--text-caption, 11px);
     color: var(--text-secondary);
@@ -635,30 +663,6 @@ function progressPct(t: TaskView): number {
     color: var(--text-tertiary);
 }
 
-.empty-hero {
-    max-width: 560px;
-    margin: 8vh auto 0;
-    padding: 22px 26px;
-    border-radius: var(--radius-lg);
-    font-size: var(--text-body-sm);
-    color: var(--text-secondary);
-}
-
-.empty-hero h3 {
-    margin: 0 0 8px;
-    font-size: 1.8rem;
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.empty-hero ul {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin: 12px 0 0;
-    padding-left: 18px;
-}
-
 .mini {
     padding: 4px 10px;
     border: 1px solid rgb(148 163 184 / 35%);
@@ -703,12 +707,11 @@ function progressPct(t: TaskView): number {
         padding: 8px;
     }
 
-    .lede {
-        display: none;
-    }
-
     .column-pick {
         display: inline-flex;
+        align-self: center;
+        max-width: 100%;
+        overflow-x: auto;
     }
 
     .board {

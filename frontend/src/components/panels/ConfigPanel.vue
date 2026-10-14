@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AutoTextarea from '@/components/common/AutoTextarea.vue'
 import { computed, ref, watch } from 'vue'
 import HueRail from '@/components/common/HueRail.vue'
 import SegmentedControl from '@/components/common/SegmentedControl.vue'
@@ -1144,10 +1145,10 @@ const twinOrder = computed({
                             file or a whole directory. Deleting a recorded session adds its
                             transcript here automatically. Save the settings to apply.
                         </p>
-                        <textarea
+                        <AutoTextarea
                             v-model="excludePathsText"
                             class="edit-input grow"
-                            rows="8"
+                            :rows="8"
                             placeholder="/Users/you/private-repo"
                             aria-label="History exclude paths"
                         />

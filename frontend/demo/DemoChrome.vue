@@ -71,8 +71,9 @@ function reset(): void {
     font-family: var(--font-sans);
 }
 
-/* The feed and history screens have no minimap — sit in the corner. */
+/* The feed, tasks and history screens have no minimap — sit in the corner. */
 .app:has(> .feed-screen) .demo-chrome,
+.app:has(> .tasks) .demo-chrome,
 .app:has(> .history) .demo-chrome {
     bottom: 2rem;
 }

@@ -8,7 +8,7 @@ import HistoryView from '@/components/HistoryView.vue'
 import TasksView from '@/components/TasksView.vue'
 import EmptyGraph from '@/components/common/EmptyGraph.vue'
 import EngramMark from '@/components/common/EngramMark.vue'
-import SegmentedControl from '@/components/common/SegmentedControl.vue'
+import ViewSwitcher from '@/components/common/ViewSwitcher.vue'
 import AuditPanel from '@/components/panels/AuditPanel.vue'
 import CheckupPanel from '@/components/panels/CheckupPanel.vue'
 import ConfigPanel from '@/components/panels/ConfigPanel.vue'
@@ -47,14 +47,12 @@ const projects = useProjectsStore()
 const { loading, error, connected, nodeList } = storeToRefs(store)
 
 const tasks = useTasksStore()
-// The Tasks segment carries the active count — the brief's list, at a glance
-// from any screen.
-const VIEW_OPTIONS = computed(() => [
+const VIEW_OPTIONS = [
     { value: 'graph', label: 'Graph' },
     { value: 'feed', label: 'Feed' },
-    { value: 'tasks', label: tasks.activeCount ? `Tasks ${tasks.activeCount}` : 'Tasks' },
+    { value: 'tasks', label: 'Tasks' },
     { value: 'history', label: 'History' },
-])
+]
 
 useGraphSync() // poll-reconcile cross-process writes, but only while the user is active
 
@@ -67,13 +65,15 @@ onClickOutside(actionsRoot, () => (menuOpen.value = false))
 
 // The feed acts on the card at the center, not through a drawer: arriving
 // there with the detail pane still open covers the feed with the node you
-// just left. The selection survives (the feed centers on it) — Edit reopens
-// the drawer when the full form is actually wanted. History likewise: the
-// feed's centered card must not arrive there as a drawer over the lanes.
+// just left — so entering the feed closes it (the selection survives; the
+// feed centers on it). Every other switch leaves the drawer as it was: open
+// on the graph stays open over tasks and history and is still open back on
+// the graph; closed stays closed. The feed itself decides on the way out
+// (FeedView's unmount): to the graph it opens the drawer, anywhere else not.
 watch(
     () => layout.view,
     (view) => {
-        if (view !== 'graph') store.closeDetail()
+        if (view === 'feed') store.closeDetail()
     },
 )
 
@@ -121,11 +121,9 @@ onBeforeUnmount(() => store.disconnect())
             <SearchBar />
         </div>
         <div ref="actionsRoot" class="topbar-actions">
-            <SegmentedControl
-                class="view-toggle"
+            <ViewSwitcher
                 :model-value="layout.view"
                 :options="VIEW_OPTIONS"
-                aria-label="Screen"
                 @update:model-value="layout.setView($event as ViewMode)"
             />
             <button
@@ -245,8 +243,8 @@ onBeforeUnmount(() => store.disconnect())
     display: contents;
 }
 
-/* The Graph/Feed switch rides the floating bar — glass like its siblings. */
-.view-toggle {
+/* The screen switch rides the floating bar — glass like its siblings. */
+.topbar-actions :deep(.view-toggle) {
     background-color: var(--surface-glass);
     backdrop-filter: var(--glass-backdrop);
 }
@@ -392,10 +390,8 @@ onBeforeUnmount(() => store.disconnect())
         justify-content: flex-end;
     }
 
-    .view-toggle {
+    .topbar-actions > :first-child {
         order: 1;
-        flex-basis: 100%;
-        justify-content: space-evenly;;
     }
 }
 

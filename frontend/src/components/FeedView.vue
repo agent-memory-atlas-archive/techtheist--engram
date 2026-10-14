@@ -7,6 +7,7 @@ import SegmentedControl from '@/components/common/SegmentedControl.vue'
 import { onProjectSwitch } from '@/composables/onProjectSwitch'
 import { trustLevel, useGraphStore } from '@/stores/graph'
 import { useConfigStore } from '@/stores/config'
+import { useLayoutStore } from '@/stores/layout'
 import type { GraphEdge, GraphNode } from '@/types/graph'
 
 /**
@@ -21,6 +22,7 @@ import type { GraphEdge, GraphNode } from '@/types/graph'
  * the trail (session-scoped, capped) — the graph's edges as navigation.
  */
 const store = useGraphStore()
+const layout = useLayoutStore()
 const config = useConfigStore()
 const { visibleNodeList, nodeList, nodes, edgeList, driftByNode } = storeToRefs(store)
 
@@ -336,8 +338,14 @@ onBeforeUnmount(() => {
     window.removeEventListener('keydown', onKey)
     if (raf) cancelAnimationFrame(raf)
     window.clearTimeout(settleTimer)
-    // Feed→graph sync: the centered card becomes the canvas selection.
-    if (currentId.value && nodes.value.has(currentId.value)) store.select(currentId.value)
+    // Feed→graph sync: the centered card becomes the canvas selection, with
+    // its drawer open only when the graph is where we're going. Leaving for
+    // tasks or history keeps the selection quietly, so a later return to the
+    // canvas centers on it without a drawer nobody asked for.
+    if (currentId.value && nodes.value.has(currentId.value)) {
+        if (layout.view === 'graph') store.select(currentId.value)
+        else store.setSelection(currentId.value)
+    }
 })
 
 // ---- card content helpers --------------------------------------------------

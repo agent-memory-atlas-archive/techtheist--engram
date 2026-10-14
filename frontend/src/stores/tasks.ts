@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { api } from '@/services/api'
 import { onProjectSwitch } from '@/composables/onProjectSwitch'
+import { useGraphStore } from '@/stores/graph'
 import type { NewTask, TaskPatch, TaskStatus, TaskView, TaskWrite } from '@/types/graph'
 
 /** Board columns, in reading order. Done and dropped share the closed one. */
@@ -33,6 +34,8 @@ export const useTasksStore = defineStore('tasks', () => {
     const error = ref<string | null>(null)
     /** The task open in the editor drawer. */
     const selectedId = ref<string | null>(null)
+    /** The graph's working version — rule pickers suggest from it. */
+    const currentVersion = ref<string | null>(null)
 
     const byId = computed(() => new Map(tasks.value.map((t) => [t.id, t])))
     const selected = computed(() => (selectedId.value ? (byId.value.get(selectedId.value) ?? null) : null))
@@ -58,7 +61,12 @@ export const useTasksStore = defineStore('tasks', () => {
         loading.value = true
         error.value = null
         try {
-            tasks.value = await api.tasks()
+            const [list, version] = await Promise.all([
+                api.tasks(),
+                api.getVersion().catch(() => ({ enabled: false, current: null })),
+            ])
+            tasks.value = list
+            currentVersion.value = version.current
             loaded.value = true
             if (selectedId.value && !byId.value.has(selectedId.value)) selectedId.value = null
         } catch (e) {
@@ -93,8 +101,13 @@ export const useTasksStore = defineStore('tasks', () => {
         await load()
     }
 
+    /** Open a task's drawer (null closes it). The right edge holds one
+     *  drawer: opening a task closes the node drawer — in state, so a
+     *  screen that remounts later can't bring the stale one back. The node
+     *  selection itself survives (the canvas still centers on it). */
     function open(id: string | null): void {
         selectedId.value = id
+        if (id != null) useGraphStore().closeDetail()
     }
 
     onProjectSwitch(() => {
@@ -112,6 +125,7 @@ export const useTasksStore = defineStore('tasks', () => {
         error,
         selectedId,
         selected,
+        currentVersion,
         byId,
         topLevel,
         activeCount,

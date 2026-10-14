@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AutoTextarea from '@/components/common/AutoTextarea.vue'
 import { computed, reactive, ref, watch } from 'vue'
 import FieldInput from '@/components/common/FieldInput.vue'
 import SelectMenu from '@/components/common/SelectMenu.vue'
@@ -130,10 +131,10 @@ function close(): void {
         placeholder="Title"
         aria-label="Title"
     />
-    <textarea
+    <AutoTextarea
         v-model="draft.body"
         class="edit-input edit-body"
-        rows="8"
+        :rows="8"
         placeholder="Body (markdown, optional)"
         aria-label="Body (markdown)"
     />
@@ -150,10 +151,10 @@ function close(): void {
 
     <label class="edit-label">
         Code refs
-        <textarea
+        <AutoTextarea
             v-model="draft.codeRefsText"
             class="edit-input edit-refs"
-            rows="3"
+            :rows="3"
             placeholder="One repo-relative path per line (optional)…"
             aria-label="Code refs"
         />
@@ -227,13 +228,11 @@ function close(): void {
 }
 
 .edit-body {
-    resize: vertical;
     font-family: var(--font-mono);
     line-height: var(--leading-normal);
 }
 
 .edit-refs {
-    resize: vertical;
     font-family: var(--font-mono);
     font-size: var(--text-caption);
     line-height: var(--leading-normal);

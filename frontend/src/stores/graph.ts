@@ -308,6 +308,17 @@ export const useGraphStore = defineStore('graph', () => {
     function select(id: string | null): void {
         selectedId.value = id
         detailOpen.value = id != null
+        // One drawer owns the right edge, decided in state, not by whichever
+        // panel happens to mount last: opening a node closes the open task.
+        if (id != null) useTasksStore().open(null)
+    }
+
+    /** Move the selection without touching the drawer — the feed hands its
+     *  centered card back this way when it leaves for a screen other than
+     *  the graph. */
+    function setSelection(id: string | null): void {
+        selectedId.value = id
+        if (id == null) detailOpen.value = false
     }
 
     /** Dismiss the detail drawer but keep the selection (view switches). */
@@ -425,6 +436,7 @@ export const useGraphStore = defineStore('graph', () => {
         selected,
         detailOpen,
         closeDetail,
+        setSelection,
         resetView,
         loading,
         error,

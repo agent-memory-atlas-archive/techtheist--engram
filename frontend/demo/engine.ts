@@ -1159,16 +1159,16 @@ function briefTasks(p: ProjectState): string[] {
         'Your working list — titles only. `list_tasks` reads bodies; `update_task` moves one along (`progress` appends where you stopped; status done closes it).',
     ]
     for (const t of active.slice(0, p.config.brief.tasks?.cap ?? 15)) {
-        let line = `- ${t.title}`
-        if (t.progress) {
-            line += ` (${t.progress[0]}/${t.progress[1]})`
-            const next = views.find((c) => c.parent === t.id && c.status === 'active')
-            if (next) line += ` → next: ${next.title} [Task ${next.id}]`
-        }
-        line += ` [Task ${t.id}`
+        let line = `- ${t.title} [Task ${t.id}`
         if (t.close) line += ` · closes ${t.close}`
         if (t.carried_from) line += ` · ↻ from ${t.carried_from}`
-        out.push(`${line}]`)
+        line += ']'
+        if (t.progress) {
+            line += ` — ${t.progress[0]}/${t.progress[1]} done`
+            const next = views.find((c) => c.parent === t.id && c.status === 'active')
+            if (next) line += `, next: ${next.title} [Task ${next.id}]`
+        }
+        out.push(line)
     }
     const delayed = top.filter((t) => t.status === 'delayed').length
     const backlog = top.filter((t) => t.status === 'backlog').length

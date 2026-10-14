@@ -10,6 +10,8 @@
 
 /* ── Engram purple — the brand theme (dark, glassy, blurred) ──────────── */
 [data-theme="engram-purple"] {
+    /* Native controls (date pickers, scrollbars) follow the theme. */
+    color-scheme: dark;
     --surface-base: #0a0a14;
     --surface-elevated: #16162a;
     --surface-sunken: #08080f;
@@ -49,6 +51,8 @@
 
 /* ── IDE dark — the VS Code dark palette (also Match IDE's fallback) ───── */
 [data-theme="vscode-dark"] {
+    /* Native controls (date pickers, scrollbars) follow the theme. */
+    color-scheme: dark;
     --surface-base: #191a1b;
     --surface-elevated: #232527;
     --surface-sunken: #121314;
@@ -87,6 +91,8 @@
 
 /* ── IDE light — the VS Code light palette ───────────────────────────── */
 [data-theme="vscode-light"] {
+    /* Native controls (date pickers, scrollbars) follow the theme. */
+    color-scheme: light;
     --surface-base: #fff;
     --surface-elevated: #fff;
     --surface-sunken: #f3f3f3;
@@ -136,6 +142,8 @@
  * ends in -dark / -light, which the type colors key on.
  */
 [data-theme="ide-dark"] {
+    /* Native controls (date pickers, scrollbars) follow the theme. */
+    color-scheme: dark;
     --ide-static-bg: #191a1c;
     --ide-static-elevated: #26282c;
     --ide-static-canvas: #1e1f22;
@@ -150,6 +158,8 @@
 }
 
 [data-theme="ide-light"] {
+    /* Native controls (date pickers, scrollbars) follow the theme. */
+    color-scheme: light;
     --ide-static-bg: #f7f8fa;
     --ide-static-elevated: #fff;
     --ide-static-canvas: #fff;

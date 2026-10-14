@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AutoTextarea from '@/components/common/AutoTextarea.vue'
 import { computed, reactive, ref, useTemplateRef, watch } from 'vue'
 import { onClickOutside } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -430,7 +431,7 @@ function close(): void {
     <template v-if="selected">
         <template v-if="editing">
             <input v-model="draft.title" class="edit-input" type="text" aria-label="Title" />
-            <textarea v-model="draft.body" class="edit-input edit-body" rows="8" aria-label="Body (markdown)" />
+            <AutoTextarea v-model="draft.body" class="edit-input edit-body" :rows="8" aria-label="Body (markdown)" />
             <div class="edit-row">
                 <label class="edit-label">
                     Type
@@ -447,10 +448,10 @@ function close(): void {
             </label>
             <label class="edit-label">
                 Code refs
-                <textarea
+                <AutoTextarea
                     v-model="draft.codeRefsText"
                     class="edit-input edit-refs"
-                    rows="4"
+                    :rows="4"
                     placeholder="One repo-relative path per line…"
                     aria-label="Code refs"
                 />
@@ -857,13 +858,11 @@ function close(): void {
 }
 
 .edit-body {
-    resize: vertical;
     font-family: var(--font-mono);
     line-height: var(--leading-normal);
 }
 
 .edit-refs {
-    resize: vertical;
     font-family: var(--font-mono);
     font-size: var(--text-caption);
     line-height: var(--leading-normal);
