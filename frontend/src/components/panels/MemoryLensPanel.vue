@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import NoteText from '@/components/common/NoteText.vue'
 import { ref, watch } from 'vue'
 import MarkdownView from '@/components/common/MarkdownView.vue'
 import SidePanel from '@/components/common/SidePanel.vue'
@@ -40,37 +41,15 @@ watch(open, async (isOpen) => {
     title="Memory Lens"
     style="--panel-gap: 1rem"
 >
-    <p class="hint">
-        What your assistant receives from <code>brief</code> at session start.
-    </p>
+    <NoteText>What your assistant receives from <code>brief</code> at session start.</NoteText>
 
-    <p v-if="loading" class="state">Loading brief…</p>
-    <p v-else-if="error" class="state error">{{ error }}</p>
+    <NoteText v-if="loading" tone="empty">Loading brief…</NoteText>
+    <NoteText v-else-if="error" tone="error">{{ error }}</NoteText>
     <MarkdownView v-else-if="content" :content="content" class="content" />
 </SidePanel>
 </template>
 
 <style scoped>
-.hint {
-    font-size: var(--text-caption);
-    color: var(--text-tertiary);
-}
-
-.hint code {
-    font-family: var(--font-mono);
-    background-color: var(--surface-sunken);
-    padding: 0.1rem 0.4rem;
-    border-radius: var(--radius-sm);
-}
-
-.state {
-    font-size: var(--text-body-sm);
-    color: var(--text-secondary);
-}
-
-.state.error {
-    color: var(--node-problem);
-}
 
 .content {
     font-size: var(--text-body-sm);

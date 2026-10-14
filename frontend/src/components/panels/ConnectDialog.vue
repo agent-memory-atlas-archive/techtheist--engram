@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import NoteText from '@/components/common/NoteText.vue'
+import UiButton from '@/components/common/UiButton.vue'
 import { computed, ref } from 'vue'
 import { useConfigStore } from '@/stores/config'
 import { useGraphStore } from '@/stores/graph'
@@ -57,7 +59,7 @@ async function pick(type: EdgeType): Promise<void> {
             </button>
         </header>
 
-        <p class="hint">Pick the verb that completes the sentence — no fit, no edge.</p>
+        <NoteText>Pick the verb that completes the sentence — no fit, no edge.</NoteText>
 
         <div class="verbs">
             <button
@@ -74,11 +76,9 @@ async function pick(type: EdgeType): Promise<void> {
             </button>
         </div>
 
-        <p v-if="error" class="error">{{ error }}</p>
+        <NoteText v-if="error" tone="error">{{ error }}</NoteText>
 
-        <button class="cancel" type="button" :disabled="busy" @click="emit('close')">
-            Cancel
-        </button>
+        <UiButton class="cancel" variant="ghost" size="sm" :disabled="busy" @click="emit('close')">Cancel</UiButton>
     </div>
 </div>
 </template>
@@ -143,11 +143,6 @@ async function pick(type: EdgeType): Promise<void> {
     background-color: var(--interactive-ghost-hover);
 }
 
-.hint {
-    font-size: var(--text-caption);
-    color: var(--text-tertiary);
-}
-
 .verbs {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
@@ -187,25 +182,8 @@ async function pick(type: EdgeType): Promise<void> {
     color: var(--text-secondary);
 }
 
-.error {
-    font-size: var(--text-caption);
-    color: var(--node-problem);
-}
-
 .cancel {
     align-self: flex-start;
-    padding: 0.5rem 1rem;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border-default);
-    background-color: transparent;
-    color: var(--text-secondary);
-    font-size: var(--text-caption);
-    font-weight: 600;
-    cursor: pointer;
 }
 
-.cancel:hover:not(:disabled) {
-    color: var(--text-primary);
-    background-color: var(--interactive-ghost-hover);
-}
 </style>

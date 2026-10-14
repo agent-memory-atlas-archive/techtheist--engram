@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import NoteText from '@/components/common/NoteText.vue'
+import UiButton from '@/components/common/UiButton.vue'
 import { ref, watch } from 'vue'
 import SidePanel from '@/components/common/SidePanel.vue'
 import { api } from '@/services/api'
@@ -191,13 +193,10 @@ function fmtDate(secs: number): string {
     title="Audit log"
     style="--panel-gap: 1rem"
 >
-    <p class="hint">
-        Every change to the graph, newest first — including your assistant's
-        silent writes.
-    </p>
+    <NoteText>Every change to the graph, newest first — including your assistant's silent writes.</NoteText>
 
-    <p v-if="error" class="state error">{{ error }}</p>
-    <p v-else-if="!loading && entries.length === 0" class="state">No changes recorded yet.</p>
+    <NoteText v-if="error" tone="error">{{ error }}</NoteText>
+    <NoteText v-else-if="!loading && entries.length === 0" tone="empty">No changes recorded yet.</NoteText>
 
     <ul class="entries">
         <li v-for="e in entries" :key="e.seq" class="entry">
@@ -226,7 +225,7 @@ function fmtDate(secs: number): string {
                         </span>
                     </div>
                 </template>
-                <p v-else class="no-diff">No field-level changes recorded.</p>
+                <NoteText v-else>No field-level changes recorded.</NoteText>
 
                 <dl class="context">
                     <template v-if="e.session_id">
@@ -261,39 +260,35 @@ function fmtDate(secs: number): string {
                             </li>
                         </ul>
                         <div class="undo-actions">
-                            <button
-                                class="more danger"
-                                type="button"
+                            <UiButton
+                                size="sm"
+                                variant="danger"
                                 :disabled="busy || plan.preview.undone.length === 0"
                                 @click="confirmUndo(e)"
                             >
                                 {{ busy ? 'Undoing…' : 'Confirm undo' }}
-                            </button>
-                            <button class="more" type="button" :disabled="busy" @click="plan = null">
-                                Cancel
-                            </button>
+                            </UiButton>
+                            <UiButton size="sm" variant="ghost" :disabled="busy" @click="plan = null">Cancel</UiButton>
                         </div>
                     </template>
                     <div v-else class="undo-actions">
-                        <button
-                            class="more"
-                            type="button"
+                        <UiButton
+                            size="sm"
                             :disabled="busy"
                             :title="e.op_id ? 'Part of one operation — undoes all of it' : 'Revert this change'"
                             @click="preview(e, 'row')"
                         >
                             {{ isUndoMarker(e) ? 'Undo this undo' : e.op_id ? 'Undo operation' : 'Undo' }}
-                        </button>
-                        <button
+                        </UiButton>
+                        <UiButton
                             v-if="sessionOf(e)"
-                            class="more"
-                            type="button"
+                            size="sm"
                             :disabled="busy"
                             title="Revert everything this session wrote, newest first"
                             @click="preview(e, 'session')"
                         >
                             Undo session
-                        </button>
+                        </UiButton>
                     </div>
                 </div>
                 <p v-if="outcome?.seq === e.seq" class="undo-summary">{{ outcome.text }}</p>
@@ -303,34 +298,15 @@ function fmtDate(secs: number): string {
 
     <footer class="foot">
         <span class="count">{{ entries.length }} of {{ total }}</span>
-        <button
-            v-if="entries.length < total"
-            class="more"
-            type="button"
-            :disabled="loading"
-            @click="loadPage"
-        >
+        <UiButton v-if="entries.length < total" size="sm" :disabled="loading" @click="loadPage">
             {{ loading ? 'Loading…' : 'Load more' }}
-        </button>
-        <button class="more" type="button" :disabled="loading" @click="reload">Refresh</button>
+        </UiButton>
+        <UiButton size="sm" variant="ghost" :disabled="loading" @click="reload">Refresh</UiButton>
     </footer>
 </SidePanel>
 </template>
 
 <style scoped>
-.hint {
-    font-size: var(--text-caption);
-    color: var(--text-tertiary);
-}
-
-.state {
-    font-size: var(--text-body-sm);
-    color: var(--text-secondary);
-}
-
-.state.error {
-    color: var(--node-problem);
-}
 
 .entries {
     display: flex;
@@ -482,10 +458,6 @@ function fmtDate(secs: number): string {
     color: var(--text-primary);
 }
 
-.no-diff {
-    color: var(--text-tertiary);
-}
-
 .context {
     display: grid;
     grid-template-columns: 8.4rem 1fr;
@@ -516,32 +488,6 @@ function fmtDate(secs: number): string {
     flex: 1;
     font-size: var(--text-caption);
     color: var(--text-tertiary);
-}
-
-.more {
-    padding: 0.4rem 1rem;
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-control);
-    background: transparent;
-    color: var(--text-secondary);
-    font-size: var(--text-caption);
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.more:disabled {
-    opacity: 0.5;
-    cursor: default;
-}
-
-.more:hover:not(:disabled) {
-    color: var(--text-primary);
-    background-color: var(--interactive-ghost-hover);
-}
-
-.more.danger {
-    color: var(--node-problem);
-    border-color: color-mix(in srgb, var(--node-problem) 45%, transparent);
 }
 
 .undone-tag {

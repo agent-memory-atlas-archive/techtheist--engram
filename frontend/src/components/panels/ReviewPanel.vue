@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import NoteText from '@/components/common/NoteText.vue'
+import InfoBadge from '@/components/common/InfoBadge.vue'
+import PanelSection from '@/components/common/PanelSection.vue'
+import UiButton from '@/components/common/UiButton.vue'
 import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import SidePanel from '@/components/common/SidePanel.vue'
@@ -149,20 +153,18 @@ async function scanNow(): Promise<void> {
         style="--panel-gap: 1.4rem"
     >
         <template #actions>
-            <span v-if="scanNote" class="scan-note">{{ scanNote }}</span>
-            <button
-                class="mini"
-                type="button"
+            <NoteText v-if="scanNote" as="span">{{ scanNote }}</NoteText>
+            <UiButton
+                size="sm"
                 :disabled="scanning"
                 title="Sweep the graph for unlinked look-alike pairs"
                 @click="scanNow"
             >
                 {{ scanning ? 'Scanning…' : 'Scan now' }}
-            </button>
+            </UiButton>
         </template>
 
-        <section v-if="suspects.length" class="block">
-            <h3 class="block-title">Suspected conflicts — needs judgment</h3>
+        <PanelSection v-if="suspects.length" title="Suspected conflicts — needs judgment">
             <div v-for="s in suspects" :key="s.id" class="conflict">
                 <div class="row pair">
                     <button class="row-link" type="button" :title="s.a.title" @click="store.select(s.a.id)">
@@ -183,21 +185,20 @@ async function scanNow(): Promise<void> {
                     >{{ s.nli_label }}{{ s.nli_direction ? ` · ${s.nli_direction} negates` : '' }}</span>
                 </div>
                 <div class="row-actions">
-                    <button class="mini" type="button" :disabled="busyId === s.id" title="They contradict — record a conflicts-with edge" @click="judge(s.id, 'conflict')">
+                    <UiButton size="sm" :disabled="busyId === s.id" title="They contradict — record a conflicts-with edge" @click="judge(s.id, 'conflict')">
                         Conflict
-                    </button>
-                    <button class="mini" type="button" :disabled="busyId === s.id" title="The newer supersedes — records replaces and archives the older" @click="judge(s.id, 'replaces')">
+                    </UiButton>
+                    <UiButton size="sm" :disabled="busyId === s.id" title="The newer supersedes — records replaces and archives the older" @click="judge(s.id, 'replaces')">
                         Replaces
-                    </button>
-                    <button class="mini ghost" type="button" :disabled="busyId === s.id" title="Fine together — never raised again" @click="judge(s.id, 'dismiss')">
+                    </UiButton>
+                    <UiButton size="sm" variant="ghost" :disabled="busyId === s.id" title="Fine together — never raised again" @click="judge(s.id, 'dismiss')">
                         Dismiss
-                    </button>
+                    </UiButton>
                 </div>
             </div>
-        </section>
+        </PanelSection>
 
-        <section v-if="conflicts.length" class="block">
-            <h3 class="block-title">Unresolved conflicts</h3>
+        <PanelSection v-if="conflicts.length" title="Unresolved conflicts">
             <div v-for="e in conflicts" :key="e.id" class="conflict">
                 <div class="row pair">
                     <button class="row-link" type="button" :title="title(e.from_id)" @click="store.select(e.from_id)">
@@ -209,18 +210,17 @@ async function scanNow(): Promise<void> {
                     </button>
                 </div>
                 <div class="row-actions">
-                    <button class="mini" type="button" :disabled="busyId === e.id" @click="settleConflict(e, 'resolved')">
+                    <UiButton size="sm" :disabled="busyId === e.id" @click="settleConflict(e, 'resolved')">
                         Resolve
-                    </button>
-                    <button class="mini ghost" type="button" :disabled="busyId === e.id" @click="settleConflict(e, 'dismissed')">
+                    </UiButton>
+                    <UiButton size="sm" variant="ghost" :disabled="busyId === e.id" @click="settleConflict(e, 'dismissed')">
                         Dismiss
-                    </button>
+                    </UiButton>
                 </div>
             </div>
-        </section>
+        </PanelSection>
 
-        <section v-if="drift.length" class="block">
-            <h3 class="block-title">Drifted code refs — the code moved, the memory didn't</h3>
+        <PanelSection v-if="drift.length" title="Drifted code refs — the code moved, the memory didn't">
             <div v-for="d in drift" :key="d.id" class="conflict">
                 <button class="row" type="button" :title="d.title" @click="store.select(d.id)">
                     <span class="dot" :style="{ background: config.accent(d.type) }" />
@@ -237,26 +237,24 @@ async function scanNow(): Promise<void> {
                     </span>
                 </div>
             </div>
-        </section>
+        </PanelSection>
 
-        <section v-if="provisional.length" class="block">
-            <h3 class="block-title">Needs review — approve what's right</h3>
+        <PanelSection v-if="provisional.length" title="Needs review — approve what's right">
             <div v-for="n in provisional" :key="n.id" class="item">
                 <button class="row" type="button" @click="store.select(n.id)">
                     <span class="dot" :style="{ background: accent(n) }" />
                     <span class="row-title">{{ n.title }}</span>
-                    <span v-if="decayIds.has(n.id)" class="stale" title="Will be archived by the next decay pass">decaying</span>
-                    <span v-if="n.stale" class="stale-badge">stale</span>
+                    <InfoBadge v-if="decayIds.has(n.id)" pill tone="warn" title="Will be archived by the next decay pass">decaying</InfoBadge>
+                    <InfoBadge v-if="n.stale" pill tone="danger">stale</InfoBadge>
                     <span class="trust">{{ Math.round(n.trust * 100) }}%</span>
                 </button>
-                <button class="mini" type="button" :disabled="busyId === n.id" @click="approve(n)">
+                <UiButton size="sm" :disabled="busyId === n.id" @click="approve(n)">
                     Approve
-                </button>
+                </UiButton>
             </div>
-        </section>
+        </PanelSection>
 
-        <section v-if="recent.length" class="block">
-            <h3 class="block-title">Recently added</h3>
+        <PanelSection v-if="recent.length" title="Recently added">
             <div v-for="n in recent" :key="n.id" class="item">
                 <button class="row" type="button" @click="store.select(n.id)">
                     <span class="dot" :style="{ background: accent(n) }" />
@@ -264,9 +262,9 @@ async function scanNow(): Promise<void> {
                     <span class="date">{{ fmtDate(n.created_at) }}</span>
                 </button>
             </div>
-        </section>
+        </PanelSection>
 
-        <p v-if="!attention && !recent.length" class="empty">Nothing to review.</p>
+        <NoteText v-if="!attention && !recent.length" tone="empty">Nothing to review.</NoteText>
     </SidePanel>
 </div>
 </template>
@@ -301,20 +299,6 @@ async function scanNow(): Promise<void> {
     color: var(--text-inverse);
     font-size: var(--text-caption);
     text-align: center;
-}
-
-.scan-note {
-    font-size: var(--text-caption);
-    color: var(--text-tertiary);
-}
-
-.block-title {
-    margin-bottom: 0.6rem;
-    font-size: var(--text-caption);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-tertiary);
 }
 
 .conflict {
@@ -397,31 +381,12 @@ async function scanNow(): Promise<void> {
     white-space: nowrap;
 }
 
-.stale-badge {
-    padding: 0.1rem 0.6rem;
-    border-radius: var(--radius-sm);
-    font-size: var(--text-caption);
-    font-weight: 600;
-    color: var(--node-problem);
-    background-color: color-mix(in srgb, var(--node-problem) 14%, transparent);
-    border: 1px solid color-mix(in srgb, var(--node-problem) 40%, transparent);
-}
-
 .trust,
 .date {
     flex: none;
     margin-left: auto;
     font-size: var(--text-caption);
     color: var(--text-tertiary);
-}
-
-.stale {
-    flex: none;
-    padding: 0.1rem 0.5rem;
-    border-radius: var(--radius-sm);
-    font-size: var(--text-caption);
-    color: var(--node-problem);
-    background-color: color-mix(in srgb, var(--node-problem) 14%, transparent);
 }
 
 .row-actions {
@@ -445,37 +410,6 @@ async function scanNow(): Promise<void> {
     color: var(--node-problem);
     background-color: color-mix(in srgb, var(--node-problem) 12%, transparent);
     border: 1px solid color-mix(in srgb, var(--node-problem) 35%, transparent);
-}
-
-.mini {
-    flex: none;
-    padding: 0.35rem 0.9rem;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border-default);
-    background-color: var(--surface-elevated);
-    color: var(--text-primary);
-    font-size: var(--text-caption);
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.mini:disabled {
-    opacity: 0.5;
-    cursor: default;
-}
-
-.mini:hover:not(:disabled) {
-    background-color: var(--node-hover-surface);
-}
-
-.mini.ghost {
-    background-color: transparent;
-    color: var(--text-secondary);
-}
-
-.empty {
-    font-size: var(--text-body-sm);
-    color: var(--text-tertiary);
 }
 
 .nli-hint {

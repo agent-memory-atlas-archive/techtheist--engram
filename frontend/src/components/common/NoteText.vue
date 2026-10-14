@@ -21,6 +21,13 @@ withDefaults(defineProps<{ tone?: 'hint' | 'body' | 'error' | 'empty'; as?: 'p' 
     line-height: var(--leading-normal);
 }
 
+.note :deep(code) {
+    padding: 0.1rem 0.4rem;
+    border-radius: var(--radius-sm);
+    background-color: var(--surface-sunken);
+    font-family: var(--font-mono);
+}
+
 .body {
     color: var(--text-secondary);
 }
