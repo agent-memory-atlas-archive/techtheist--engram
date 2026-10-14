@@ -4,7 +4,7 @@
  * radius buttons use), one type size. `mono` for paths, ids and versions.
  * Native attributes and listeners fall through to the <input>.
  */
-defineProps<{ modelValue: string; mono?: boolean }>()
+defineProps<{ modelValue: string | undefined; mono?: boolean }>()
 const emit = defineEmits<{ (e: 'update:modelValue', v: string): void }>()
 </script>
 
@@ -12,7 +12,7 @@ const emit = defineEmits<{ (e: 'update:modelValue', v: string): void }>()
 <input
     class="field"
     :class="{ mono }"
-    :value="modelValue"
+    :value="modelValue ?? ''"
     @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
 />
 </template>

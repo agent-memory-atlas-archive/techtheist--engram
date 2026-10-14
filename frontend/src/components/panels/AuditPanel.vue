@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import MetaRow from '@/components/common/MetaRow.vue'
+import MetaList from '@/components/common/MetaList.vue'
 import NoteText from '@/components/common/NoteText.vue'
 import UiButton from '@/components/common/UiButton.vue'
 import { ref, watch } from 'vue'
@@ -227,22 +229,13 @@ function fmtDate(secs: number): string {
                 </template>
                 <NoteText v-else>No field-level changes recorded.</NoteText>
 
-                <dl class="context">
-                    <template v-if="e.session_id">
-                        <dt>session</dt>
-                        <dd>{{ e.session_id }}</dd>
-                    </template>
-                    <template v-if="e.cwd">
-                        <dt>cwd</dt>
-                        <dd>{{ e.cwd }}</dd>
-                    </template>
-                    <dt>process</dt>
-                    <dd>pid {{ e.pid ?? '—' }} · v{{ e.version ?? '?' }} · {{ e.origin }}</dd>
-                    <dt>action</dt>
-                    <dd>{{ e.action }} · {{ e.entity }}</dd>
-                    <dt>id</dt>
-                    <dd>{{ e.entity_id || '—' }}</dd>
-                </dl>
+                <MetaList class="context">
+                    <MetaRow v-if="e.session_id" label="session" mono>{{ e.session_id }}</MetaRow>
+                    <MetaRow v-if="e.cwd" label="cwd" mono>{{ e.cwd }}</MetaRow>
+                    <MetaRow label="process">pid {{ e.pid ?? '—' }} · v{{ e.version ?? '?' }} · {{ e.origin }}</MetaRow>
+                    <MetaRow label="action">{{ e.action }} · {{ e.entity }}</MetaRow>
+                    <MetaRow label="id" mono>{{ e.entity_id || '—' }}</MetaRow>
+                </MetaList>
 
                 <div
                     v-if="(undoable(e) || isUndoMarker(e)) && e.undone_by == null"
@@ -459,21 +452,8 @@ function fmtDate(secs: number): string {
 }
 
 .context {
-    display: grid;
-    grid-template-columns: 8.4rem 1fr;
-    gap: 0.2rem 0.8rem;
     padding-top: 0.6rem;
     border-top: 1px solid var(--border-subtle);
-}
-
-.context dt {
-    color: var(--text-tertiary);
-    font-family: var(--font-mono);
-}
-
-.context dd {
-    overflow-wrap: anywhere;
-    color: var(--text-secondary);
 }
 
 .foot {

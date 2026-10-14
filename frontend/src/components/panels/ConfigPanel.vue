@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import PanelSection from '@/components/common/PanelSection.vue'
+import UiButton from '@/components/common/UiButton.vue'
 import AutoTextarea from '@/components/common/AutoTextarea.vue'
 import { computed, ref, watch } from 'vue'
 import HueRail from '@/components/common/HueRail.vue'
@@ -578,8 +580,7 @@ const twinOrder = computed({
     <p v-else-if="notice" class="state ok">{{ notice }}</p>
 
     <template v-if="draft">
-        <section class="block">
-            <h3 class="block-title">Ontology presets</h3>
+        <PanelSection title="Ontology presets">
             <p class="hint">
                 A preset replaces the whole configuration — types, verbs, policy, brief. The
                 current shape is <strong>{{ draft.ontology.preset }}</strong>.
@@ -589,19 +590,17 @@ const twinOrder = computed({
                     <span class="preset-name">{{ p.name }}</span>
                     <span class="preset-desc">{{ p.description }}</span>
                 </div>
-                <button
-                    class="mini"
-                    type="button"
+                <UiButton
+                    size="sm"
                     :disabled="busy || p.id === draft.ontology.preset"
                     @click="applyPreset(p.id)"
                 >
                     {{ p.id === draft.ontology.preset ? 'active' : 'apply' }}
-                </button>
+                </UiButton>
             </div>
-        </section>
+        </PanelSection>
 
-        <section class="block">
-            <h3 class="block-title">Node types</h3>
+        <PanelSection title="Node types">
             <p class="hint">
                 The name is what the assistant writes; the roles are what the engine does with
                 it. Renaming bulk-retypes every stored node — nothing is lost.
@@ -623,27 +622,26 @@ const twinOrder = computed({
                             @keydown.enter="commitRename"
                             @keydown.escape="renaming = null"
                         />
-                        <button class="mini" type="button" :disabled="busy" @click="commitRename">
+                        <UiButton size="sm" :disabled="busy" @click="commitRename">
                             rename {{ countNodes(t.name) ? `(${countNodes(t.name)} nodes follow)` : '' }}
-                        </button>
-                        <button class="mini ghost" type="button" @click="renaming = null">cancel</button>
+                        </UiButton>
+                        <UiButton size="sm" variant="ghost" @click="renaming = null">cancel</UiButton>
                     </template>
                     <template v-else>
                         <span class="card-name">{{ t.name }}</span>
                         <span v-if="countNodes(t.name)" class="count">{{ countNodes(t.name) }} nodes</span>
                         <span class="spacer" />
-                        <button
-                            class="mini ghost"
-                            type="button"
+                        <UiButton
+                            size="sm" variant="ghost"
                             :disabled="dirty || busy"
                             :title="dirty ? 'Save or revert your edits first — renames apply immediately' : 'Rename and bulk-retype stored nodes'"
                             @click="startRename('type', t.name)"
                         >
                             rename
-                        </button>
-                        <button class="mini ghost danger" type="button" @click="removeType(t)">
+                        </UiButton>
+                        <UiButton size="sm" variant="danger" @click="removeType(t)">
                             remove
-                        </button>
+                        </UiButton>
                     </template>
                 </header>
 
@@ -735,11 +733,10 @@ const twinOrder = computed({
                     </span>
                 </div>
             </article>
-            <button class="mini add" type="button" @click="addType">+ add type</button>
-        </section>
+            <UiButton size="sm" class="add" @click="addType">+ add type</UiButton>
+        </PanelSection>
 
-        <section class="block">
-            <h3 class="block-title">Edge verbs</h3>
+        <PanelSection title="Edge verbs">
             <p class="hint">
                 A triple must read as English — "A {{ config.supersessionVerb }} B". Exactly one
                 verb supersedes and exactly one contradicts; those two make the graph active.
@@ -760,22 +757,21 @@ const twinOrder = computed({
                             @keydown.enter="commitRename"
                             @keydown.escape="renaming = null"
                         />
-                        <button class="mini" type="button" :disabled="busy" @click="commitRename">rename</button>
-                        <button class="mini ghost" type="button" @click="renaming = null">cancel</button>
+                        <UiButton size="sm" :disabled="busy" @click="commitRename">rename</UiButton>
+                        <UiButton size="sm" variant="ghost" @click="renaming = null">cancel</UiButton>
                     </template>
                     <template v-else>
                         <span class="card-name mono">{{ v.name }}</span>
                         <span class="spacer" />
-                        <button
-                            class="mini ghost"
-                            type="button"
+                        <UiButton
+                            size="sm" variant="ghost"
                             :disabled="dirty || busy"
                             :title="dirty ? 'Save or revert your edits first — renames apply immediately' : 'Rename and retype stored edges'"
                             @click="startRename('verb', v.name)"
                         >
                             rename
-                        </button>
-                        <button class="mini ghost danger" type="button" @click="removeVerb(v)">remove</button>
+                        </UiButton>
+                        <UiButton size="sm" variant="danger" @click="removeVerb(v)">remove</UiButton>
                     </template>
                 </header>
                 <label class="row-label">
@@ -824,11 +820,10 @@ const twinOrder = computed({
                     />
                 </div>
             </article>
-            <button class="mini add" type="button" @click="addVerb">+ add verb</button>
-        </section>
+            <UiButton size="sm" class="add" @click="addVerb">+ add verb</UiButton>
+        </PanelSection>
 
-        <section class="block">
-            <h3 class="block-title">Custom fields</h3>
+        <PanelSection title="Custom fields">
             <p class="hint">
                 Your own first-class values on every note — enforced at write time for every
                 surface (assistant writes included), beside the built-ins below. A
@@ -861,22 +856,21 @@ const twinOrder = computed({
                             @keydown.enter="commitRename"
                             @keydown.escape="renaming = null"
                         />
-                        <button class="mini" type="button" :disabled="busy" @click="commitRename">rename</button>
-                        <button class="mini ghost" type="button" @click="renaming = null">cancel</button>
+                        <UiButton size="sm" :disabled="busy" @click="commitRename">rename</UiButton>
+                        <UiButton size="sm" variant="ghost" @click="renaming = null">cancel</UiButton>
                     </template>
                     <template v-else>
                         <span class="card-name mono">{{ f.name }}</span>
                         <span class="spacer" />
-                        <button
-                            class="mini ghost"
-                            type="button"
+                        <UiButton
+                            size="sm" variant="ghost"
                             :disabled="dirty || busy"
                             :title="dirty ? 'Save or revert your edits first — renames apply immediately' : 'Rename and move every stored value with it'"
                             @click="startRename('field', f.name)"
                         >
                             rename
-                        </button>
-                        <button class="mini ghost danger" type="button" @click="removeField(f)">remove</button>
+                        </UiButton>
+                        <UiButton size="sm" variant="danger" @click="removeField(f)">remove</UiButton>
                     </template>
                 </header>
                 <div class="field-rows">
@@ -935,11 +929,10 @@ const twinOrder = computed({
                     />
                 </div>
             </article>
-            <button class="mini add" type="button" @click="addField">+ add field</button>
-        </section>
+            <UiButton size="sm" class="add" @click="addField">+ add field</UiButton>
+        </PanelSection>
 
-        <section class="block">
-            <h3 class="block-title">Trust &amp; decay policy</h3>
+        <PanelSection title="Trust &amp; decay policy">
             <div class="grid">
                 <label>start trust <StepperInput v-model="draft.policy.trust_created" :step="0.05" :max="1" aria-label="start trust" /></label>
                 <label>confirmed <StepperInput v-model="draft.policy.trust_confirmed" :step="0.05" :max="1" aria-label="confirmed trust" /></label>
@@ -958,10 +951,9 @@ const twinOrder = computed({
                 <label>title contradiction ≥ <StepperInput v-model="nliGate" :step="0.05" :max="1" aria-label="title contradiction gate (0 = off)" /></label>
             </div>
             <p v-for="(line, i) in policyWords" :key="i" class="hint words">{{ line }}</p>
-        </section>
+        </PanelSection>
 
-        <section class="block">
-            <h3 class="block-title">Calibrated delivery</h3>
+        <PanelSection title="Calibrated delivery">
             <div class="grid">
                 <label>delivery floor <StepperInput v-model="draft.policy.delivery_floor" :step="0.01" :max="1" aria-label="delivery floor" /></label>
                 <label>weak below <StepperInput v-model="draft.policy.weak_evidence_top" :step="0.01" :max="1" aria-label="weak evidence line" /></label>
@@ -983,10 +975,9 @@ const twinOrder = computed({
                 />
             </div>
             <p v-for="(line, i) in deliveryWords" :key="i" class="hint words">{{ line }}</p>
-        </section>
+        </PanelSection>
 
-        <section class="block">
-            <h3 class="block-title">Brief composition</h3>
+        <PanelSection title="Brief composition">
             <div class="grid">
                 <label>budget (chars) <StepperInput v-model="draft.brief.total_chars" :min="1000" :max="200000" :step="1000" aria-label="brief budget chars" /></label>
                 <label>home reserve <StepperInput v-model="draft.brief.home_reserve" :max="200000" :step="500" aria-label="home reserve chars" /></label>
@@ -1040,10 +1031,9 @@ const twinOrder = computed({
                 Per-type canon sections (Principles, Decisions, …) are configured on each type
                 above. The worklist section shows every type carrying the worklist role.
             </p>
-        </section>
+        </PanelSection>
 
-        <section class="block">
-            <h3 class="block-title">Version tracking</h3>
+        <PanelSection title="Version tracking">
             <div class="checks">
                 <ToggleChip
                     v-model="draft.versioning.enabled"
@@ -1060,9 +1050,9 @@ const twinOrder = computed({
                     placeholder="current working version — v0.7.0, 26.7.23, …"
                     aria-label="Current working version"
                 />
-                <button class="mini" type="button" :disabled="busy" @click="applyVersion">
+                <UiButton size="sm" :disabled="busy" @click="applyVersion">
                     {{ currentVersion.trim() ? 'Set' : 'Clear' }}
-                </button>
+                </UiButton>
                 <span v-if="savedVersion" class="count">now: {{ savedVersion }}</span>
             </div>
             <p v-if="draft.versioning.enabled" class="hint">
@@ -1070,10 +1060,9 @@ const twinOrder = computed({
                 card above. Assistants manage the version via the <span class="mono">set_version</span>
                 MCP tool; switch history lives in the audit journal.
             </p>
-        </section>
+        </PanelSection>
 
-        <section class="block">
-            <h3 class="block-title">Session history</h3>
+        <PanelSection title="Session history">
             <p class="hint">
                 Opt-in: when recording is on, the daemon indexes your coding-assistant
                 conversations into a separate store, sealed at rest — searchable only as
@@ -1107,9 +1096,9 @@ const twinOrder = computed({
                 />
             </div>
             <div v-if="draft.history.enabled" class="skill-row">
-                <button class="mini" type="button" @click="showExcludeEditor = true">
+                <UiButton size="sm" @click="showExcludeEditor = true">
                     Set ignored paths…
-                </button>
+                </UiButton>
                 <span class="check">
                     {{ draft.history.exclude_paths.length || 'no' }} path{{
                         draft.history.exclude_paths.length === 1 ? '' : 's'
@@ -1127,9 +1116,9 @@ const twinOrder = computed({
                 </template>
             </p>
             <div class="skill-row">
-                <button class="mini danger" type="button" :disabled="busy" @click="wipeHistory">
+                <UiButton size="sm" variant="danger" :disabled="busy" @click="wipeHistory">
                     Delete all history
-                </button>
+                </UiButton>
                 <span class="check">removes history.tepin — curated memory is untouched</span>
             </div>
             <Teleport to="body">
@@ -1153,17 +1142,16 @@ const twinOrder = computed({
                             aria-label="History exclude paths"
                         />
                         <div class="modal-actions">
-                            <button class="mini" type="button" @click="showExcludeEditor = false">
+                            <UiButton size="sm" @click="showExcludeEditor = false">
                                 Done
-                            </button>
+                            </UiButton>
                         </div>
                     </div>
                 </div>
             </Teleport>
-        </section>
+        </PanelSection>
 
-        <section class="block">
-            <h3 class="block-title">Assistant skill</h3>
+        <PanelSection title="Assistant skill">
             <p class="hint">
                 The capture skill teaches the assistant this graph's vocabulary.
                 <template v-if="customOntology">
@@ -1181,9 +1169,9 @@ const twinOrder = computed({
                     :options="SKILL_OPTIONS"
                     aria-label="Skill capture intensity"
                 />
-                <button class="mini" type="button" :disabled="busy" @click="installSkill">
+                <UiButton size="sm" :disabled="busy" @click="installSkill">
                     Install into project
-                </button>
+                </UiButton>
             </div>
             <p class="hint">
                 relaxed captures sparingly · normal is the middle ground · aggressive is
@@ -1193,7 +1181,7 @@ const twinOrder = computed({
                 Writes <span class="mono">.claude/skills/engram/SKILL.md</span> in the project's
                 repository. Symlinked skill folders are left untouched.
             </p>
-        </section>
+        </PanelSection>
     </template>
 </SidePanel>
 </template>
@@ -1210,20 +1198,6 @@ const twinOrder = computed({
 
 .state.ok {
     color: var(--interactive-primary);
-}
-
-.block {
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
-}
-
-.block-title {
-    font-size: var(--text-caption);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-tertiary);
 }
 
 .hint {
@@ -1395,30 +1369,6 @@ const twinOrder = computed({
    auto-fill column (half the panel at the default width). */
 .grid > label.full-row {
     grid-column: 1 / -1;
-}
-
-.mini {
-    padding: 0.2rem 0.6rem;
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-control);
-    background: none;
-    font-size: var(--text-caption);
-    color: var(--text-secondary);
-    cursor: pointer;
-}
-
-.mini:disabled {
-    opacity: 0.5;
-    cursor: default;
-}
-
-.mini:hover:not(:disabled) {
-    background: var(--interactive-ghost-hover);
-    color: var(--text-primary);
-}
-
-.mini.ghost {
-    border-color: transparent;
 }
 
 .mini.danger:hover:not(:disabled) {

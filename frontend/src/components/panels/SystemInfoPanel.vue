@@ -1,4 +1,10 @@
 <script setup lang="ts">
+import NoteText from '@/components/common/NoteText.vue'
+import TextField from '@/components/common/TextField.vue'
+import UiButton from '@/components/common/UiButton.vue'
+import MetaRow from '@/components/common/MetaRow.vue'
+import MetaList from '@/components/common/MetaList.vue'
+import PanelSection from '@/components/common/PanelSection.vue'
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import SelectMenu from '@/components/common/SelectMenu.vue'
@@ -331,8 +337,8 @@ function wiringStatus(w: { wired: boolean; prerename: boolean }): { status: Stat
     title="System info"
     style="--panel-gap: 1.2rem"
 >
-    <p v-if="error" class="state error">{{ error }}</p>
-    <p v-else-if="loading && !info" class="state">Loading…</p>
+    <NoteText v-if="error" tone="error">{{ error }}</NoteText>
+    <NoteText v-else-if="loading && !info" tone="empty">Loading…</NoteText>
 
     <template v-if="info">
         <img class="hero-icon" :src="heroIcon" alt="" width="256" height="256" />
@@ -341,21 +347,18 @@ function wiringStatus(w: { wired: boolean; prerename: boolean }): { status: Stat
             <span class="version">v{{ info.version }}</span>
         </header>
 
-        <section class="block">
-            <h3 class="block-title">Daemon</h3>
-            <dl class="rows">
-                <div><dt>Uptime</dt><dd>{{ fmtUptime(info.daemon.uptime_secs) }}</dd></div>
-                <div><dt>Process</dt><dd>pid {{ info.daemon.pid }}</dd></div>
-                <div><dt>Repository</dt><dd class="mono">{{ info.daemon.repo_root }}</dd></div>
-            </dl>
-        </section>
+        <PanelSection title="Daemon">
+            <MetaList size="md">
+                <MetaRow label="Uptime">{{ fmtUptime(info.daemon.uptime_secs) }}</MetaRow>
+                <MetaRow label="Process">pid {{ info.daemon.pid }}</MetaRow>
+                <MetaRow label="Repository" mono>{{ info.daemon.repo_root }}</MetaRow>
+            </MetaList>
+        </PanelSection>
 
         <!-- The process census (0.8.8+): the core plus every connected light
              client. Older daemons don't send `processes` — the section simply
              doesn't exist against a 0.8.7 core. -->
-        <section v-if="info.processes" class="block">
-            <h3 class="block-title">Processes</h3>
-
+        <PanelSection v-if="info.processes" title="Processes">
             <div class="proc">
                 <div class="proc-head">
                     <span class="proc-name">core</span>
@@ -389,9 +392,9 @@ function wiringStatus(w: { wired: boolean; prerename: boolean }): { status: Stat
                 </span>
             </div>
 
-            <p v-if="!info.processes.clients.length" class="state">
+            <NoteText v-if="!info.processes.clients.length" tone="empty">
                 No light processes connected.
-            </p>
+            </NoteText>
 
             <!-- Live MCP session bindings (in-session rebind: 0.8.9 set_project, brief(project) since 0.8.11): where each
                  session IS right now — after an in-session rebind that is
@@ -424,74 +427,56 @@ function wiringStatus(w: { wired: boolean; prerename: boolean }): { status: Stat
                     </span>
                 </div>
             </template>
-        </section>
+        </PanelSection>
 
-        <section class="block">
-            <h3 class="block-title">Graph store</h3>
-            <dl class="rows">
-                <div><dt>Database</dt><dd class="mono">{{ info.store.db ?? '—' }}</dd></div>
-                <div>
-                    <dt>Backend</dt>
-                    <dd>{{ info.store.backend === 'tepindb' ? 'TepinDB (redb single-file)' : 'SQLite' }}</dd>
-                </div>
-                <div><dt>Size</dt><dd>{{ fmtBytes(info.store.size_bytes) }}</dd></div>
-                <div><dt>Contents</dt><dd>{{ info.store.nodes }} nodes · {{ info.store.edges }} edges</dd></div>
-                <div>
-                    <dt>Integrity</dt>
-                    <dd>
-                        <span class="dot" :data-status="info.store.integrity_ok ? 'ok' : 'bad'" />
-                        {{ info.store.integrity_ok ? 'integrity check passed' : 'integrity check FAILED' }}
-                    </dd>
-                </div>
-                <div>
-                    <dt>Journal</dt>
-                    <dd>
-                        <span class="dot" :data-status="!info.store.journal_mode || info.store.journal_mode === 'wal' ? 'ok' : 'warn'" />
-                        {{ info.store.journal_mode || 'fsync per commit (redb)' }}
-                    </dd>
-                </div>
-                <div>
-                    <dt>Vectors</dt>
-                    <dd>
-                        <span class="dot" :data-status="embeddingStatus(info).status" />
-                        {{ embeddingStatus(info).text }}
-                    </dd>
-                </div>
-                <div>
-                    <dt>Composition</dt>
-                    <dd>
-                        <span class="dot" :data-status="info.store.embed_composition_current ? 'ok' : 'warn'" />
-                        <template v-if="info.store.embed_composition_current">
-                            current (title · body · tags · code refs)
-                        </template>
-                        <template v-else>
-                            outdated — restart the daemon with real embeddings to reindex
-                        </template>
-                    </dd>
-                </div>
-            </dl>
-        </section>
+        <PanelSection title="Graph store">
+            <MetaList size="md">
+                <MetaRow label="Database" mono>{{ info.store.db ?? '—' }}</MetaRow>
+                <MetaRow label="Backend">{{ info.store.backend === 'tepindb' ? 'TepinDB (redb single-file)' : 'SQLite' }}</MetaRow>
+                <MetaRow label="Size">{{ fmtBytes(info.store.size_bytes) }}</MetaRow>
+                <MetaRow label="Contents">{{ info.store.nodes }} nodes · {{ info.store.edges }} edges</MetaRow>
+                <MetaRow label="Integrity">
+                    <span class="dot" :data-status="info.store.integrity_ok ? 'ok' : 'bad'" />
+                    {{ info.store.integrity_ok ? 'integrity check passed' : 'integrity check FAILED' }}
+                </MetaRow>
+                <MetaRow label="Journal">
+                    <span class="dot" :data-status="!info.store.journal_mode || info.store.journal_mode === 'wal' ? 'ok' : 'warn'" />
+                    {{ info.store.journal_mode || 'fsync per commit (redb)' }}
+                </MetaRow>
+                <MetaRow label="Vectors">
+                    <span class="dot" :data-status="embeddingStatus(info).status" />
+                    {{ embeddingStatus(info).text }}
+                </MetaRow>
+                <MetaRow label="Composition">
+                    <span class="dot" :data-status="info.store.embed_composition_current ? 'ok' : 'warn'" />
+                    <template v-if="info.store.embed_composition_current">
+                        current (title · body · tags · code refs)
+                    </template>
+                    <template v-else>
+                        outdated — restart the daemon with real embeddings to reindex
+                    </template>
+                </MetaRow>
+            </MetaList>
+        </PanelSection>
 
-        <section class="block">
-            <h3 class="block-title">Local models — the cortex</h3>
-            <dl class="rows">
-                <div v-for="m in info.models" :key="m.name" :title="m.role">
-                    <dt>{{ m.name }}</dt>
-                    <dd class="model-cell">
+        <PanelSection title="Local models — the cortex">
+            <MetaList size="md">
+                <MetaRow v-for="m in info.models" :key="m.name" :title="m.role" :label="m.name">
+                    <span class="model-cell">
                         <span class="model-status">
                             <span class="dot" :data-status="m.active ? 'ok' : 'warn'" />
                             {{ m.active ? m.role : 'not loaded — downloads on daemon startup, feature degrades gracefully until then' }}
                         </span>
                         <code class="model-path">{{ m.path }}</code>
-                    </dd>
-                </div>
-            </dl>
+                    </span>
+                </MetaRow>
+            </MetaList>
 
             <template v-if="selection?.available && roles.length">
                 <h4 class="sub-title">Choose models</h4>
-                <p v-if="selection.fake_embeddings" class="state">
+                <NoteText v-if="selection.fake_embeddings" tone="empty">
                     This daemon runs fake embeddings — restart it with real embeddings to switch models.
-                </p>
+                </NoteText>
                 <div v-for="r in roles" :key="r.role" class="pick">
                     <label class="pick-role" :for="`model-pick-${r.role}`">{{ r.role }}</label>
                     <div class="pick-body">
@@ -503,56 +488,39 @@ function wiringStatus(w: { wired: boolean; prerename: boolean }): { status: Stat
                             block
                             @update:model-value="picks[r.role] = $event"
                         />
-                        <p v-if="presetDescription(r)" class="pick-note">{{ presetDescription(r) }}</p>
+                        <NoteText v-if="presetDescription(r)" tone="body">{{ presetDescription(r) }}</NoteText>
                         <template v-if="picks[r.role] === 'custom'">
-                            <input
-                                v-model="customName[r.role]"
-                                class="pick-input"
-                                type="text"
-                                placeholder="model name (its cache folder)"
-                            />
-                            <input
-                                v-model="customUrl[r.role]"
-                                class="pick-input"
-                                type="text"
-                                placeholder="base URL, e.g. https://huggingface.co/<org>/<repo>/resolve/main"
-                            />
+                            <TextField v-model="customName[r.role]" placeholder="model name (its cache folder)" />
+                            <TextField v-model="customUrl[r.role]" placeholder="base URL, e.g. https://huggingface.co/<org>/<repo>/resolve/main" />
                             <div v-if="r.role === 'embedding'" class="pick-inline">
-                                <input
-                                    v-model="customDim[r.role]"
-                                    class="pick-input dim"
-                                    type="text"
-                                    placeholder="dim (e.g. 384)"
-                                />
+                                <TextField v-model="customDim[r.role]" class="dim" placeholder="dim (e.g. 384)" />
                                 <label class="pick-check">
                                     <input v-model="customMean[r.role]" type="checkbox" />
                                     mean pooling (default: CLS)
                                 </label>
                             </div>
                         </template>
-                        <p v-if="r.role === 'embedding' && dirty(r)" class="pick-warning">
+                        <NoteText v-if="r.role === 'embedding' && dirty(r)" tone="warn">
                             Switching the embedding model re-embeds every node in all open graphs
                             (blocking, one-time) and un-calibrates the tuned similarity thresholds —
                             duplicate/conflict detection quality is unvalidated until re-tuned.
-                        </p>
+                        </NoteText>
                         <div class="pick-actions">
-                            <button
-                                class="refresh"
-                                type="button"
+                            <UiButton
+                                size="sm"
                                 :disabled="applying !== null || !dirty(r) || selection.fake_embeddings"
                                 @click="apply(r)"
                             >
                                 {{ applying === r.role ? 'Downloading + applying…' : 'Apply' }}
-                            </button>
-                            <span v-if="applyNote[r.role]" class="pick-note">{{ applyNote[r.role] }}</span>
+                            </UiButton>
+                            <NoteText v-if="applyNote[r.role]" tone="body" as="span">{{ applyNote[r.role] }}</NoteText>
                         </div>
                     </div>
                 </div>
             </template>
-        </section>
+        </PanelSection>
 
-        <section v-if="projects.length" class="block">
-            <h3 class="block-title">Projects on this machine — the registry</h3>
+        <PanelSection v-if="projects.length" title="Projects on this machine — the registry">
             <div v-for="p in projects" :key="p.id" class="project-line">
                 <span class="project-name">
                     {{ projectLabel(p) }}
@@ -561,24 +529,23 @@ function wiringStatus(w: { wired: boolean; prerename: boolean }): { status: Stat
                     <span v-else-if="p.open" class="tag">open</span>
                 </span>
                 <span class="mono project-path">{{ p.root ?? p.db }}</span>
-                <button
+                <UiButton
                     v-if="!p.current && !p.home"
-                    class="forget"
-                    type="button"
+                    size="sm"
+                    variant="subtle"
                     title="Remove from the registry (the project's graph itself is untouched)"
                     @click="forget(p)"
                 >
                     forget
-                </button>
+                </UiButton>
             </div>
-        </section>
+        </PanelSection>
 
         <!-- Machine-level default for agent sessions that can't name their
              project (no --db, no usable MCP root, no usable launch cwd —
              e.g. Windsurf's JetBrains plugin spawning bridges from `/`).
              Hidden against an older core: /settings 404s there. -->
-        <section v-if="agentSettings" class="block">
-            <h3 class="block-title">Default agent project</h3>
+        <PanelSection v-if="agentSettings" title="Default agent project">
             <div class="pick">
                 <label class="pick-role" for="agent-default-pick">binds to</label>
                 <div class="pick-body">
@@ -591,27 +558,26 @@ function wiringStatus(w: { wired: boolean; prerename: boolean }): { status: Stat
                         block
                         @update:model-value="onAgentPick"
                     />
-                    <p class="pick-hint">
+                    <NoteText>
                         Agents that can't reveal their folder connect here. Applies to new
                         sessions — already-connected ones keep their project.
-                    </p>
-                    <p v-if="agentNote" class="pick-note">{{ agentNote }}</p>
+                    </NoteText>
+                    <NoteText v-if="agentNote" tone="body">{{ agentNote }}</NoteText>
                 </div>
             </div>
-        </section>
+        </PanelSection>
 
         <!-- At-rest encryption (0.9.0): two machine-global switches. Each
              store records its own state in its meta; a toggle migrates the
              current project immediately and other projects converge at
              their next daemon open. Hidden against an older daemon. -->
-        <section v-if="encStatus" class="block">
-            <h3 class="block-title">At-rest encryption</h3>
-            <p class="pick-hint">
+        <PanelSection v-if="encStatus" title="At-rest encryption">
+            <NoteText>
                 Field-level XChaCha20 over titles, bodies, tags, custom fields, edge notes and the
                 audit journal; key in your OS keystore. Search works identically either way (blind
                 keyword index). Vectors stay open by design; exports are plaintext by intent. An
                 encrypted graph can't be inspected with <code>npx tepindb</code>.
-            </p>
+            </NoteText>
             <div class="enc-row">
                 <ToggleSwitch
                     :model-value="encStatus.graph.desired"
@@ -625,7 +591,7 @@ function wiringStatus(w: { wired: boolean; prerename: boolean }): { status: Stat
                 </span>
                 <span v-else-if="encStatus.graph.state" class="enc-state">{{ encStatus.graph.state }}</span>
             </div>
-            <p v-if="encNote.graph" class="pick-note">{{ encNote.graph }}</p>
+            <NoteText v-if="encNote.graph" tone="body">{{ encNote.graph }}</NoteText>
             <div class="enc-row">
                 <ToggleSwitch
                     :model-value="encStatus.history.desired"
@@ -639,41 +605,29 @@ function wiringStatus(w: { wired: boolean; prerename: boolean }): { status: Stat
                 </span>
                 <span v-else-if="encStatus.history.state" class="enc-state">{{ encStatus.history.state }}</span>
             </div>
-            <p v-if="encNote.history" class="pick-note">{{ encNote.history }}</p>
-        </section>
+            <NoteText v-if="encNote.history" tone="body">{{ encNote.history }}</NoteText>
+        </PanelSection>
 
-        <section class="block">
-            <h3 class="block-title">Assistants on this machine</h3>
-            <dl class="rows">
-                <div v-for="w in info.wiring" :key="w.agent">
-                    <dt class="agent">{{ w.agent }}</dt>
-                    <dd>
-                        <span class="dot" :data-status="wiringStatus(w).status" />
-                        {{ wiringStatus(w).text }}
-                    </dd>
-                </div>
-                <p v-if="!info.wiring.length" class="state">No supported assistants detected.</p>
-            </dl>
-        </section>
+        <PanelSection title="Assistants on this machine">
+            <MetaList size="md">
+                <MetaRow v-for="w in info.wiring" :key="w.agent" :label="w.agent" mono-label>
+                    <span class="dot" :data-status="wiringStatus(w).status" />
+                    {{ wiringStatus(w).text }}
+                </MetaRow>
+                <NoteText v-if="!info.wiring.length" tone="empty">No supported assistants detected.</NoteText>
+            </MetaList>
+        </PanelSection>
 
         <footer class="foot">
-            <button class="refresh" type="button" :disabled="loading" @click="reload">
+            <UiButton size="sm" :disabled="loading" @click="reload">
                 {{ loading ? 'Refreshing…' : 'Refresh' }}
-            </button>
+            </UiButton>
         </footer>
     </template>
 </SidePanel>
 </template>
 
 <style scoped>
-.state {
-    font-size: var(--text-body-sm);
-    color: var(--text-secondary);
-}
-
-.state.error {
-    color: var(--node-problem);
-}
 
 .hero-icon {
     display: block;
@@ -704,61 +658,11 @@ function wiringStatus(w: { wired: boolean; prerename: boolean }): { status: Stat
     color: var(--interactive-primary);
 }
 
-.block {
-    display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
-}
-
-.block-title {
-    font-size: var(--text-caption);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-tertiary);
-}
-
 .block-subtitle {
     margin-top: 4px;
     font-size: var(--text-caption);
     font-weight: 600;
     color: var(--text-tertiary);
-}
-
-.rows {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.rows > div {
-    display: grid;
-    grid-template-columns: 10rem 1fr;
-    gap: 0.8rem;
-    align-items: baseline;
-}
-
-.rows dt {
-    font-size: var(--text-caption);
-    color: var(--text-tertiary);
-}
-
-.rows dt.agent {
-    font-family: var(--font-mono);
-    color: var(--text-secondary);
-}
-
-.rows dd {
-    min-width: 0;
-    font-size: var(--text-body-sm);
-    color: var(--text-primary);
-    overflow-wrap: anywhere;
-}
-
-.rows dd.mono {
-    font-family: var(--font-mono);
-    font-size: var(--text-caption);
-    color: var(--text-secondary);
 }
 
 .dot {
@@ -785,27 +689,6 @@ function wiringStatus(w: { wired: boolean; prerename: boolean }): { status: Stat
 .foot {
     margin-top: auto;
     padding-top: 0.6rem;
-}
-
-.refresh {
-    padding: 0.4rem 1rem;
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-control);
-    background: transparent;
-    color: var(--text-secondary);
-    font-size: var(--text-caption);
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.refresh:disabled {
-    opacity: 0.5;
-    cursor: default;
-}
-
-.refresh:hover:not(:disabled) {
-    color: var(--text-primary);
-    background-color: var(--interactive-ghost-hover);
 }
 
 .model-cell {
@@ -859,23 +742,13 @@ function wiringStatus(w: { wired: boolean; prerename: boolean }): { status: Stat
     min-width: 0;
 }
 
-.pick-input {
-    width: 100%;
-    padding: 0.35rem 0.6rem;
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-md, 0.4rem);
-    background: transparent;
-    color: var(--text-primary);
-    font-size: var(--text-body-sm);
-}
-
 .pick-inline {
     display: flex;
     align-items: center;
     gap: 0.8rem;
 }
 
-.pick-input.dim {
+.dim {
     width: 9rem;
 }
 
@@ -887,26 +760,10 @@ function wiringStatus(w: { wired: boolean; prerename: boolean }): { status: Stat
     color: var(--text-secondary);
 }
 
-.pick-warning {
-    font-size: var(--text-caption);
-    color: var(--node-caution);
-}
-
-.pick-hint {
-    font-size: var(--text-caption);
-    color: var(--text-tertiary);
-}
-
 .pick-actions {
     display: flex;
     align-items: center;
     gap: 0.8rem;
-}
-
-.pick-note {
-    font-size: var(--text-caption);
-    color: var(--text-secondary);
-    overflow-wrap: anywhere;
 }
 
 .project-line {
@@ -1003,23 +860,6 @@ function wiringStatus(w: { wired: boolean; prerename: boolean }): { status: Stat
 .proc-times {
     font-size: var(--text-caption);
     color: var(--text-secondary);
-}
-
-.forget {
-    flex: none;
-    margin-left: auto;
-    padding: 0.2rem 0.7rem;
-    border-radius: var(--radius-control);
-    border: 1px solid var(--border-default);
-    background: transparent;
-    color: var(--text-tertiary);
-    font-size: var(--text-caption);
-    cursor: pointer;
-}
-
-.forget:hover {
-    color: var(--node-problem);
-    border-color: color-mix(in srgb, var(--node-problem) 55%, transparent);
 }
 
 .enc-row {
