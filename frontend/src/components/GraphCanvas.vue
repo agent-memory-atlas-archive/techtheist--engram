@@ -1,5 +1,25 @@
+<script lang="ts">
+import { ref as moduleRef } from 'vue'
+import type { ViewportTransform } from '@vue-flow/core'
+import type { XY as ModuleXY } from '@/composables/useLayout'
+
+/*
+ * The canvas is unmounted whenever another screen is showing (0.10.0 — it is
+ * the heaviest screen by far, and freezes JCEF while it sits in the
+ * background). What the user did to it lives out here, past the component's
+ * life: the viewport they left, and nodes they placed by hand. Keyed to the
+ * epoch of the project switch it was saved in, so another project starts
+ * fresh.
+ */
+const saved = {
+    epoch: -1,
+    viewport: null as ViewportTransform | null,
+}
+const sharedOverrides = moduleRef(new Map<string, ModuleXY>())
+</script>
+
 <script setup lang="ts">
-import { computed, markRaw, nextTick, ref, watch } from 'vue'
+import { computed, markRaw, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import {
     VueFlow,
     PanOnScrollMode,
@@ -18,7 +38,7 @@ import { storeToRefs } from 'pinia'
 import EngramNode from '@/components/nodes/EngramNode.vue'
 import EngramEdge from '@/components/nodes/EngramEdge.vue'
 import ConnectDialog from '@/components/panels/ConnectDialog.vue'
-import { layoutGraph, type XY } from '@/composables/useLayout'
+import { layoutGraph } from '@/composables/useLayout'
 import { useConfigStore } from '@/stores/config'
 import { useGraphStore } from '@/stores/graph'
 import { useLayoutStore } from '@/stores/layout'
@@ -30,7 +50,7 @@ const config = useConfigStore()
 const layout = useLayoutStore()
 const projects = useProjectsStore()
 const { visibleNodeList, visibleEdgeList, selectedId } = storeToRefs(store)
-const { findNode, fitView, setCenter, viewport } = useVueFlow()
+const { findNode, fitView, setCenter, setViewport, viewport } = useVueFlow()
 
 const nodeTypes = { engram: markRaw(EngramNode) }
 const edgeTypes = { engram: markRaw(EngramEdge) }
@@ -100,11 +120,23 @@ async function onNodesInitialized(): Promise<void> {
     if (didInitialFit || visibleNodeList.value.length === 0) return
     didInitialFit = true
     await nextTick()
+    // Back on the graph in the same project: the view the user left, then
+    // the selection centered (the feed may have moved it) — not a re-fit.
+    if (saved.viewport && saved.epoch === projects.switchEpoch) {
+        await setViewport(saved.viewport)
+        centerOnSelection(0)
+        return
+    }
     await fitView(FIT_VIEW_PARAMS)
 }
 
+onBeforeUnmount(() => {
+    saved.viewport = { ...viewport.value }
+    saved.epoch = projects.switchEpoch
+})
+
 /** Hand-placed positions survive re-layout (PLAN: pane is editable). */
-const overrides = ref(new Map<string, XY>())
+const overrides = sharedOverrides
 
 const positions = computed(() =>
     layoutGraph(visibleNodeList.value, visibleEdgeList.value, overrides.value, layout.current),
@@ -124,20 +156,28 @@ watch(
 // centered card, pushed into the store as it unmounts), center on that node
 // — an off-screen selection outline reads as "the sync didn't happen". Zoom
 // stays the user's; the zoom-compensated outline keeps it findable anyway.
+// Feed→graph sync while the canvas stayed mounted: coming back with a
+// selection (the feed's centered card), center on it — an off-screen
+// selection outline reads as "the sync didn't happen". Zoom stays the
+// user's. (A remounted canvas does the same in onNodesInitialized.)
 watch(
     () => layout.view,
     async (v) => {
         if (v !== 'graph') return
         await nextTick()
-        const node = selectedId.value ? findNode(selectedId.value) : undefined
-        if (!node) return
-        void setCenter(
-            node.position.x + node.dimensions.width / 2,
-            node.position.y + node.dimensions.height / 2,
-            { zoom: viewport.value.zoom, duration: 300 },
-        )
+        centerOnSelection(300)
     },
 )
+
+function centerOnSelection(duration: number): void {
+    const node = selectedId.value ? findNode(selectedId.value) : undefined
+    if (!node) return
+    void setCenter(
+        node.position.x + node.dimensions.width / 2,
+        node.position.y + node.dimensions.height / 2,
+        { zoom: viewport.value.zoom, duration },
+    )
+}
 
 // Switching projects replaces the whole graph, and graph sizes differ wildly
 // — the one-time initial fit doesn't cover this, so re-fit once the freshly
@@ -145,6 +185,7 @@ watch(
 watch(
     () => projects.switchEpoch,
     async () => {
+        sharedOverrides.value = new Map()
         await nextTick()
         await new Promise(requestAnimationFrame)
         if (visibleNodeList.value.length > 0) {
