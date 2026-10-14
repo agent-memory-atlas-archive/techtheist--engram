@@ -39,6 +39,50 @@ with `engram-alpha brief`. When your projects share a
 the last session tagged `handoff` gets guaranteed top billing — the
 [handoff mechanism](./customization.md#handoff-notes) for "read this first".
 
+## Tasks: where the last session stopped
+
+Notes are what the project knows; **tasks** are what the assistant is
+doing. They live beside the graph, not in it: `search` never returns a
+task, the conflict checks never read one, and they never count as
+knowledge. The brief lists the active tasks
+right after the current cycle, titles only:
+
+```markdown
+## Tasks
+- Ship tasks in 0.10.0 [Task 00eqqfzu1ntm] — 2/3 done, next: Dogfood tasks on this repo [Task 00eqqfzw1ntm]
+- Re-measure history endpoints after the next deploy [Task 00er4pd59ec0]
+Parked: 0 delayed, 1 backlog — `list_tasks` with status reads them.
+Recently done: Pane speed and screen transitions; Improve tasks ui
+```
+
+A group shows as one line with its progress and next step. A task carried
+over from an older version is marked `↻ from <version>`, and one nobody
+touched for five sessions is marked `idle`, so the list gets finished,
+parked or dropped instead of rotting.
+
+The assistant works the list with three MCP tools:
+
+- **`add_tasks`** opens one or more tasks, with a group (`parent`), a
+  markdown plan, refs to notes and rules. A title that matches an open task
+  comes back as `matched`, so the assistant updates that one instead.
+- **`update_task`** moves one along: `progress` appends a dated line where
+  it stopped, `status` closes it (`done`, `dropped`) or parks it (`delayed`,
+  `backlog`). Closing a task that settled something nudges the assistant to
+  capture that as a note and add it to the task's refs.
+- **`list_tasks`** reads bodies and filters by status, group or ref; the
+  brief carries titles only.
+
+The skills teach the split: an **Intent** records a plan worth
+remembering ("we will do X, because Y"); the tasks track the doing and
+point at it. One task per piece of work, with steps as a checklist in its
+plan, and only for work that spans sessions or that you asked to plan.
+Rules close or wake a task by themselves at a version, on a date or when a
+note is resolved, and `set_version` reports what its version change closed
+or woke. You steer the same list on the pane's
+[Tasks screen](./pane.md#tasks-what-the-assistant-is-doing), and what you
+set there stands. If a graph has tasks turned off, the tools say so and the
+assistant works without a list.
+
 ## Search that carries its context
 
 Mid-session recall is hybrid: keyword search and local vector search fused,

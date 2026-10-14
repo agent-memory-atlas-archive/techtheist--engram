@@ -1191,7 +1191,7 @@ export function brief(project = active): string {
     const out: string[] = ['# Engram brief']
     if (p.version) {
         out.push(
-            `Current working version: ${p.version} — new notes are stamped with it; call \`set_version\` when the project moves on.`,
+            `Current working version: ${p.version} — new notes are stamped with it, and brief lines show a version only when it is an older one; call \`set_version\` when the project moves on.`,
         )
     }
     out.push(...briefTasks(p))

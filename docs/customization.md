@@ -176,7 +176,14 @@ switches worth knowing:
   has, so the knowledge other notes lean on leads). `connected` suits a
   mature, well-linked graph.
 - With version tracking on, the brief opens with a **Current cycle** section:
-  the open Intents and Problems stamped with the working version.
+  the open Intents and Problems stamped with the working version. The
+  version itself is named once, on the brief's first line; entries carry a
+  version stamp only when it is an older one.
+- The **Tasks** section (the assistant's working list, right after the
+  current cycle) is set in the **Tasks** section of Graph settings: on/off,
+  how many titles, how many recently done, and after how many sessions an
+  untouched task is marked idle. The same section turns tasks off for the
+  graph altogether — see [the pane](./pane.md#tasks-what-the-assistant-is-doing).
 
 ## Version tracking
 

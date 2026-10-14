@@ -31,7 +31,10 @@ body of its GitHub Release (draft-release.yml lifts it automatically).
 - **A Tasks screen in the pane**, between Feed and History: columns by
   status, drag to reorder or move, groups with their tasks inside, a drawer
   for the plan, a progress note, rules and references. Only you can delete a
-  task. The brief's task section is set in Settings → Brief composition.
+  task. The brief's task section is set in Settings → Graph settings → Tasks.
+- **The brief names the working version once.** It is on the brief's
+  first line; the notes under it carry a version only when it is an older
+  one, so the current cycle no longer repeats it on every line.
 - **For assistants:** three new MCP tools, `add_tasks`, `update_task` and
   `list_tasks`. `set_version` reports the tasks its version change closed or
   woke. The skills teach one task per piece of work, not per step.

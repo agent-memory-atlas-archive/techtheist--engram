@@ -25,8 +25,9 @@ conflicts, stale nodes, provisional writes — in the corner of your eye.
 
 ## The timeline feed
 
-The **Graph / Feed** toggle in the topbar switches to the pane's second
-screen: the same memory as a vertical feed of cards, neighbors peeking above
+The screen switch in the topbar (**Graph / Feed / Tasks / History**; one
+compact menu when the pane is narrow) slides to the pane's second screen,
+the feed: the same memory as a vertical feed of cards, neighbors peeking above
 and below so you always see where you are in the stream.
 
 ![The Feed screen: a centered card expanded to its full story, version markers between eras, and the judgment bar at the bottom](../.screenshots/layout-feed.png)
@@ -89,25 +90,39 @@ in, and a session lists the notes born in it.
 The **Tasks** screen of the topbar toggle (its label carries the active
 count) is the assistant's working list, kept **beside** the graph and never
 in it: tasks are never searched, never scanned for conflicts and never
-counted as knowledge. The brief opens with the active titles, so a new
-session knows what the last one was in the middle of.
+counted as knowledge. The brief lists the active titles right after the
+current cycle, so a new session knows what the last one was in the middle
+of.
 
 ![The Tasks screen: Active, Delayed, Backlog and Closed columns, a group card with its tasks inside](../.screenshots/engram-alpha-tasks-board.png)
 
 - **Columns are statuses**: active, delayed, backlog, and a closed column
   that keeps done and dropped work (closed tasks are archived, never
   deleted). Drag a card to reorder it (the brief follows that order) or to
-  another column to change its status; the circle closes or reopens it.
+  another column to change its status; Escape cancels a drag. The circle
+  closes or reopens a task. Dragging works the same in the browser and
+  inside both IDEs, and on a touchscreen. In a narrow pane the columns fold
+  into one, with a switch above the board to pick which one you see.
 - **Groups** hold the pieces of one feature inside the card, with a
   progress bar. Groups are one level deep, close themselves when their last
-  task closes, and reopen when one of their tasks does.
+  task closes, and reopen when one of their tasks does. A closed group
+  stays in the closed column; drag its tasks out one by one.
 - **Rules** close or wake a task on their own: at a version (`0.10.0`, or
-  `>0.9.12` for “once past it”), on a date (`2026-10-20`, `in 3 days`), or
+  `>0.9.12` for "once past it"), on a date (`2026-10-20`, `in 3 days`), or
   when a note it waits on is resolved (`node:<id>`). A release-shaped title
-  such as *publish 0.9.12* gets its close rule automatically. Every
-  automatic change says why on the card.
+  such as *publish 0.9.12* gets its close rule automatically. Rules are
+  checked whenever tasks are read and whenever the working version moves,
+  and every automatic change says why on the card.
 - **Refs** point a task at the notes it is about; the note's drawer lists
   the open tasks that point at it. Notes never store a pointer back.
+
+**New** in the top bar opens a new task on this screen: a title, an
+optional plan, the column it starts in, its group and when it should be
+marked done. If an open task already covers the title, the panel offers
+that one instead of creating a twin. **Filter** narrows the board by the
+version a task was opened in, by who created it (you or an assistant), and
+by flags such as *carried over* from an older version or *idle*. Search in
+the top bar stays memory-only.
 
 ![The task drawer: status, group, the plan with a progress line, rules, refs and provenance](../.screenshots/engram-alpha-task-drawer.png)
 
@@ -115,10 +130,16 @@ Click a card for its drawer: the title, status, group, a markdown plan
 with a one-line **Note** that appends where things stand under today's
 date, the rules, refs found by searching memory, and provenance. Hard
 delete lives there and nowhere else — assistants can close and drop tasks,
-but only you can delete one. The brief's section is configured in
-Settings → Brief composition (`brief.tasks`: on/off, how many active titles,
-how many recently done, after how many sessions an untouched task is marked
-idle).
+but only you can delete one. A change you make on the board stands: the
+assistant is taught not to undo your status, order or rules.
+
+Settings → Graph settings → **Tasks** sets the brief's section (on/off,
+how many active titles, how many recently done, after how many sessions an
+untouched task is marked idle). It also holds the **Keep a task list**
+switch: tasks are on by default; turned off, the Tasks screen and the
+brief section disappear and the assistant's task tools answer that tasks
+are off, so it works without them. Stored tasks are kept for when you turn
+it back on.
 
 ## Tags and filters
 
