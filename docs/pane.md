@@ -23,6 +23,14 @@ Engram Purple, IDE Light or IDE Dark. A click-to-center minimap handles
 big graphs, and a health strip keeps the counts that matter — suspected
 conflicts, stale nodes, provisional writes — in the corner of your eye.
 
+The canvas is drawn on the GPU (WebGL2), so a graph of a thousand notes
+pans and zooms smoothly. Zoomed far out, card text turns into simple
+lines; double-click or double-tap zooms in (Shift zooms out). The card
+under your pointer and the selected card are real HTML on top, so links
+and the hover expansion work as usual. On a machine without a usable GPU,
+or if the GPU gives out mid-session, the pane switches to its DOM canvas
+(Vue Flow) on its own. Same cards, just slower on big graphs.
+
 ## The timeline feed
 
 The screen switch in the topbar (**Graph / Feed / Tasks / History**; one

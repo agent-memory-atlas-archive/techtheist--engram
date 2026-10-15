@@ -364,9 +364,63 @@ function buildProject(
     }
 }
 
+/**
+ * `?stress=N` (renderer benchmarking, 0.10.1): the launch graph becomes N
+ * notes — copies of the Lantern seed — with ~1.5 edges per note, the
+ * seed's own wiring repeated inside each copy plus deterministic random
+ * links between them. Never persisted, so a reload rebuilds the same graph.
+ */
+const STRESS = (() => {
+    try {
+        const n = Number(new URLSearchParams(window.location.search).get('stress'))
+        return Number.isFinite(n) && n > 0 ? Math.min(5000, Math.floor(n)) : 0
+    } catch {
+        return 0
+    }
+})()
+
+function stressSeeds(n: number): { nodes: SeedNode[]; edges: SeedEdge[] } {
+    const base = LANTERN_NODES
+    const nodes: SeedNode[] = []
+    for (let i = 0; i < n; i++) {
+        const s = base[i % base.length]!
+        const copy = Math.floor(i / base.length)
+        nodes.push({ ...s, key: copy ? `${s.key}~${copy}` : s.key, title: copy ? `${s.title} (${copy + 1})` : s.title })
+    }
+    const keys = new Set(nodes.map((x) => x.key))
+    const edges: SeedEdge[] = []
+    const seen = new Set<string>()
+    const add = (e: SeedEdge): void => {
+        const id = `${e.type}:${e.from}:${e.to}`
+        if (e.from === e.to || seen.has(id) || !keys.has(e.from) || !keys.has(e.to)) return
+        seen.add(id)
+        edges.push(e)
+    }
+    const copies = Math.ceil(n / base.length)
+    for (let c = 0; c < copies; c++) {
+        for (const e of LANTERN_EDGES) add({ ...e, from: c ? `${e.from}~${c}` : e.from, to: c ? `${e.to}~${c}` : e.to })
+    }
+    let seed = 1234567
+    const rnd = (): number => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648)
+    const verbs = [...new Set(LANTERN_EDGES.map((e) => e.type))]
+    const keyList = nodes.map((x) => x.key)
+    let guard = 0
+    while (edges.length < Math.round(n * 1.5) && guard++ < n * 20) {
+        const from = keyList[Math.floor(rnd() * keyList.length)]!
+        const to = keyList[Math.floor(rnd() * keyList.length)]!
+        add({ type: verbs[Math.floor(rnd() * verbs.length)]!, from, to, source: 'claude', days: Math.floor(rnd() * 100) })
+    }
+    return { nodes, edges }
+}
+
 function freshWorld(): Map<string, ProjectState> {
     const world = new Map<string, ProjectState>()
-    world.set(LAUNCH, buildProject(LANTERN_NODES, LANTERN_EDGES, '0.5.0', true, LANTERN_TASKS))
+    if (STRESS) {
+        const { nodes, edges } = stressSeeds(STRESS)
+        world.set(LAUNCH, buildProject(nodes, edges, '0.5.0', true, LANTERN_TASKS))
+    } else {
+        world.set(LAUNCH, buildProject(LANTERN_NODES, LANTERN_EDGES, '0.5.0', true, LANTERN_TASKS))
+    }
     world.set(HOME, buildProject(HOME_NODES, HOME_EDGES, null, false))
     for (const p of world.values()) p.seq = p.journal.length
     return world
@@ -412,6 +466,7 @@ function emit(type: string, data: unknown, project = active): void {
 }
 
 function persist(): void {
+    if (STRESS) return
     try {
         const dump: Record<string, unknown> = {}
         for (const [id, p] of world) {
@@ -449,6 +504,7 @@ function backfillConfig(cfg: GraphConfig): GraphConfig {
 }
 
 export function restore(): void {
+    if (STRESS) return
     try {
         const raw = sessionStorage.getItem(STORAGE_KEY)
         if (!raw) return

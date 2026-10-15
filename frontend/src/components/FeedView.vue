@@ -448,6 +448,12 @@ function openDetail(n: GraphNode): void {
     store.select(n.id)
 }
 
+/** v-memo token for the card list: fresh on every live render, frozen while hidden. */
+let renderSeq = 0
+function listToken(): number {
+    return layout.view === 'feed' ? ++renderSeq : -1
+}
+
 /** The centered card — what the bottom action bar operates on. */
 const currentNode = computed(() =>
     currentId.value ? (nodes.value.get(currentId.value) ?? null) : null,
@@ -503,107 +509,115 @@ const currentNode = computed(() =>
             </template>
         </div>
 
-        <template v-for="item in items" :key="item.kind === 'node' ? item.node.id : item.key">
-            <div v-if="item.kind === 'version'" class="version-marker">
-                <span class="version-line" />
-                <span class="version-chip">{{ item.label }}</span>
-                <span class="version-line" />
-            </div>
+        <!-- Hidden under another screen, the list does not re-render: a
+             selection on the canvas re-ran this template for every card
+             (dates, badges, edges — ~260 ms at a thousand notes) while
+             nobody could see it. Live renders always pass a fresh token;
+             a hidden one passes the same frozen one, so Vue skips the
+             subtree, and arriving on the feed renders it fresh. -->
+        <div v-memo="[listToken()]" class="feed-list">
+            <template v-for="item in items" :key="item.kind === 'node' ? item.node.id : item.key">
+                <div v-if="item.kind === 'version'" class="version-marker">
+                    <span class="version-line" />
+                    <span class="version-chip">{{ item.label }}</span>
+                    <span class="version-line" />
+                </div>
 
-            <article
-                v-else
-                class="card glass-panel"
-                :data-node-id="item.node.id"
-                :class="{ archived: item.node.valid_until != null, focus: item.node.id === currentId }"
-                :style="{ '--card-accent': config.accent(item.node.type) }"
-            >
-                <header class="card-head">
-                    <span class="type-dot" />
-                    <span class="type-name">{{ item.node.type }}</span>
-                    <InfoBadge v-if="item.node.version" pill>{{ item.node.version }}</InfoBadge>
-                    <InfoBadge
-                        v-if="item.node.status"
-                        pill
-                        :tone="item.node.status === 'resolved' ? 'ok' : item.node.status === 'open' ? 'accent' : 'neutral'"
-                    >
-                        {{ item.node.status }}
-                    </InfoBadge>
-                    <InfoBadge v-if="item.node.valid_until != null" pill tone="muted">archived</InfoBadge>
-                    <InfoBadge v-if="driftByNode.has(item.node.id)" pill tone="warn">drifted</InfoBadge>
-                    <span class="spacer" />
-                    <span class="date" :title="dateTip(item.node)">{{ fmtDate(item.node.created_at) }}</span>
-                </header>
+                <article
+                    v-else
+                    class="card glass-panel"
+                    :data-node-id="item.node.id"
+                    :class="{ archived: item.node.valid_until != null, focus: item.node.id === currentId }"
+                    :style="{ '--card-accent': config.accent(item.node.type) }"
+                >
+                    <header class="card-head">
+                        <span class="type-dot" />
+                        <span class="type-name">{{ item.node.type }}</span>
+                        <InfoBadge v-if="item.node.version" pill>{{ item.node.version }}</InfoBadge>
+                        <InfoBadge
+                            v-if="item.node.status"
+                            pill
+                            :tone="item.node.status === 'resolved' ? 'ok' : item.node.status === 'open' ? 'accent' : 'neutral'"
+                        >
+                            {{ item.node.status }}
+                        </InfoBadge>
+                        <InfoBadge v-if="item.node.valid_until != null" pill tone="muted">archived</InfoBadge>
+                        <InfoBadge v-if="driftByNode.has(item.node.id)" pill tone="warn">drifted</InfoBadge>
+                        <span class="spacer" />
+                        <span class="date" :title="dateTip(item.node)">{{ fmtDate(item.node.created_at) }}</span>
+                    </header>
 
-                <h3 class="card-title">
-                    <button type="button" class="title-btn" title="Center this card" @click="scrollToNode(item.node.id)">
-                        {{ item.node.title }}
-                    </button>
-                </h3>
+                    <h3 class="card-title">
+                        <button type="button" class="title-btn" title="Center this card" @click="scrollToNode(item.node.id)">
+                            {{ item.node.title }}
+                        </button>
+                    </h3>
 
-                <!-- Full markdown always rendered, clipped to a preview; the
+                    <!-- Full markdown always rendered, clipped to a preview; the
                      settled centered card un-clips. Same content in both
                      states — the reveal never swaps or reflows the text. -->
-                <div
-                    v-if="item.node.body"
-                    class="card-body"
-                    :class="{ expanded: item.node.id === expandedId }"
-                >
-                    <MarkdownView :content="item.node.body" />
-                </div>
-
-                <div class="trust-line">
-                    <span class="trust-dot" :class="trustLevel(item.node)" />
-                    <span class="trust-word" :class="trustLevel(item.node)">
-                        {{ levelWord[trustLevel(item.node)] }} · {{ Math.round(item.node.trust * 100) }}%
-                    </span>
-                    <span v-if="item.node.tags.length" class="tags">
-                        <span v-for="t in item.node.tags" :key="t" class="tag">#{{ t }}</span>
-                    </span>
-                </div>
-
-                <div v-if="item.node.code_refs.length" class="refs">
-                    <span
-                        v-for="codeRef in item.node.code_refs"
-                        :key="codeRef"
-                        class="ref-chip"
-                        :class="{ missing: missingRefs(item.node.id).includes(codeRef) }"
-                        :title="missingRefs(item.node.id).includes(codeRef)
-                            ? `${codeRef} — this file no longer exists in the project`
-                            : codeRef"
-                    >{{ codeRef }}</span>
-                </div>
-
-                <div
-                    v-if="outEdges.get(item.node.id)?.length || inEdges.get(item.node.id)?.length"
-                    class="edges"
-                >
-                    <button
-                        v-for="e in (outEdges.get(item.node.id) ?? []).slice(0, EDGE_CAP)"
-                        :key="e.id"
-                        class="edge-chip"
-                        type="button"
-                        :style="{ '--edge-accent': config.edgeColor(e.type) }"
-                        :title="`${item.node.title} ${e.type} ${title(e.to_id)}`"
-                        @click="traverse(e.to_id)"
+                    <div
+                        v-if="item.node.body"
+                        class="card-body"
+                        :class="{ expanded: item.node.id === expandedId }"
                     >
-                        <span class="edge-verb">{{ e.type }} →</span>
-                        <span class="edge-target">{{ title(e.to_id) }}</span>
-                    </button>
-                    <button
-                        v-for="e in (inEdges.get(item.node.id) ?? []).slice(0, EDGE_CAP)"
-                        :key="e.id"
-                        class="edge-chip in"
-                        type="button"
-                        :style="{ '--edge-accent': config.edgeColor(e.type) }"
-                        :title="`${title(e.from_id)} ${e.type} ${item.node.title}`"
-                        @click="traverse(e.from_id)"
+                        <MarkdownView :content="item.node.body" />
+                    </div>
+
+                    <div class="trust-line">
+                        <span class="trust-dot" :class="trustLevel(item.node)" />
+                        <span class="trust-word" :class="trustLevel(item.node)">
+                            {{ levelWord[trustLevel(item.node)] }} · {{ Math.round(item.node.trust * 100) }}%
+                        </span>
+                        <span v-if="item.node.tags.length" class="tags">
+                            <span v-for="t in item.node.tags" :key="t" class="tag">#{{ t }}</span>
+                        </span>
+                    </div>
+
+                    <div v-if="item.node.code_refs.length" class="refs">
+                        <span
+                            v-for="codeRef in item.node.code_refs"
+                            :key="codeRef"
+                            class="ref-chip"
+                            :class="{ missing: missingRefs(item.node.id).includes(codeRef) }"
+                            :title="missingRefs(item.node.id).includes(codeRef)
+                                ? `${codeRef} — this file no longer exists in the project`
+                                : codeRef"
+                        >{{ codeRef }}</span>
+                    </div>
+
+                    <div
+                        v-if="outEdges.get(item.node.id)?.length || inEdges.get(item.node.id)?.length"
+                        class="edges"
                     >
-                        <span class="edge-verb">← {{ e.type }}</span>
-                        <span class="edge-target">{{ title(e.from_id) }}</span>
-                    </button>
-                </div>
-            </article>
-        </template>
+                        <button
+                            v-for="e in (outEdges.get(item.node.id) ?? []).slice(0, EDGE_CAP)"
+                            :key="e.id"
+                            class="edge-chip"
+                            type="button"
+                            :style="{ '--edge-accent': config.edgeColor(e.type) }"
+                            :title="`${item.node.title} ${e.type} ${title(e.to_id)}`"
+                            @click="traverse(e.to_id)"
+                        >
+                            <span class="edge-verb">{{ e.type }} →</span>
+                            <span class="edge-target">{{ title(e.to_id) }}</span>
+                        </button>
+                        <button
+                            v-for="e in (inEdges.get(item.node.id) ?? []).slice(0, EDGE_CAP)"
+                            :key="e.id"
+                            class="edge-chip in"
+                            type="button"
+                            :style="{ '--edge-accent': config.edgeColor(e.type) }"
+                            :title="`${title(e.from_id)} ${e.type} ${item.node.title}`"
+                            @click="traverse(e.from_id)"
+                        >
+                            <span class="edge-verb">← {{ e.type }}</span>
+                            <span class="edge-target">{{ title(e.from_id) }}</span>
+                        </button>
+                    </div>
+                </article>
+            </template>
+        </div>
     </div>
     <!-- The side pane's controls, feed-style: one bottom bar acting on the
          centered card — no drawer pops in this view (Edit is the exception,
@@ -1033,6 +1047,11 @@ const currentNode = computed(() =>
     color: var(--text-secondary);
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+/* The card list wrapper only exists for v-memo — layout-wise it is not there. */
+.feed-list {
+    display: contents;
 }
 
 /* Bottom action bar — the drawer's controls for the centered card. */

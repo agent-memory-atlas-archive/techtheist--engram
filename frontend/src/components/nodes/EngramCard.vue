@@ -1,0 +1,311 @@
+<script setup lang="ts">
+import { computed } from 'vue'
+import MarkdownView from '@/components/common/MarkdownView.vue'
+import { useConfigStore } from '@/stores/config'
+import { BADGE_TIPS } from '@/constants/trust'
+import type { GraphNode } from '@/types/graph'
+
+/**
+ * One memory card as the canvas shows it (0.10.1: lifted out of EngramNode
+ * so both renderers share it). Vue Flow wraps it with its handles; the
+ * WebGL canvas mounts it only for the selected and the hovered node, over
+ * the GPU-drawn twin, and its painter (graph/cardPainter.ts) is calibrated
+ * against this markup — change one, check the other. `expanded` is :hover
+ * driven from outside, for a card mounted under a resting pointer.
+ */
+const props = withDefaults(
+    defineProps<{
+        node: GraphNode
+        selected?: boolean
+        expanded?: boolean
+        /** The mount spring (node-appear). Off for the WebGL canvas's twin,
+         *  which swaps in over an already-drawn card — replaying it there
+         *  read as a blink on every hover. */
+        appear?: boolean
+    }>(),
+    { appear: true },
+)
+
+const node = computed(() => props.node)
+const body = computed(() => node.value.body ?? '')
+const config = useConfigStore()
+const accent = computed(() => config.accent(node.value.type))
+
+const archived = computed(() => node.value.valid_until != null)
+const pinned = computed(() => node.value.trust_override != null)
+const trusted = computed(() => node.value.approved_at != null || node.value.trust >= 0.7)
+const isUser = computed(() => node.value.source === 'user')
+</script>
+
+<template>
+<div
+    class="engram-node"
+    :class="{ 'node-appear': appear, selected, expanded, archived }"
+    :style="{ '--accent': accent }"
+>
+    <slot name="handles" />
+
+    <header class="flex items-center gap-1">
+        <span class="type-pill">{{ node.type }}</span>
+        <span class="meta-badge">{{ node.durability }}</span>
+        <span v-if="node.status" class="meta-badge">{{ node.status }}</span>
+        <span class="grow" />
+        <span v-if="pinned" class="trust-badge trust-pinned" :title="BADGE_TIPS.pinned">📌 pinned</span>
+        <span v-else-if="node.stale" class="trust-badge trust-stale" :title="BADGE_TIPS.stale">stale</span>
+        <span v-else-if="isUser" class="trust-badge trust-user" :title="BADGE_TIPS.user">user</span>
+        <span v-else-if="trusted" class="trust-badge trust-ok" :title="BADGE_TIPS.trusted">trusted</span>
+        <span v-else class="trust-badge trust-prov" :title="BADGE_TIPS.provisional">provisional</span>
+    </header>
+
+    <h4 class="node-title">{{ node.title }}</h4>
+
+    <div v-if="body" class="body-clip">
+        <MarkdownView :content="body" />
+    </div>
+
+    <div v-if="node.code_refs.length" class="refs">
+        <span v-for="ref in node.code_refs" :key="ref" class="ref-chip">{{ ref }}</span>
+    </div>
+
+    <div v-if="node.tags.length" class="refs tags">
+        <span v-for="t in node.tags" :key="t" class="tag-chip">#{{ t }}</span>
+    </div>
+
+    <span v-if="archived" class="archived-flag" title="Archived by decay or superseded">archived</span>
+</div>
+</template>
+
+<style scoped>
+.engram-node {
+    position: relative;
+    display: flex;
+    width: 34rem;
+    min-height: 9rem;
+    /* Collapsed cards never exceed 216px: the title clamp below plus the
+       body's flex-shrink keep the content inside, so no overflow:hidden is
+       needed (it would clip the edge handles). */
+    max-height: 21.6rem;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding: 1.4rem 1.6rem;
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--border-default);
+    background-color: var(--surface-elevated);
+    /* Proportional figures (the page default is tabular, which in Inter
+       also widens hyphens: "opt - in"). The WebGL canvas paints card text
+       with Canvas2D, which has no tabular figures — this keeps both
+       renderers wrapping the same words at the same place. */
+    font-variant-numeric: normal;
+
+    /* The type strip, painted as a background instead of a border-left:
+       backgrounds clip to the rounded corners, so the strip tapers cleanly
+       into the curve instead of cutting off mid-turn. Solid bar + soft wash.
+       background-size confines the gradient texture to the left strip — a
+       full-width gradient on a zoom-transformed element bleeds its first
+       stop as a 1px line at the far edge (GPU texture wrap). */
+    --card-strip: linear-gradient(
+        90deg,
+        var(--accent) 0,
+        var(--accent) 0.3rem,
+        color-mix(in srgb, var(--accent) calc(13% * var(--accent-wash, 1)), transparent) 0.3rem,
+        transparent 100%
+    );
+
+    background-image: var(--card-strip);
+    background-repeat: no-repeat;
+    background-size: 6.4rem 100%;
+    /* Frosted glass behind the node — resolves to a blur only in engram-purple
+       (where --glass-backdrop is a blur); every other theme sets it to `none`.
+       Invisible at rest (opaque surface) and revealed on hover, where the
+       surface turns translucent. */
+    backdrop-filter: var(--glass-backdrop);
+    box-shadow: var(--shadow-md);
+    /* asymmetric: collapse fast (ease-enter), expand slow (set on :hover) */
+    transition:
+        margin var(--duration-fast) var(--ease-enter),
+        background-color var(--duration-fast) var(--ease-enter),
+        box-shadow var(--duration-fast) var(--ease-enter);
+}
+
+.engram-node:hover,
+.engram-node.expanded {
+    max-height: none;
+    margin-top: -0.6rem;
+    /* Match IDE hands us the IDE's hover highlight, which is often
+       translucent (JetBrains' ActionButton.hoverBackground): there the card
+       stays its opaque surface with the highlight laid over it, the way an
+       IDE list row hovers. Elsewhere the hover surface is the background
+       (engram-purple's is translucent on purpose — the glass shows). */
+    background-color: var(--node-hover-base, var(--node-hover-surface));
+    background-image: var(--card-strip), var(--node-hover-tint, none);
+    background-size: 6.4rem 100%, 100% 100%;
+    box-shadow: var(--shadow-lg);
+    transition:
+        margin var(--duration-slow) var(--ease-default),
+        background-color var(--duration-slow) var(--ease-default),
+        box-shadow var(--duration-normal) var(--ease-default);
+}
+
+.engram-node.selected {
+    /* Width/offset are zoom-compensated by GraphCanvas so the selection ring
+       stays readable at any zoom (fixed rem would vanish under the canvas
+       transform at 0.1×). */
+    outline: var(--selected-outline-w, 0.2rem) solid var(--interactive-primary);
+    outline-offset: var(--selected-outline-o, 0.3rem);
+}
+
+.engram-node.archived {
+    /* Gray, not ghostly: full opacity (a see-through card reads as a glass
+       bug), desaturated instead — the accent strip and pills gray with it. */
+    filter: grayscale(0.65);
+}
+
+/* The body is the only flex child allowed to shrink under the height cap. */
+.engram-node > header,
+.refs {
+    flex-shrink: 0;
+}
+
+.node-title {
+    font-size: var(--text-body);
+    font-weight: 600;
+    line-height: var(--leading-tight);
+    color: var(--text-primary);
+    /* A long title takes space from the body (which flex-shrinks first), but
+       may never blow the card past its 21.6rem cap on its own: 5 clamped
+       lines + header + refs still fit. Unclamped on hover. */
+    flex-shrink: 0;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 5;
+    line-clamp: 5;
+    overflow: hidden;
+}
+
+.engram-node:hover .node-title,
+.engram-node.expanded .node-title {
+    -webkit-line-clamp: unset;
+    line-clamp: unset;
+}
+
+.body-clip {
+    overflow: hidden;
+    max-height: 9rem;
+    /* Shrinks below its content before anything else when the title is tall
+       and the card hits its height cap. */
+    flex-shrink: 1;
+    min-height: 0;
+    transition: max-height var(--duration-fast) var(--ease-enter);
+}
+
+.engram-node:hover .body-clip,
+.engram-node.expanded .body-clip {
+    max-height: 200rem;
+    transition: max-height var(--duration-slow) var(--ease-default);
+}
+
+.type-pill {
+    padding: 0.2rem 0.7rem;
+    border-radius: var(--radius-md);
+    font-size: var(--text-caption);
+    font-weight: 600;
+    color: var(--accent);
+    background-color: color-mix(in srgb, var(--accent) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.meta-badge {
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--radius-md);
+    font-size: var(--text-caption);
+    color: var(--text-tertiary);
+    background-color: var(--surface-muted);
+}
+
+.trust-badge {
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--radius-md);
+    font-size: var(--text-caption);
+    font-weight: 600;
+    border: 1px solid transparent;
+}
+
+.trust-stale {
+    color: var(--node-problem);
+    background-color: color-mix(in srgb, var(--node-problem) 16%, transparent);
+    border-color: color-mix(in srgb, var(--node-problem) 40%, transparent);
+}
+
+.trust-prov {
+    color: var(--trust-provisional);
+    background-color: color-mix(in srgb, var(--trust-provisional) 16%, transparent);
+    border-color: color-mix(in srgb, var(--trust-provisional) 40%, transparent);
+}
+
+.trust-ok,
+.trust-user {
+    color: var(--trust-trusted);
+    background-color: color-mix(in srgb, var(--trust-trusted) 16%, transparent);
+    border-color: color-mix(in srgb, var(--trust-trusted) 40%, transparent);
+}
+
+.trust-pinned {
+    color: var(--interactive-primary);
+    background-color: color-mix(in srgb, var(--interactive-primary) 14%, transparent);
+    border-color: color-mix(in srgb, var(--interactive-primary) 40%, transparent);
+    white-space: nowrap;
+}
+
+.refs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    /* Collapsed: exactly one chip row; the rest reveals on hover like the body. */
+    max-height: 2rem;
+    overflow: hidden;
+    transition: max-height var(--duration-fast) var(--ease-enter);
+}
+
+.engram-node:hover .refs,
+.engram-node.expanded .refs {
+    max-height: 40rem;
+    transition: max-height var(--duration-slow) var(--ease-default);
+}
+
+.tag-chip {
+    padding: 0.1rem 0.6rem;
+    border-radius: var(--radius-full);
+    font-size: var(--text-caption);
+    font-weight: 600;
+    color: var(--interactive-primary);
+    background-color: color-mix(in srgb, var(--interactive-primary) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--interactive-primary) 35%, transparent);
+    white-space: nowrap;
+}
+
+.ref-chip {
+    max-width: 100%;
+    padding: 0.1rem 0.6rem;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: var(--text-caption);
+    color: var(--text-tertiary);
+    background-color: var(--surface-sunken);
+    /* Long file paths must stay inside the card, not escape it. */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.archived-flag {
+    position: absolute;
+    top: 0.8rem;
+    right: 1.2rem;
+    font-size: var(--text-caption);
+    color: var(--text-tertiary);
+}
+
+.grow {
+    flex: 1;
+}
+</style>

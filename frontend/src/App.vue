@@ -335,22 +335,26 @@ onBeforeUnmount(() => store.disconnect())
 }
 
 .screen.entering :deep(.screen-content),
-.screen.entering :deep(.vue-flow__viewport) {
+.screen.entering :deep(.vue-flow__viewport),
+.screen.entering :deep(.gl-slide) {
     animation: content-in-fwd 220ms cubic-bezier(0.3, 0.7, 0.2, 1) both;
 }
 
 .screen.leaving :deep(.screen-content),
-.screen.leaving :deep(.vue-flow__viewport) {
+.screen.leaving :deep(.vue-flow__viewport),
+.screen.leaving :deep(.gl-slide) {
     animation: content-out-fwd 220ms cubic-bezier(0.3, 0.7, 0.2, 1) both;
 }
 
 .screen.entering.back :deep(.screen-content),
-.screen.entering.back :deep(.vue-flow__viewport) {
+.screen.entering.back :deep(.vue-flow__viewport),
+.screen.entering.back :deep(.gl-slide) {
     animation-name: content-in-back;
 }
 
 .screen.leaving.back :deep(.screen-content),
-.screen.leaving.back :deep(.vue-flow__viewport) {
+.screen.leaving.back :deep(.vue-flow__viewport),
+.screen.leaving.back :deep(.gl-slide) {
     animation-name: content-out-back;
 }
 

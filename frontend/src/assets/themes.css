@@ -220,6 +220,11 @@
     /* The IDE's own hover highlight (VS Code list hover, JetBrains action
        button hover), so a hovered button lights the way the IDE's do. */
     --node-hover-surface: var(--ide-hover);
+    /* …except on canvas cards: the IDE's highlight (often translucent, and
+       bright on a whole card) is left off — a hovered card keeps its own
+       surface and just lifts (EngramCard). */
+    --node-hover-base: var(--surface-elevated);
+    --node-hover-tint: none;
 
     --surface-glass: var(--surface-elevated);
     --glass-backdrop: none;

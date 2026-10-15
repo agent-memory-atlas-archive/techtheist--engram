@@ -3,6 +3,47 @@
 Release notes for Engram Alpha. Each release's section below becomes the
 body of its GitHub Release (draft-release.yml lifts it automatically).
 
+## v0.10.1
+
+### The graph canvas runs on the GPU
+
+- **Big graphs stay smooth.** The canvas is now drawn with WebGL2 instead
+  of one web page element per note. On a 1,000-note test graph with 1,500
+  connections, panning went from 53 ms to 2.5 ms per frame at the median,
+  and zooming from 38 ms, with stalls of several seconds, to about 9 ms
+  per frame, with no stalls.
+- **It looks the same.** Cards keep their colors, type stripe, shadows,
+  badges and text. Card text is still drawn by the browser's own text
+  engine, in your IDE's font when the pane runs inside an IDE. The card
+  under your pointer and the selected card are real HTML on top of the
+  canvas, so hover expansion, links and the selection outline work as
+  before. The Engram Purple theme's frosted glass now covers every card,
+  the minimap and the controls; the IDE themes stay flat.
+- **Zoomed far out, card text turns into simple lines.** Below readable
+  size, cards show their title and body as bars, which keeps zooming smooth
+  on big graphs.
+- **The layout no longer freezes the pane.** It runs in the background, and
+  only reruns when notes or connections are added or removed. Before, every
+  update and every card you dragged re-laid out the whole graph: seconds
+  each on a large, connected graph.
+- **Double-click or double-tap to zoom in** (Shift+double-click zooms out),
+  on desktop and on phones.
+- **Without a GPU, nothing changes.** If WebGL2 isn't available on a real
+  GPU, or the GPU gives out mid-session, the pane switches to the previous
+  canvas on its own.
+
+### Smaller fixes
+
+- **Selecting a note on the canvas no longer stutters on big graphs.** The
+  hidden Feed screen used to redraw all of its cards on every selection;
+  it now waits until you open it.
+- **In IDE themes, a hovered card no longer shows the canvas through it.**
+  The card keeps its color and just lifts. Before, it took the IDE's hover
+  highlight, which is often see-through.
+- **Card text spacing.** Cards now use proportional figures, so hyphens and
+  numbers sit the way they do in the rest of the pane, and the canvas and
+  the HTML card wrap text at the same words.
+
 ## v0.10.0
 
 ### Tasks: a working list beside the graph
