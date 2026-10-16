@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, markRaw, nextTick, ref, watch } from 'vue'
+import { computed, markRaw, nextTick, ref, shallowRef, watch } from 'vue'
 import {
     VueFlow,
     PanOnScrollMode,
@@ -110,8 +110,18 @@ async function onNodesInitialized(): Promise<void> {
 /** Hand-placed positions survive re-layout (PLAN: pane is editable). */
 const overrides = ref(new Map<string, XY>())
 
-const positions = computed(() =>
-    layoutGraph(visibleNodeList.value, visibleEdgeList.value, overrides.value, layout.current),
+/*
+ * Laid out when the nodes or the arrangement change, not the edges: a new
+ * connection keeps every card where it is (GraphGL's shapeKey has the why).
+ */
+const flowShape = computed(() => `${layout.current}|${visibleNodeList.value.map((n) => (n.type === 'Anchor' ? `${n.id}*` : n.id)).join(',')}`)
+const positions = shallowRef(new Map<string, XY>())
+watch(
+    [flowShape, overrides],
+    () => {
+        positions.value = layoutGraph(visibleNodeList.value, visibleEdgeList.value, overrides.value, layout.current)
+    },
+    { immediate: true },
 )
 
 // Switching layouts rearranges everything — re-fit so the user lands on

@@ -269,16 +269,21 @@ const PROBE_NODE: GraphNode = {
 /** Hand-placed positions survive re-layout (the pane is editable). */
 const overrides = ref(new Map<string, XY>())
 /**
- * The layout re-runs only when the graph's shape changes — which nodes,
- * which edges, which arrangement (and Orbit's Anchor exception, so the
- * type). Vue Flow's canvas re-laid everything on every node update and
- * every drag release; at a thousand notes in one component that is dagre
- * for seconds. Hand placements ride on top of the cached result.
+ * The layout re-runs only when the graph's shape changes — which nodes and
+ * which arrangement (and Orbit's Anchor exception, so the type). Vue Flow's
+ * canvas re-laid everything on every node update and every drag release; at
+ * a thousand notes in one component that is dagre for seconds. Hand
+ * placements ride on top of the cached result.
+ *
+ * Edges are read, not watched (0.10.2): drawing a connection re-laid out
+ * the whole graph, and the result landed a moment later — mid-drag of the
+ * card just connected, teleporting the view. A new or removed edge keeps
+ * every card where it is; the next layout (a layout switch, notes added or
+ * removed) takes the current edges.
  */
 const shapeKey = computed(() => {
     const nodes = visibleNodeList.value.map((n) => (n.type === 'Anchor' ? `${n.id}*` : n.id)).join(',')
-    const edges = visibleEdgeList.value.map((e) => `${e.from_id}>${e.to_id}`).join(',')
-    return `${layout.current}|${nodes}|${edges}`
+    return `${layout.current}|${nodes}`
 })
 const basePositions = shallowRef(new Map<string, XY>())
 let layoutWorker: Worker | null = null
