@@ -12,8 +12,9 @@ import type { GraphNode } from '@/types/graph'
 import GraphControls from './GraphControls.vue'
 import GraphMiniMap, { type MiniNode } from './GraphMiniMap.vue'
 import { layoutCard, resetMeasures, setTextHost, type CardLayout } from './cardPainter'
-import { calibrate, css, readTokens, resolveColor, type CardMetrics, type RGBA, type Tokens } from './palette'
+import { calibrate, cardFonts, css, readTokens, resolveColor, type CardMetrics, type RGBA, type Tokens } from './palette'
 import { GraphRenderer, type CardDraw, type EdgeDraw } from './renderer'
+import { edgeFocus, FOCUS_EASE, selectionHops } from './focus'
 
 /**
  * The graph canvas on the GPU (0.10.1) — what GraphFlow (Vue Flow) does,
@@ -204,6 +205,35 @@ function recalibrate(): void {
     })
     tokens.value = t
     metrics.value = m
+    fontsSeen = fontState()
+    // Load every card font now: the one recalibration that brings lands at
+    // startup, not on a later click that happens to show the face first.
+    for (const f of cardFonts(m)) void document.fonts?.load(f)
+}
+
+/** `<html>`'s classes minus the drag marker — what a theme change could touch. */
+function themeClassOf(): string {
+    return [...document.documentElement.classList].filter((c) => c !== 'ui-dragging').join(' ')
+}
+
+/** Which card fonts are loaded, as of the last calibration. */
+let fontsSeen = ''
+function fontState(): string {
+    const m = metrics.value
+    if (!m || !document.fonts) return ''
+    return cardFonts(m)
+        .map((f) => (document.fonts.check(f) ? '1' : '0'))
+        .join('')
+}
+
+/**
+ * A font finished loading: recalibrate only when it is one the cards draw
+ * with. Recalibrating re-lays out every card — ~200 ms at 5,000 notes — and
+ * the first node selection loads Inter 700 for the drawer's title, which no
+ * card uses: that click froze the canvas.
+ */
+function onFontsLoaded(): void {
+    if (fontState() !== fontsSeen) scheduleCalibrate()
 }
 
 function scheduleCalibrate(): void {
@@ -375,16 +405,32 @@ function rebuild(): void {
     invalidate()
 }
 
+/** The edges as last handed to the renderer, in its order: ids and ends. */
+let drawnEdges: { id: string; from_id: string; to_id: string }[] = []
+/** Per edge: its focus easing (focus.ts) — kept so a change eases from the old value. */
+const edgeFocusAt = new Map<string, { from: number; to: number; at: number }>()
+let lastFocusAt = -1
+
 function rebuildEdges(): void {
     if (!renderer) return
     const edges: EdgeDraw[] = []
+    const drawn: typeof drawnEdges = []
     hasAnimated = false
+    // One config lookup per verb, not per edge: each goes through the store's
+    // reactive proxies, and a card drag rebuilds every edge per pointer move.
+    const styles = new Map<string, { color: RGBA; dashed: boolean; animated: boolean }>()
     for (const e of visibleEdgeList.value) {
         const a = cardById.get(e.from_id)
         const b = cardById.get(e.to_id)
         if (!a || !b) continue
-        const animated = config.edgeAnimated(e.type)
+        let st = styles.get(e.type)
+        if (!st) {
+            st = { color: colorOf(config.edgeColor(e.type)), dashed: config.edgeDashed(e.type), animated: config.edgeAnimated(e.type) }
+            styles.set(e.type, st)
+        }
+        const animated = st.animated
         hasAnimated ||= animated
+        drawn.push({ id: e.id, from_id: e.from_id, to_id: e.to_id })
         edges.push({
             id: e.id,
             // Handle outer edges (Vue Flow's anchor points): 4px past the padding box.
@@ -392,15 +438,55 @@ function rebuildEdges(): void {
             sy: a.y + a.h / 2,
             tx: b.x - 3,
             ty: b.y + b.h / 2,
-            color: colorOf(config.edgeColor(e.type)),
-            dashed: config.edgeDashed(e.type),
+            color: st.color,
+            dashed: st.dashed,
             animated,
             label: e.type,
             appear: Math.max(a.appear, b.appear),
         })
     }
+    drawnEdges = drawn
     renderer.setEdges(edges)
+    applyFocus()
 }
+
+/**
+ * The selection's neighborhood (focus.ts): every drawn edge's focus, eased
+ * from its previous one. Runs alone on a selection change — the edges
+ * themselves are not rebuilt.
+ */
+function applyFocus(): void {
+    if (!renderer) return
+    const sel = selectedId.value
+    const hops = sel && cardById.has(sel) ? selectionHops(sel, drawnEdges) : null
+    const now = clock()
+    const out = new Float32Array(drawnEdges.length * 3)
+    const seen = new Set<string>()
+    drawnEdges.forEach((e, i) => {
+        const focus = edgeFocus(hops, e.from_id, e.to_id)
+        let f = edgeFocusAt.get(e.id)
+        if (!f) {
+            f = { from: focus, to: focus, at: 0 }
+            edgeFocusAt.set(e.id, f)
+        } else if (f.to !== focus) {
+            f.from = f.to
+            f.to = focus
+            f.at = now
+            lastFocusAt = now
+        }
+        seen.add(e.id)
+        out[i * 3] = f.from
+        out[i * 3 + 1] = f.to
+        out[i * 3 + 2] = f.at
+    })
+    for (const id of edgeFocusAt.keys()) if (!seen.has(id)) edgeFocusAt.delete(id)
+    renderer.setEdgeFocus(out)
+}
+
+watch(selectedId, () => {
+    applyFocus()
+    invalidate()
+})
 
 watch([visibleNodeList, visibleEdgeList, positions, metrics, () => config.cfg], rebuild)
 
@@ -446,7 +532,7 @@ function frame(): void {
     const sc = snapped()
     applyCamera(sc)
     const start = performance.now()
-    const appearing = now - lastAppear < 0.4
+    const appearing = now - lastAppear < 0.4 || now - lastFocusAt < FOCUS_EASE + 0.05
     const more = renderer.render(sc, now, cards, glSkip, settled, appearing)
     const ms = performance.now() - start
     stats.frames++
@@ -954,9 +1040,18 @@ onMounted(() => {
     resize()
     setTextHost(probe.value)
     recalibrate()
-    themeObs = new MutationObserver(scheduleCalibrate)
+    // `ui-dragging` is a drag in progress (this canvas and the Tasks board
+    // toggle it), not a theme: recalibrating on it re-laid out every card at
+    // each drag's start and end — ~150 ms stalls at 5,000 notes, and the
+    // cards repainted at half resolution while they caught up.
+    let themeClass = themeClassOf()
+    themeObs = new MutationObserver((records) => {
+        const cls = themeClassOf()
+        if (records.some((r) => r.attributeName !== 'class') || cls !== themeClass) scheduleCalibrate()
+        themeClass = cls
+    })
     themeObs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'style', 'class'] })
-    document.fonts?.addEventListener('loadingdone', scheduleCalibrate)
+    document.fonts?.addEventListener('loadingdone', onFontsLoaded)
     // Bench / test hook: frame stats and where each card sits on screen.
     ;(window as unknown as { __engramGL?: unknown }).__engramGL = {
         stats,
@@ -988,7 +1083,7 @@ onBeforeUnmount(() => {
     window.clearTimeout(calibrateTimer)
     resizeObs?.disconnect()
     themeObs?.disconnect()
-    document.fonts?.removeEventListener('loadingdone', scheduleCalibrate)
+    document.fonts?.removeEventListener('loadingdone', onFontsLoaded)
     root.value?.removeEventListener('wheel', onWheel)
     renderer?.dispose()
     renderer = null
@@ -1021,7 +1116,7 @@ watch(
                 class="gl-card"
                 :class="{ pending: pendingTwins.has(h.id) }"
                 :data-node-id="h.id"
-                :style="{ left: `${h.card.x}px`, top: `${h.card.y}px` }"
+                :style="{ left: `${h.card.x}px`, top: `${h.card.y}px`, '--rest-h': `${h.card.h}px` }"
             >
                 <EngramCard :node="h.node" :selected="h.id === selectedId" :expanded="h.id === expandedId" :appear="false">
                     <template #handles>
@@ -1120,9 +1215,18 @@ watch(
     background-color: color-mix(in srgb, var(--surface-elevated) 80%, transparent);
 }
 
+/*
+ * The dots sit where the edges end: the resting card's middle (edges meet
+ * y + h/2 of the GPU card). A hovered or expanded card lifts 0.6rem and grows,
+ * so 50% would drift — the dot stays at the resting middle instead, offset
+ * by the lift and eased with EngramCard's own margin transition (fast in,
+ * slow out) so it holds still on screen while the card rises around it.
+ * `top` counts from inside the card's 1px border, the edge's middle from
+ * its outer edge: the border comes off.
+ */
 .gl-handle {
     position: absolute;
-    top: 50%;
+    top: calc(var(--rest-h) / 2 - 1px);
     width: 0.9rem;
     height: 0.9rem;
     border: 2px solid var(--surface-base);
@@ -1130,6 +1234,12 @@ watch(
     background-color: var(--border-strong);
     transform: translateY(-50%);
     cursor: crosshair;
+    transition: top var(--duration-fast) var(--ease-enter);
+}
+
+.gl-card :deep(.engram-node:is(:hover, .expanded)) .gl-handle {
+    top: calc(var(--rest-h) / 2 - 1px + 0.6rem);
+    transition: top var(--duration-slow) var(--ease-default);
 }
 
 .gl-handle.left {

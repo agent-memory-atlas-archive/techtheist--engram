@@ -168,6 +168,20 @@ export interface CardMetrics {
 
 const px = (v: string): number => parseFloat(v) || 0
 
+/** Every CSS font a card draws with (title, body, code, strong, em, chips) — deduplicated. */
+export function cardFonts(m: CardMetrics): string[] {
+    const out = new Set<string>()
+    const walk = (v: unknown, key: string): void => {
+        if (typeof v === 'string') {
+            if (key === 'font' || key.endsWith('Font')) out.add(v)
+        } else if (v && typeof v === 'object') {
+            for (const [k, x] of Object.entries(v)) walk(x, k)
+        }
+    }
+    walk(m, '')
+    return [...out]
+}
+
 function fontOf(cs: CSSStyleDeclaration, weight?: string): string {
     return `${cs.fontStyle} ${weight ?? cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`
 }

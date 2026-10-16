@@ -5,6 +5,8 @@
  * device pixel ratio the canvas renders at.
  */
 
+import { FOCUS_DIM, FOCUS_EASE, FOCUS_FALLOFF } from './focus'
+
 const HEADER = /* glsl */ `#version 300 es
 precision highp float;
 `
@@ -67,10 +69,32 @@ void main() {
  */
 export const EDGE_SEGS = 40
 
+/**
+ * Selection focus (focus.ts): an edge's focus is -1 (dimmed), 0 (nothing
+ * selected) or its hop ring around the selection (focusWidth's widths).
+ * Each instance carries its previous focus and when it changed, and the
+ * shader eases between them, so a new selection needs no frame-by-frame
+ * re-upload.
+ */
+const FOCUS = /* glsl */ `
+const float FOCUS_DIM = ${FOCUS_DIM.toFixed(2)};
+vec2 focusOf(float s) {
+    if (s < -0.5) return vec2(1.0, FOCUS_DIM);
+    if (s < 0.5) return vec2(1.0);
+    return vec2(1.0 + pow(${FOCUS_FALLOFF.toFixed(2)}, s - 1.0), 1.0);
+}
+/** (width multiplier, alpha) at time t for focus (from, to, since). */
+vec2 focusAt(vec3 f, float t) {
+    float k = clamp((t - f.z) / ${FOCUS_EASE.toFixed(2)}, 0.0, 1.0);
+    return mix(focusOf(f.x), focusOf(f.y), k * k * (3.0 - 2.0 * k));
+}
+`
+
 export const EDGE_VS = /* glsl */ `${HEADER}
 layout(location = 0) in vec4 a_ends;  // sx, sy, tx, ty
 layout(location = 1) in vec4 a_color; // straight rgba
 layout(location = 2) in vec2 a_style; // kind bits (1 dashed, 2 animated), appear start
+layout(location = 3) in vec3 a_focus; // previous focus, focus, since (see FOCUS)
 uniform vec3 u_cam;
 uniform vec2 u_view;
 uniform float u_dpr;
@@ -86,7 +110,7 @@ out float v_alpha;
 out float v_s;
 out vec4 v_color;
 flat out int v_kind;
-
+${FOCUS}
 vec2 bez(float t, vec2 p0, vec2 p1, vec2 p2, vec2 p3) {
     float mt = 1.0 - t;
     return mt * mt * mt * p0 + 3.0 * mt * mt * t * p1 + 3.0 * mt * t * t * p2 + t * t * t * p3;
@@ -120,7 +144,8 @@ void main() {
         }
     }
 
-    float px = u_width * u_cam.z * u_dpr;
+    vec2 focus = focusAt(a_focus, u_time);
+    float px = u_width * focus.x * u_cam.z * u_dpr;
     float draw = max(px, 1.0);
     float ext = draw * 0.5 + 1.0;
     vec2 world = pos + vec2(-tan.y, tan.x) * side * ext / (u_cam.z * u_dpr);
@@ -129,7 +154,7 @@ void main() {
     gl_Position = vec4(clip.x, -clip.y, 0.0, 1.0);
     v_d = side * ext;
     v_half = draw * 0.5;
-    v_alpha = min(px, 1.0) * clamp((u_time - a_style.y) / 0.32, 0.0, 1.0);
+    v_alpha = min(px, 1.0) * clamp((u_time - a_style.y) / 0.32, 0.0, 1.0) * focus.y;
     v_s = s;
     v_color = a_color;
     v_kind = kind;
@@ -166,18 +191,20 @@ layout(location = 0) in vec2 a_corner;
 layout(location = 1) in vec4 a_box; // center x, y, w, h (world)
 layout(location = 2) in vec4 a_uv;
 layout(location = 3) in float a_appear;
+layout(location = 4) in vec3 a_focus;
 uniform vec3 u_cam;
 uniform vec2 u_view;
 uniform float u_time;
 out vec2 v_uv;
 out float v_alpha;
+${FOCUS}
 void main() {
     vec2 world = a_box.xy + (a_corner - 0.5) * a_box.zw;
     vec2 screen = world * u_cam.z + u_cam.xy;
     vec2 clip = screen / u_view * 2.0 - 1.0;
     gl_Position = vec4(clip.x, -clip.y, 0.0, 1.0);
     v_uv = mix(a_uv.xy, a_uv.zw, a_corner);
-    v_alpha = clamp((u_time - a_appear) / 0.32, 0.0, 1.0);
+    v_alpha = clamp((u_time - a_appear) / 0.32, 0.0, 1.0) * focusAt(a_focus, u_time).y;
 }
 `
 

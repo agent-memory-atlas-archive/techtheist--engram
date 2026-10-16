@@ -24,6 +24,7 @@ import { useGraphStore } from '@/stores/graph'
 import { useLayoutStore } from '@/stores/layout'
 import { useProjectsStore } from '@/stores/projects'
 import type { GraphNode } from '@/types/graph'
+import { edgeFocus, FOCUS_RINGS, focusWidth, selectionHops } from './focus'
 
 const store = useGraphStore()
 const config = useConfigStore()
@@ -166,22 +167,31 @@ const flowNodes = computed<Node<GraphNode>[]>(() =>
     })),
 )
 
-const flowEdges = computed<Edge[]>(() =>
-    visibleEdgeList.value.map((e) => ({
-        id: e.id,
-        source: e.from_id,
-        target: e.to_id,
-        label: e.type,
-        type: 'engram',
-        data: { note: e.note },
-        animated: config.edgeAnimated(e.type),
-        style: {
-            stroke: config.edgeColor(e.type),
-            strokeWidth: 2,
-            strokeDasharray: config.edgeDashed(e.type) ? '6 4' : undefined,
-        },
-    })),
-)
+const flowEdges = computed<Edge[]>(() => {
+    // Selection focus (focus.ts): the selection's rings widen and rise, the rest dims.
+    const sel = selectedId.value
+    const edges = visibleEdgeList.value
+    const hops = sel && edges.some((e) => e.from_id === sel || e.to_id === sel) ? selectionHops(sel, edges) : null
+    return edges.map((e) => {
+        const focus = edgeFocus(hops, e.from_id, e.to_id)
+        return {
+            id: e.id,
+            source: e.from_id,
+            target: e.to_id,
+            label: e.type,
+            type: 'engram',
+            data: { note: e.note },
+            animated: config.edgeAnimated(e.type),
+            class: focus < 0 ? 'edge-dim' : undefined,
+            zIndex: focus > 0 ? FOCUS_RINGS + 1 - focus : 0,
+            style: {
+                stroke: config.edgeColor(e.type),
+                strokeWidth: focus > 0 ? 2 * focusWidth(focus) : 2,
+                strokeDasharray: config.edgeDashed(e.type) ? '6 4' : undefined,
+            },
+        }
+    })
+})
 
 function onNodeClick({ node }: NodeMouseEvent): void {
     store.select(node.id)
@@ -370,6 +380,19 @@ watch(
 .engram-canvas .vue-flow__controls-button:hover {
     background-color: var(--interactive-ghost-hover);
     fill: var(--text-primary);
+}
+
+.engram-canvas .vue-flow__edge {
+    transition: opacity 250ms var(--ease-default);
+}
+
+.engram-canvas .vue-flow__edge-path {
+    transition: stroke-width 250ms var(--ease-default);
+}
+
+/* Selection focus (focus.ts FOCUS_DIM): edges past the selection's rings. */
+.engram-canvas .vue-flow__edge.edge-dim {
+    opacity: 0.22;
 }
 
 .engram-canvas .vue-flow__edge-text {

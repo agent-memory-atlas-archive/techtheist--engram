@@ -121,6 +121,9 @@
     --canvas-dots: #e0e0e0;
 
     --node-hover-surface: #f3f3f3;
+    /* A hovered or expanded canvas card stays white and just lifts, like
+       Match IDE's: the gray hover read as a different, dimmer card. */
+    --node-hover-base: var(--surface-elevated);
 
     --surface-glass: var(--surface-elevated);
     --glass-backdrop: none;

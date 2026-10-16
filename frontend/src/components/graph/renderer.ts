@@ -1,4 +1,5 @@
 import { textCanvas, type CardLayout } from './cardPainter'
+import { FOCUS_RINGS } from './focus'
 import type { RGBA, Tokens } from './palette'
 import {
     BACKGROUND_FS,
@@ -96,10 +97,13 @@ const CARD_MARGIN = 44
 const RASTER_BUDGET_MS = 6
 /** A failed paint (atlas full) is retried after this many frames, not every frame. */
 const RETRY_FRAMES = 30
+/** Screen px a frame's slide must exceed to count as fast (see render). */
+const FAST_SLIDE_PX = 24
 /** A slot not drawn for this many frames (~1 s) is reused before the atlas grows. */
 const IDLE_FRAMES = 60
 const CARD_FLOATS = 20
-const EDGE_FLOATS = 10
+const EDGE_FLOATS = 13
+const LABEL_FLOATS = 12
 
 /** The tier to paint at: the smallest whose scale still covers the zoom. */
 export function tierFor(zoom: number): number {
@@ -138,6 +142,8 @@ interface Entry {
     layout: CardLayout
     w: number
     h: number
+    /** Painted a tier small during a fast slide: sharpens once the view slows, whatever the hysteresis says. */
+    quick?: boolean
 }
 
 function compile(gl: WebGL2RenderingContext, vs: string, fs: string): WebGLProgram {
@@ -236,6 +242,10 @@ export class GraphRenderer {
     /** Per edge: its curve's bounding box (x0, y0, x1, y1). */
     private edgeBox = new Float32Array(0)
     private edgeVis = new Float32Array(0)
+    /** Per edge: its label's index, or -1. */
+    private edgeLabel = new Int32Array(0)
+    /** Draw order over the edges (the selection's rings last), or null = as given. */
+    private edgeOrder: Uint32Array | null = null
     private labelData = new Float32Array(0)
     private labelVis = new Float32Array(0)
     /**
@@ -322,7 +332,7 @@ export class GraphRenderer {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.quad)
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]), gl.STATIC_DRAW)
 
-        // edges: ends4 color4 style2 — per instance; vertices come from gl_VertexID
+        // edges: ends4 color4 style2 focus3 — per instance; vertices come from gl_VertexID
         this.edgeVao = gl.createVertexArray()!
         this.edgeBuf = gl.createBuffer()!
         gl.bindVertexArray(this.edgeVao)
@@ -337,8 +347,11 @@ export class GraphRenderer {
         gl.enableVertexAttribArray(2)
         gl.vertexAttribPointer(2, 2, gl.FLOAT, false, es, 32)
         gl.vertexAttribDivisor(2, 1)
+        gl.enableVertexAttribArray(3)
+        gl.vertexAttribPointer(3, 3, gl.FLOAT, false, es, 40)
+        gl.vertexAttribDivisor(3, 1)
 
-        // labels: box4 uv4 appear1
+        // labels: box4 uv4 appear1 focus3
         this.labelVao = gl.createVertexArray()!
         this.labelBuf = gl.createBuffer()!
         gl.bindVertexArray(this.labelVao)
@@ -346,7 +359,7 @@ export class GraphRenderer {
         gl.enableVertexAttribArray(0)
         gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0)
         gl.bindBuffer(gl.ARRAY_BUFFER, this.labelBuf)
-        const ls = 9 * 4
+        const ls = LABEL_FLOATS * 4
         gl.enableVertexAttribArray(1)
         gl.vertexAttribPointer(1, 4, gl.FLOAT, false, ls, 0)
         gl.vertexAttribDivisor(1, 1)
@@ -356,6 +369,9 @@ export class GraphRenderer {
         gl.enableVertexAttribArray(3)
         gl.vertexAttribPointer(3, 1, gl.FLOAT, false, ls, 32)
         gl.vertexAttribDivisor(3, 1)
+        gl.enableVertexAttribArray(4)
+        gl.vertexAttribPointer(4, 3, gl.FLOAT, false, ls, 36)
+        gl.vertexAttribDivisor(4, 1)
 
         // cards: rect4 accent4 uv4 misc4 parts4
         this.cardVao = gl.createVertexArray()!
@@ -537,7 +553,27 @@ export class GraphRenderer {
                 staleUse = use
             }
         }
-        return stale ? this.cutShelf(stale, tier) : null
+        if (stale) return this.cutShelf(stale, tier)
+        // 6. Nothing tall enough to re-cut: the atlas is full of a smaller
+        //    tier's short shelves (a fly-over at low zoom paints hundreds).
+        //    Clear the stalest whole layer with no card on screen.
+        return this.reclaimLayer() ? this.unshelved(tier, h) : null
+    }
+
+    /** Empty the least recently drawn layer that has nothing on screen. */
+    private reclaimLayer(): boolean {
+        const last = new Array<number>(this.layers).fill(0)
+        for (const sh of this.shelves) for (const sl of sh.slots) if (sl.used > last[sh.layer]!) last[sh.layer] = sl.used
+        let pick = -1
+        for (let l = 0; l < this.layers; l++) if (last[l]! < this.frame && (pick < 0 || last[l]! < last[pick]!)) pick = l
+        if (pick < 0) return false
+        this.shelves = this.shelves.filter((sh) => {
+            if (sh.layer !== pick) return true
+            for (const sl of sh.slots) if (sl.owner) this.entries.delete(sl.owner)
+            return false
+        })
+        this.cursor[pick] = 0
+        return true
     }
 
     /** A new shelf in a layer's unshelved space, if any layer has room. */
@@ -559,8 +595,12 @@ export class GraphRenderer {
         let tier = want
         let slot: Slot | null = null
         for (; tier < TIERS.length; tier++) {
-            // A card that has a texture never trades it for a blurrier one.
-            if (old && old.layout === card.layout && tier > old.tier) break
+            // A card that has a texture repaints only for a sharper one (or
+            // the exact smaller tier it was asked down to). Falling back to
+            // the tier it already has evicted another card for nothing, and
+            // with the atlas full of small slots at 100% zoom that ran every
+            // frame — ~30 repaints and uploads a frame, 80–200 ms frames.
+            if (old && old.layout === card.layout && tier >= old.tier && tier !== want) break
             slot = this.alloc(tier, this.slotH(tier, card.h))
             if (slot) break
         }
@@ -608,6 +648,7 @@ export class GraphRenderer {
         const labelData: number[] = []
         const anim: number[] = []
         const boxes: number[] = []
+        const edgeLabel: number[] = []
         const off = (dx: number): number => (dx >= 0 ? 0.5 * dx : 6.25 * Math.sqrt(-dx))
         let o = 0
         for (const e of edges) {
@@ -621,6 +662,7 @@ export class GraphRenderer {
             d[o + 7] = e.color[3]
             d[o + 8] = (e.dashed ? 1 : 0) | (e.animated ? 2 : 0)
             d[o + 9] = e.appear
+            d[o + 10] = d[o + 11] = d[o + 12] = 0
             o += EDGE_FLOATS
             const k = off(e.tx - e.sx)
             const c1x = e.sx + k
@@ -638,16 +680,54 @@ export class GraphRenderer {
                 const cx = e.sx * 0.125 + c1x * 0.375 + c2x * 0.375 + e.tx * 0.125
                 const cy = e.sy * 0.5 + e.ty * 0.5
                 labels.push({ edgeId: e.id, x: cx - lu.w / 2, y: cy - lu.h / 2, w: lu.w, h: lu.h })
-                labelData.push(cx, cy, lu.w, lu.h, lu.u0, lu.v0, lu.u1, lu.v1, e.appear)
+                edgeLabel.push(labels.length - 1)
+                labelData.push(cx, cy, lu.w, lu.h, lu.u0, lu.v0, lu.u1, lu.v1, e.appear, 0, 0, 0)
+            } else {
+                edgeLabel.push(-1)
             }
         }
         this.edgeTotal = edges.length
+        this.edgeLabel = Int32Array.from(edgeLabel)
+        this.edgeOrder = null
         this.edgeBox = new Float32Array(boxes)
         this.animBoxes = new Float32Array(anim)
         this.labelData = new Float32Array(labelData)
         this.labelTotal = labels.length
         this.labels = labels
         // Uploaded by the next frame's cull.
+        this.cullDirty = true
+        this.backdropDirty = true
+    }
+
+    /**
+     * Selection focus (focus.ts), three floats per edge in `setEdges` order:
+     * previous focus, focus, since (renderer clock) — written in place, so a
+     * new selection costs no rebuild. Edges draw in instance order, so the
+     * selection's rings are moved to the end, ring 1 last (on top).
+     */
+    setEdgeFocus(focus: Float32Array): void {
+        const n = this.edgeTotal
+        const d = this.edgeData
+        const ld = this.labelData
+        const buckets: number[][] = Array.from({ length: FOCUS_RINGS + 1 }, () => [])
+        for (let i = 0; i < n; i++) {
+            const from = focus[i * 3]!
+            const to = focus[i * 3 + 1]!
+            const at = focus[i * 3 + 2]!
+            const o = i * EDGE_FLOATS + 10
+            d[o] = from
+            d[o + 1] = to
+            d[o + 2] = at
+            const l = this.edgeLabel[i]!
+            if (l >= 0) {
+                const lo = l * LABEL_FLOATS + 9
+                ld[lo] = from
+                ld[lo + 1] = to
+                ld[lo + 2] = at
+            }
+            buckets[to > 0 ? FOCUS_RINGS + 1 - to : 0]!.push(i)
+        }
+        this.edgeOrder = buckets[0]!.length === n ? null : Uint32Array.from(buckets.flat())
         this.cullDirty = true
         this.backdropDirty = true
     }
@@ -672,8 +752,10 @@ export class GraphRenderer {
         const all = this.edgeData
         if (this.edgeVis.length < n * EDGE_FLOATS) this.edgeVis = new Float32Array(all.length)
         const vis = this.edgeVis
+        const order = this.edgeOrder
         let count = 0
-        for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+            const i = order ? order[j]! : j
             const k = i * 4
             if (box[k]! > b[2] || box[k + 2]! < b[0] || box[k + 1]! > b[3] || box[k + 3]! < b[1]) continue
             const from = i * EDGE_FLOATS
@@ -682,7 +764,7 @@ export class GraphRenderer {
             count++
         }
         gl.bindBuffer(gl.ARRAY_BUFFER, this.edgeBuf)
-        gl.bufferData(gl.ARRAY_BUFFER, (count === n ? all : vis).subarray(0, count * EDGE_FLOATS), gl.DYNAMIC_DRAW)
+        gl.bufferData(gl.ARRAY_BUFFER, (count === n && !order ? all : vis).subarray(0, count * EDGE_FLOATS), gl.DYNAMIC_DRAW)
         this.edgeCount = count
 
         const lab = this.labels
@@ -693,11 +775,11 @@ export class GraphRenderer {
         for (let i = 0; i < this.labelTotal; i++) {
             const l = lab[i]!
             if (l.x > b[2] || l.x + l.w < b[0] || l.y > b[3] || l.y + l.h < b[1]) continue
-            for (let f = 0; f < 9; f++) lv[lc * 9 + f] = ld[i * 9 + f]!
+            for (let f = 0; f < LABEL_FLOATS; f++) lv[lc * LABEL_FLOATS + f] = ld[i * LABEL_FLOATS + f]!
             lc++
         }
         gl.bindBuffer(gl.ARRAY_BUFFER, this.labelBuf)
-        gl.bufferData(gl.ARRAY_BUFFER, (lc === this.labelTotal ? ld : lv).subarray(0, lc * 9), gl.DYNAMIC_DRAW)
+        gl.bufferData(gl.ARRAY_BUFFER, (lc === this.labelTotal ? ld : lv).subarray(0, lc * LABEL_FLOATS), gl.DYNAMIC_DRAW)
         this.labelCount = lc
     }
 
@@ -868,10 +950,23 @@ export class GraphRenderer {
         const c = t.color
         const z = cam.zoom
         const zd = z * this.dpr
+        // Screen px the view slid since the last frame (pans only: a zoom
+        // has its own settle rule).
+        let slid = 0
         if (cam.x !== this.lastCam.x || cam.y !== this.lastCam.y || z !== this.lastCam.zoom) {
             this.backdropDirty = true
+            if (z === this.lastCam.zoom) slid = Math.hypot(cam.x - this.lastCam.x, cam.y - this.lastCam.y)
             this.lastCam = { x: cam.x, y: cam.y, zoom: z }
         }
+        /*
+         * A fast slide (a minimap fly-over, a fling) brings new cards every
+         * frame, and a full-size upload is 15–25 ms at dpr 2 — the flight
+         * stuttered on texSubImage3D. While it lasts, new cards paint at half
+         * size (a quarter of the bytes) and sharpening waits; once the view
+         * slows, the settled rule repaints them sharp, nearest first. Drags
+         * and wheel pans stay under the threshold.
+         */
+        const fast = slid > FAST_SLIDE_PX
 
         // Visible cards — stamped as used before any painting, so painting
         // never evicts a card that is on screen.
@@ -909,6 +1004,7 @@ export class GraphRenderer {
         let backoff = false
         if (greek < 1) {
             const want = tierFor(z)
+            const quick = fast ? Math.min(TIERS.length - 1, want + 1) : want
             const todo: CardDraw[] = []
             const urgent: CardDraw[] = []
             for (const card of visible) {
@@ -930,7 +1026,7 @@ export class GraphRenderer {
                 // [0.75, 2.2]× the zoom; outside that it repaints once the
                 // zoom has settled — up when blurry, down to free memory.
                 const ratio = TIERS[e.tier]! / z
-                if (settled && (ratio < 0.75 || ratio > 2.2) && e.tier !== want) todo.push(card)
+                if (settled && !fast && (e.quick || ratio < 0.75 || ratio > 2.2) && e.tier !== want) todo.push(card)
             }
             if (urgent.length + todo.length) {
                 const cx = (this.cssW / 2 - cam.x) / z
@@ -946,13 +1042,17 @@ export class GraphRenderer {
                             more = true
                             break
                         }
-                        this.paint(card, want)
+                        const tier = list === urgent ? quick : want
+                        if (this.paint(card, tier) && tier !== want) this.entries.get(card.id)!.quick = true
                         done++
                     }
                     if (more) break
                 }
             }
         }
+        // A fast frame deferred sharpening: one more frame, so the view that
+        // just stopped gets its full-size repaints without another input.
+        if (fast) more = true
         this.backoff = backoff
 
         // Card instances.
