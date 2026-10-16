@@ -75,6 +75,9 @@ body of its GitHub Release (draft-release.yml lifts it automatically).
 - **Card text spacing.** Cards now use proportional figures, so hyphens and
   numbers sit the way they do in the rest of the pane, and the canvas and
   the HTML card wrap text at the same words.
+- **Tasks and History have their own background again in Safari.** Safari
+  still showed the hidden graph canvas behind them, as a black or frozen
+  frame (menus left ghosts on it).
 - **The selection outline stays visible when zoomed far out.** It now holds
   about 2 screen pixels at any zoom below 10%. At the new far zoom it had
   thinned to under one pixel.

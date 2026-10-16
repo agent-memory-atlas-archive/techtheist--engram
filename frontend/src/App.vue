@@ -313,11 +313,17 @@ onBeforeUnmount(() => store.disconnect())
     position: absolute;
     inset: 0;
     content-visibility: hidden;
+    /* Not painted, and not composited either: Safari skipped painting a
+       content-visibility:hidden screen but still composited the graph's
+       WebGL canvas (an opaque layer), so Tasks and History showed it as a
+       black or stale frame behind them — ghosts of menus included. */
+    visibility: hidden;
 }
 
 .screen.active,
 .screen.leaving {
     content-visibility: visible;
+    visibility: visible;
 }
 
 /* A switch is two motions: the whole screen (its backdrop — the canvas
