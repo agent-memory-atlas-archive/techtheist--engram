@@ -453,12 +453,63 @@ function onFrame(): void {
 /** The mounted slots (v-track), by key. */
 const slots = new Map<string, HTMLElement>()
 
+/** How far the fade steps go: cards this many notes or more from the current one are the faintest. */
+const DEPTH_STEPS = 3
+
+/** Notes between item `i` and the current item `ci` (version markers don't count), capped at DEPTH_STEPS. */
+function depthOf(i: number, ci: number): number {
+    if (ci < 0) return 0
+    const step = i > ci ? 1 : -1
+    let n = 0
+    for (let j = ci; j !== i && n < DEPTH_STEPS; ) {
+        j += step
+        if (itemByKey.get(geo.keys[j]!)?.kind === 'node') n++
+    }
+    return n
+}
+
+/** The selection ring that glides to the current card (one element, not one per card). */
+const ringEl = useTemplateRef<HTMLElement>('ringEl')
+
+let ringKey: string | null = null
+
 /**
- * Scale/fade cards by distance from the viewport center — the depth cue —
- * and pick the centered card, all from the height map: no layout reads, and
- * only the mounted cards are touched. Distance is to the card's nearest
- * edge (0 while it covers the line), so an expanded card taller than the
- * screen stays solid while it is read.
+ * Move the ring onto item `ci`. It glides only when the focus moves to a
+ * nearby card; everything else snaps — the first placement, a far jump, and
+ * any layout shift under the same card (re-measured cards above it move the
+ * card instantly, and a gliding ring would trail behind it).
+ */
+function placeRing(ci: number, vh: number): void {
+    const ring = ringEl.value
+    if (!ring) return
+    if (ci < 0) {
+        ring.style.opacity = '0'
+        ringKey = null
+        return
+    }
+    const key = geo.keys[ci]!
+    const top = geo.offset(ci)
+    const y = `translateY(${top}px)`
+    const h = `${geo.height(ci)}px`
+    if (ring.style.transform === y && ring.style.height === h && ringKey === key) return
+    const from = Number.parseFloat(ring.style.transform.slice(11)) || 0
+    const glide = ringKey !== null && key !== ringKey && Math.abs(top - from) < vh * 1.5
+    ringKey = key
+    ring.classList.toggle('gliding', glide)
+    ring.style.transform = y
+    ring.style.height = h
+    ring.style.opacity = '1'
+}
+
+/**
+ * The depth cue, all from the height map — no layout reads, and only the
+ * mounted cards are touched. Picks the centered card first; then every
+ * card scales by its distance from the viewport center (continuous, it
+ * follows the scroll) and fades — and, in the brand theme, blurs — by how
+ * many notes it sits from the current one (`data-depth`, stepped: CSS
+ * eases it, so the fade moves with the focus, not the scroll). Distance is
+ * to the card's nearest edge (0 while it covers the line), so an expanded
+ * card taller than the screen stays solid while it is read.
  */
 function restyle(root: HTMLElement): void {
     if (firstNode < 0) return
@@ -472,13 +523,6 @@ function restyle(root: HTMLElement): void {
      */
     const center = (i: number): number => geo.offset(i) + geo.height(i) / 2
     const mid = Math.min(Math.max(root.scrollTop + vh / 2 - trackTop, center(firstNode)), center(lastNode))
-    for (const [k, el] of slots) {
-        const i = geo.indexOf(k)
-        if (i < 0 || itemByKey.get(k)?.kind !== 'node') continue
-        const t = Math.max(0, 1 - distanceToLine(geo.offset(i), geo.height(i), mid) / (vh * 0.75))
-        el.style.opacity = String(0.45 + 0.55 * t)
-        el.style.transform = `scale(${0.945 + 0.055 * t})`
-    }
     const at = geo.indexAt(mid)
     let best: { k: string; d: number } | null = null
     for (let i = Math.max(0, at - 2); i <= Math.min(geo.length - 1, at + 2); i++) {
@@ -488,6 +532,16 @@ function restyle(root: HTMLElement): void {
         if (!best || d < best.d) best = { k, d }
     }
     if (best && best.k !== currentId.value) currentId.value = best.k
+    const ci = currentId.value ? geo.indexOf(currentId.value) : -1
+    for (const [k, el] of slots) {
+        const i = geo.indexOf(k)
+        if (i < 0 || itemByKey.get(k)?.kind !== 'node') continue
+        const t = Math.max(0, 1 - distanceToLine(geo.offset(i), geo.height(i), mid) / (vh * 0.75))
+        el.style.transform = `scale(${0.945 + 0.055 * t})`
+        const depth = String(depthOf(i, ci))
+        if (el.dataset.depth !== depth) el.dataset.depth = depth
+    }
+    placeRing(ci, vh)
 }
 
 /** Slot registry + live heights: one observer for every mounted card. */
@@ -946,6 +1000,9 @@ const currentNode = computed(() =>
                 </div>
             </div>
 
+            <!-- The current card's selection ring: one element that glides between cards. -->
+            <div ref="ringEl" class="feed-ring" aria-hidden="true" />
+
             <!-- The measurer: cards rendered once, off screen, for their real
                  height — never seen, never in the scroll length. -->
             <div ref="measureEl" class="feed-measure" aria-hidden="true">
@@ -1200,6 +1257,59 @@ const currentNode = computed(() =>
 .node-slot {
     scroll-snap-align: center;
     will-change: transform, opacity;
+    transition:
+        opacity 280ms var(--ease-default),
+        filter 280ms var(--ease-default);
+}
+
+/* The fade by notes from the current card (restyle's data-depth). */
+.node-slot[data-depth='1'] {
+    opacity: 0.7;
+}
+
+.node-slot[data-depth='2'] {
+    opacity: 0.55;
+}
+
+.node-slot[data-depth='3'] {
+    opacity: 0.4;
+}
+
+/* The brand theme adds a light depth of field past the nearest cards:
+   0.6px two notes out, 1.2px from three. */
+:root[data-theme='engram-purple'] .node-slot[data-depth='2'] {
+    filter: blur(0.6px);
+}
+
+:root[data-theme='engram-purple'] .node-slot[data-depth='3'] {
+    filter: blur(1.2px);
+}
+
+/* The graph's selection outline at its resting width, gliding card to card. */
+.feed-ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1;
+    border-radius: var(--radius-lg);
+    outline: 0.2rem solid var(--interactive-primary);
+    outline-offset: 0.3rem;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.feed-ring.gliding {
+    transition:
+        transform 320ms var(--ease-default),
+        height 320ms var(--ease-default);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .node-slot,
+    .feed-ring.gliding {
+        transition: none;
+    }
 }
 
 .feed-measure {

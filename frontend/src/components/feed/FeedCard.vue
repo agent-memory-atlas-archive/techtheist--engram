@@ -61,7 +61,7 @@ function fillTip(): void {
 <template>
 <article
     v-if="skeleton"
-    class="card skeleton glass-panel"
+    class="card skeleton"
     :class="{ archived: node.valid_until != null }"
     :style="{ '--card-accent': config.accent(node.type) }"
     aria-hidden="true"
@@ -76,7 +76,7 @@ function fillTip(): void {
 
 <article
     v-else
-    class="card glass-panel"
+    class="card"
     :data-node-id="node.id"
     :class="{ archived: node.valid_until != null, focus }"
     :style="{ '--card-accent': config.accent(node.type) }"
@@ -167,6 +167,12 @@ function fillTip(): void {
     gap: 0.9rem;
     width: 100%;
     padding: 1.4rem 1.6rem;
+
+    /* Opaque, like the graph's cards: no glass here. The feed scrolls
+       nothing behind its cards worth frosting, and a backdrop-filter per
+       card is compositing cost for no visible gain. */
+    background-color: var(--surface-elevated);
+    border: 1px solid var(--border-default);
 
     /* Accent spine as a gradient — follows the rounded corners cleanly.
        Sized to the strip so the texture never reaches the right edge
