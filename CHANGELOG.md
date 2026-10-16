@@ -3,6 +3,68 @@
 Release notes for Engram Alpha. Each release's section below becomes the
 body of its GitHub Release (draft-release.yml lifts it automatically).
 
+## v0.10.2
+
+### See a note's neighborhood on the graph
+
+- **Selecting a note highlights its connections.** Edges touching the
+  selected note are drawn twice as wide, the next ring of connections a bit
+  wider than usual and the third ring slightly wider, and they sit above
+  the other edges. Every other edge and its label fades back, so you can
+  follow what a note connects to at a glance. The change animates in a
+  quarter of a second, and on a 5,000-note graph a selection costs about
+  2 ms, as before.
+
+### The Feed reads by depth
+
+- **The current card stands out.** Cards fade by how far they sit from the
+  card you're reading: the next ones to 70%, then 55%, then 40%. The fade
+  follows the focus as you scroll, and it animates. On the Engram Purple
+  theme, cards two or more notes away also get a light blur; the IDE
+  themes only fade.
+- **A selection outline travels with you.** The current card carries the
+  same outline as a selected card on the graph, and it glides from card to
+  card as you scroll.
+- **Feed cards are solid**, the same color as cards on the graph. The
+  frosted glass stays on the floating toolbar and action bar.
+
+### Big graphs stay smooth everywhere
+
+We ran a scripted session on a 5,000-note test graph at 1920×1080 on a
+Retina screen: zooming from the whole graph to 100% in four steps, with
+clicks, drags, scrolling and minimap jumps at each step. Every step now
+holds 60 frames per second with no pauses. Fixed along the way:
+
+- **No freeze after jumping around with the minimap.** Minimap jumps at
+  low zoom filled the canvas's card image memory with small pictures.
+  Zoomed in to 100% afterwards, cards kept swapping each other out every
+  frame: 8 to 12 frames per second, blurry cards, until you reloaded the
+  pane.
+- **Minimap jumps are smooth.** While the view moves fast, cards that come
+  into view are drawn at half resolution and sharpen as soon as it slows.
+  Uploading full-size card pictures made each jump stutter.
+- **Dragging no longer stalls.** Every drag made the canvas measure all
+  of its cards again at the start and at the end, about 150 ms each on a
+  big graph, with cards briefly redrawn at half resolution.
+- **Dragging a card is smooth on big graphs.** Each mouse move used to look
+  up every edge's color and style one by one.
+- **The first click no longer freezes the canvas.** Opening a note's
+  details loads a bold font for its title, and the canvas re-measured
+  every card when any font loaded, about 200 ms on a big graph. It now
+  only does so for fonts its cards use.
+
+### Smaller fixes
+
+- **A new connection no longer rearranges the graph.** Connecting two cards
+  re-ran the layout, and the result landed a moment later, often while you
+  were dragging one of them. Cards now stay where they are until you switch
+  layout, or notes are added or removed; the next layout includes the new
+  connections.
+- **Connection dots stay put when a card lifts.** A hovered card rises a
+  few pixels; its connection dots now stay where the edges end.
+- **In the IDE Light theme, a hovered card stays white** and just lifts.
+  It used to turn gray.
+
 ## v0.10.1
 
 ### The graph canvas runs on the GPU
