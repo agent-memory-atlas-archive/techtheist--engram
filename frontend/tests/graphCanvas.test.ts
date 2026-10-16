@@ -102,3 +102,29 @@ describe('layout worker contract', () => {
         expect(pos.get('c')).toEqual({ x: 1234, y: -56 })
     })
 })
+
+describe('skyline at scale', () => {
+    // One big connected component used to go to dagre whole: every long
+    // cross-link became a chain of dummy nodes (5 s at 1,000 notes, a stack
+    // overflow at 5,000). Big components now lay out as communities.
+    test('a 1,200-note connected graph lays out fast, every card placed, none overlapping', () => {
+        let seed = 7
+        const rnd = (): number => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648
+        const n = 1200
+        const nodes = Array.from({ length: n }, (_, i) => node(`n${i}`))
+        const edges: GraphEdge[] = []
+        for (let i = 1; i < n; i++) edges.push(edge(`n${i}`, `n${Math.floor(rnd() * i)}`))
+        for (let k = 0; k < n / 2; k++) edges.push(edge(`n${Math.floor(rnd() * n)}`, `n${Math.floor(rnd() * n)}`))
+        const t = performance.now()
+        const pos = layoutGraph(nodes, edges, new Map(), 'skyline')
+        expect(performance.now() - t).toBeLessThan(3000)
+        expect(pos.size).toBe(n)
+        const pts = [...pos.values()].sort((a, b) => a.x - b.x)
+        for (let i = 0; i < pts.length; i++) {
+            for (let j = i + 1; j < pts.length && pts[j]!.x - pts[i]!.x < 340; j++) {
+                const overlap = Math.abs(pts[j]!.y - pts[i]!.y) < 150
+                expect(overlap).toBe(false)
+            }
+        }
+    })
+})

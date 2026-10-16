@@ -91,7 +91,14 @@ export const shots = [
             // Centering a card is what opens its full story after a short
             // settle — the point of the feed, which a wall of collapsed
             // previews doesn't show.
-            await page.locator('.feed .title-btn', { hasText: 'Sync is folder replication' }).click()
+            // The feed mounts only the cards near the viewport (0.10.1):
+            // scroll down until this one exists.
+            const card = page.locator('.feed .title-btn', { hasText: 'Sync is folder replication' })
+            for (let i = 0; i < 60 && !(await card.count()); i++) {
+                await page.locator('.feed').evaluate((el) => (el.scrollTop += 600))
+                await page.waitForTimeout(60)
+            }
+            await card.click()
         },
         settle: 1200,
     },

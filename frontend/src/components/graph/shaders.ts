@@ -76,14 +76,16 @@ uniform vec2 u_view;
 uniform float u_dpr;
 uniform float u_width;
 uniform float u_time;
+/** Segments actually drawn (≤ EDGE_SEGS): fewer when zoomed out. */
+uniform float u_segs;
+/** 1 when zoomed out to bars: every edge solid and still — no dashes to move. */
+uniform float u_static;
 out float v_d;
 out float v_half;
 out float v_alpha;
 out float v_s;
 out vec4 v_color;
 flat out int v_kind;
-
-const float SEGS = ${EDGE_SEGS}.0;
 
 vec2 bez(float t, vec2 p0, vec2 p1, vec2 p2, vec2 p3) {
     float mt = 1.0 - t;
@@ -93,7 +95,7 @@ vec2 bez(float t, vec2 p0, vec2 p1, vec2 p2, vec2 p3) {
 void main() {
     int i = gl_VertexID / 2;
     float side = (gl_VertexID % 2 == 0) ? -1.0 : 1.0;
-    float t = float(i) / SEGS;
+    float t = float(i) / u_segs;
     vec2 p0 = a_ends.xy;
     vec2 p3 = a_ends.zw;
     float dx = p3.x - p0.x;
@@ -106,13 +108,13 @@ void main() {
     if (dot(tan, tan) < 1e-8) tan = p3 - p0 + vec2(1e-3, 0.0);
     tan = normalize(tan);
 
-    int kind = int(a_style.x + 0.5);
+    int kind = u_static > 0.5 ? 0 : int(a_style.x + 0.5);
     float s = 0.0;
     if (kind != 0) {
         vec2 prev = p0;
         for (int k = 1; k <= ${EDGE_SEGS}; k++) {
             if (k > i) break;
-            vec2 q = bez(float(k) / SEGS, p0, p1, p2, p3);
+            vec2 q = bez(float(k) / u_segs, p0, p1, p2, p3);
             s += length(q - prev);
             prev = q;
         }

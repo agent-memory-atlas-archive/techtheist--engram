@@ -26,11 +26,43 @@ body of its GitHub Release (draft-release.yml lifts it automatically).
   only reruns when notes or connections are added or removed. Before, every
   update and every card you dragged re-laid out the whole graph: seconds
   each on a large, connected graph.
+- **Five thousand notes work.** The Skyline layout now splits one big,
+  densely linked cluster into its communities before arranging it. A
+  1,000-note test graph lays out in 0.2 s instead of 5 s, on a field about
+  a tenth the size. At 5,000 notes it takes 0.6 s, where it never
+  finished before.
+- **Zoom out until the whole graph fits.** The zoom-out limit is now the
+  zoom that fits your graph, so a big graph can be seen at once.
+- **Fewer redraws.** Once zoomed out far enough that text turns into
+  lines, the moving dashes on conflict edges stop and every edge is drawn
+  as a still line, so an idle canvas draws nothing. Zoomed in, only the
+  edges near the screen are drawn, and far-off curves use fewer segments.
+- **No more hitch every few seconds on big graphs.** The pane checks for
+  changes every 3 seconds, and each check used to rebuild every card
+  because trust is recomputed on every read: about 270 ms at 5,000 notes.
+  Unchanged notes are now kept as they are.
 - **Double-click or double-tap to zoom in** (Shift+double-click zooms out),
   on desktop and on phones.
 - **Without a GPU, nothing changes.** If WebGL2 isn't available on a real
   GPU, or the GPU gives out mid-session, the pane switches to the previous
   canvas on its own.
+
+### The Feed keeps up with big graphs
+
+- **Switching screens and scrolling stay fast.** The Feed now only keeps
+  the cards near your screen on the page, and still scrolls the full length
+  of the feed. On the same 1,000-note graph, opening the Feed went from a
+  160 ms stall to about 10 ms, fast scrolling from 120 ms per frame to 8 ms,
+  jumping to the end from 137 ms to 9 ms, and following a connection to a
+  far card from 100 ms frames to 9 ms.
+- **Jumps land exactly where they did.** Every card is measured once in
+  the background at its real size, so a jump lands centered at any
+  distance, and the card you're reading never moves while measuring runs.
+  A long jump skips most of the way and glides the last stretch.
+- **A very fast scroll shows placeholder cards**, the same size and color
+  with gray lines for text, which fill in a frame or two later.
+- **Your browser's find (Ctrl+F) only sees the cards near your screen.**
+  The pane's search still finds every note.
 
 ### Smaller fixes
 
@@ -43,6 +75,9 @@ body of its GitHub Release (draft-release.yml lifts it automatically).
 - **Card text spacing.** Cards now use proportional figures, so hyphens and
   numbers sit the way they do in the rest of the pane, and the canvas and
   the HTML card wrap text at the same words.
+- **The selection outline stays visible when zoomed far out.** It now holds
+  about 2 screen pixels at any zoom below 10%. At the new far zoom it had
+  thinned to under one pixel.
 
 ## v0.10.0
 

@@ -96,6 +96,8 @@ const CARD_MARGIN = 44
 const RASTER_BUDGET_MS = 6
 /** A failed paint (atlas full) is retried after this many frames, not every frame. */
 const RETRY_FRAMES = 30
+/** A slot not drawn for this many frames (~1 s) is reused before the atlas grows. */
+const IDLE_FRAMES = 60
 const CARD_FLOATS = 20
 const EDGE_FLOATS = 10
 
@@ -227,14 +229,30 @@ export class GraphRenderer {
 
     private edgeVao: WebGLVertexArrayObject
     private edgeBuf: WebGLBuffer
+    /** Edges uploaded for the current cull box (all of them when all are near). */
     private edgeCount = 0
     private edgeData = new Float32Array(EDGE_FLOATS * 256)
+    private edgeTotal = 0
+    /** Per edge: its curve's bounding box (x0, y0, x1, y1). */
+    private edgeBox = new Float32Array(0)
+    private edgeVis = new Float32Array(0)
+    private labelData = new Float32Array(0)
+    private labelVis = new Float32Array(0)
+    /**
+     * The world box edges and labels were last culled to: the view plus
+     * half a view on every side, so a pan re-culls only once it leaves it.
+     * At five thousand notes the full set is 7,500 curves of 41 segments —
+     * zoomed in, nearly all of that vertex work was off screen.
+     */
+    private cullBox: [number, number, number, number] | null = null
+    private cullDirty = true
     /** Bounding boxes of animated edges (x0, y0, x1, y1 each) — do they need frames? */
     private animBoxes = new Float32Array(0)
 
     private labelVao: WebGLVertexArrayObject
     private labelBuf: WebGLBuffer
     private labelCount = 0
+    private labelTotal = 0
     private labelTex: WebGLTexture | null = null
     private labelUv = new Map<string, { u0: number; v0: number; u1: number; v1: number; w: number; h: number }>()
     labels: LabelBox[] = []
@@ -480,24 +498,28 @@ export class GraphRenderer {
             if (sh.slots.every((sl) => !sl.owner)) empty = sh
         }
         if (empty) return this.cutShelf(empty, tier)
-        // 3. Unshelved space in a layer — growing the atlas once if none is left.
-        for (let pass = 0; pass < 2; pass++) {
-            for (let l = 0; l < this.layers; l++) {
-                if (this.cursor[l]! + h > LAYER) continue
-                const sh: Shelf = { layer: l, y: this.cursor[l]!, h, tier, slotW: 0, slots: [] }
-                this.cursor[l] = this.cursor[l]! + h
-                this.shelves.push(sh)
-                return this.cutShelf(sh, tier)
+        // 3. Unshelved space in a layer.
+        const fresh = this.unshelved(tier, h)
+        if (fresh) return fresh
+        // 4. Evict the least recently drawn slot of this tier and height — first
+        //    only one idle for a while, then (atlas full) any not on screen;
+        //    visible cards were stamped before painting began. Reuse comes
+        //    before growth: growing copies every layer (a stall), and a long
+        //    session on a big graph crept to the 12-layer cap (~200 MB).
+        const victimOf = (before: number): Slot | null => {
+            let victim: Slot | null = null
+            for (const sh of this.shelves) {
+                if (sh.tier !== tier || sh.h !== h) continue
+                for (const sl of sh.slots) if (sl.used < before && (!victim || sl.used < victim.used)) victim = sl
             }
-            if (pass === 0 && !this.growAtlas(Math.min(MAX_LAYERS, this.layers * 2))) break
+            return victim
         }
-        // 4. Evict the least recently drawn slot of this tier and height that is
-        //    not on screen (visible cards were stamped before painting began).
-        let victim: Slot | null = null
-        for (const sh of this.shelves) {
-            if (sh.tier !== tier || sh.h !== h) continue
-            for (const sl of sh.slots) if (sl.used < this.frame && (!victim || sl.used < victim.used)) victim = sl
+        let victim = victimOf(this.frame - IDLE_FRAMES)
+        if (!victim && this.growAtlas(Math.min(MAX_LAYERS, this.layers * 2))) {
+            const grown = this.unshelved(tier, h)
+            if (grown) return grown
         }
+        victim ??= victimOf(this.frame)
         if (victim) {
             if (victim.owner) this.entries.delete(victim.owner)
             victim.owner = null
@@ -516,6 +538,18 @@ export class GraphRenderer {
             }
         }
         return stale ? this.cutShelf(stale, tier) : null
+    }
+
+    /** A new shelf in a layer's unshelved space, if any layer has room. */
+    private unshelved(tier: number, h: number): Slot | null {
+        for (let l = 0; l < this.layers; l++) {
+            if (this.cursor[l]! + h > LAYER) continue
+            const sh: Shelf = { layer: l, y: this.cursor[l]!, h, tier, slotW: 0, slots: [] }
+            this.cursor[l] = this.cursor[l]! + h
+            this.shelves.push(sh)
+            return this.cutShelf(sh, tier)
+        }
+        return null
     }
 
     /** Paint `card` at `want`, or a smaller tier when the atlas is full. */
@@ -568,12 +602,12 @@ export class GraphRenderer {
     // ---- edges & labels -----------------------------------------------------
 
     setEdges(edges: EdgeDraw[]): void {
-        const gl = this.gl
         if (this.edgeData.length < edges.length * EDGE_FLOATS) this.edgeData = new Float32Array(Math.ceil(edges.length * 1.5) * EDGE_FLOATS)
         const d = this.edgeData
         const labels: LabelBox[] = []
         const labelData: number[] = []
         const anim: number[] = []
+        const boxes: number[] = []
         const off = (dx: number): number => (dx >= 0 ? 0.5 * dx : 6.25 * Math.sqrt(-dx))
         let o = 0
         for (const e of edges) {
@@ -591,14 +625,14 @@ export class GraphRenderer {
             const k = off(e.tx - e.sx)
             const c1x = e.sx + k
             const c2x = e.tx - k
-            if (e.animated) {
-                anim.push(
-                    Math.min(e.sx, e.tx, c1x, c2x),
-                    Math.min(e.sy, e.ty),
-                    Math.max(e.sx, e.tx, c1x, c2x),
-                    Math.max(e.sy, e.ty),
-                )
-            }
+            // The curve stays inside its control points' box; its y only
+            // spans the ends (the controls are level with them).
+            const bx0 = Math.min(e.sx, e.tx, c1x, c2x)
+            const by0 = Math.min(e.sy, e.ty)
+            const bx1 = Math.max(e.sx, e.tx, c1x, c2x)
+            const by1 = Math.max(e.sy, e.ty)
+            boxes.push(bx0, by0, bx1, by1)
+            if (e.animated) anim.push(bx0, by0, bx1, by1)
             if (e.label) {
                 const lu = this.labelInfo(e.label)
                 const cx = e.sx * 0.125 + c1x * 0.375 + c2x * 0.375 + e.tx * 0.125
@@ -607,16 +641,64 @@ export class GraphRenderer {
                 labelData.push(cx, cy, lu.w, lu.h, lu.u0, lu.v0, lu.u1, lu.v1, e.appear)
             }
         }
-        gl.bindVertexArray(null)
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.edgeBuf)
-        gl.bufferData(gl.ARRAY_BUFFER, d.subarray(0, o), gl.DYNAMIC_DRAW)
-        this.edgeCount = edges.length
+        this.edgeTotal = edges.length
+        this.edgeBox = new Float32Array(boxes)
         this.animBoxes = new Float32Array(anim)
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.labelBuf)
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(labelData), gl.DYNAMIC_DRAW)
-        this.labelCount = labels.length
+        this.labelData = new Float32Array(labelData)
+        this.labelTotal = labels.length
         this.labels = labels
+        // Uploaded by the next frame's cull.
+        this.cullDirty = true
         this.backdropDirty = true
+    }
+
+    /** Upload the edges and labels near the view (see `cullBox`). */
+    private cull(x0: number, y0: number, x1: number, y1: number): void {
+        const c = this.cullBox
+        const inside = c !== null && x0 >= c[0] && y0 >= c[1] && x1 <= c[2] && y1 <= c[3]
+        // Zoomed far in since the last cull: a tighter box drops more.
+        const loose = c !== null && c[2] - c[0] > 4 * (x1 - x0)
+        if (!this.cullDirty && inside && !loose) return
+        const mx = (x1 - x0) / 2
+        const my = (y1 - y0) / 2
+        const b: [number, number, number, number] = [x0 - mx, y0 - my, x1 + mx, y1 + my]
+        this.cullBox = b
+        this.cullDirty = false
+        const gl = this.gl
+        gl.bindVertexArray(null)
+
+        const n = this.edgeTotal
+        const box = this.edgeBox
+        const all = this.edgeData
+        if (this.edgeVis.length < n * EDGE_FLOATS) this.edgeVis = new Float32Array(all.length)
+        const vis = this.edgeVis
+        let count = 0
+        for (let i = 0; i < n; i++) {
+            const k = i * 4
+            if (box[k]! > b[2] || box[k + 2]! < b[0] || box[k + 1]! > b[3] || box[k + 3]! < b[1]) continue
+            const from = i * EDGE_FLOATS
+            const to = count * EDGE_FLOATS
+            for (let f = 0; f < EDGE_FLOATS; f++) vis[to + f] = all[from + f]!
+            count++
+        }
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.edgeBuf)
+        gl.bufferData(gl.ARRAY_BUFFER, (count === n ? all : vis).subarray(0, count * EDGE_FLOATS), gl.DYNAMIC_DRAW)
+        this.edgeCount = count
+
+        const lab = this.labels
+        const ld = this.labelData
+        if (this.labelVis.length < ld.length) this.labelVis = new Float32Array(ld.length)
+        const lv = this.labelVis
+        let lc = 0
+        for (let i = 0; i < this.labelTotal; i++) {
+            const l = lab[i]!
+            if (l.x > b[2] || l.x + l.w < b[0] || l.y > b[3] || l.y + l.h < b[1]) continue
+            for (let f = 0; f < 9; f++) lv[lc * 9 + f] = ld[i * 9 + f]!
+            lc++
+        }
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.labelBuf)
+        gl.bufferData(gl.ARRAY_BUFFER, (lc === this.labelTotal ? ld : lv).subarray(0, lc * 9), gl.DYNAMIC_DRAW)
+        this.labelCount = lc
     }
 
     /** Edge labels: the verb in a soft box (EngramEdge's look), one atlas for all. */
@@ -742,6 +824,9 @@ export class GraphRenderer {
         this.fullscreen(this.bg, null)
         gl.enable(gl.BLEND)
         if (this.edgeCount) {
+            // Fewer segments as edges shrink on screen: zoomed out, 40 per
+            // curve was most of the frame's vertex work for no visible gain.
+            const segs = z >= 0.45 ? EDGE_SEGS : z >= 0.2 ? 24 : 16
             this.edgeProg
                 .use()
                 .f3('u_cam', cam.x, cam.y, z)
@@ -749,10 +834,13 @@ export class GraphRenderer {
                 .f1('u_dpr', this.dpr)
                 .f1('u_width', 2)
                 .f1('u_time', time)
+                .f1('u_segs', segs)
+                .f1('u_static', this.greekOn ? 1 : 0)
             gl.bindVertexArray(this.edgeVao)
-            gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, (EDGE_SEGS + 1) * 2, this.edgeCount)
+            gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, (segs + 1) * 2, this.edgeCount)
         }
-        if (this.labelCount && this.labelTex) {
+        // Verb labels are specks at bar zoom: not drawn there.
+        if (this.labelCount && this.labelTex && !this.greekOn) {
             this.labelProg.use().f3('u_cam', cam.x, cam.y, z).f2('u_view', this.cssW, this.cssH).f1('u_time', time)
             gl.activeTexture(gl.TEXTURE0)
             gl.bindTexture(gl.TEXTURE_2D, this.labelTex)
@@ -800,20 +888,23 @@ export class GraphRenderer {
             if (e) e.slot.used = frame
         }
 
+        // Painting. Below readable size there is none: the shader's bars stand in.
+        if (this.greekOn && zd > GREEK_OFF) this.greekOn = false
+        else if (!this.greekOn && zd < GREEK_ON) this.greekOn = true
+        const greek = this.greekOn ? 1 : 0
+
+        // Dashes only move while text is readable: zoomed out to bars, every
+        // edge is a still line, and nothing asks for frames.
         let animatedVisible = false
         const ab = this.animBoxes
-        for (let i = 0; i < ab.length; i += 4) {
+        for (let i = 0; i < ab.length && !greek; i += 4) {
             if (ab[i]! <= vx1 && ab[i + 2]! >= vx0 && ab[i + 1]! <= vy1 && ab[i + 3]! >= vy0) {
                 animatedVisible = true
                 break
             }
         }
         this.animatedVisible = animatedVisible
-
-        // Painting. Below readable size there is none: the shader's bars stand in.
-        if (this.greekOn && zd > GREEK_OFF) this.greekOn = false
-        else if (!this.greekOn && zd < GREEK_ON) this.greekOn = true
-        const greek = this.greekOn ? 1 : 0
+        this.cull(vx0, vy0, vx1, vy1)
         let more = false
         let backoff = false
         if (greek < 1) {

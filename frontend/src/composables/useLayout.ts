@@ -35,6 +35,12 @@ function components(nodes: GraphNode[], edges: GraphEdge[]): GraphNode[][] {
     const find = (x: string): string => {
         let r = x
         while (parent.get(r) !== r) r = parent.get(r)!
+        // Path compression: thousands of notes in one chain stay linear.
+        while (parent.get(x) !== r) {
+            const next = parent.get(x)!
+            parent.set(x, r)
+            x = next
+        }
         return r
     }
     for (const e of edges) {
@@ -52,6 +58,56 @@ function components(nodes: GraphNode[], edges: GraphEdge[]): GraphNode[][] {
         arr.push(n)
     }
     return [...groups.values()]
+}
+
+/**
+ * A connected component above this size is laid out as its communities
+ * (0.10.1). dagre on one big component turns every long cross-link into a
+ * chain of dummy nodes, one per rank it spans: a thousand notes with random
+ * cross-links took 5 s and a 110,000 px wide field, two thousand 40 s, and
+ * five thousand overflowed the stack. Graphs whose components all stay under
+ * the threshold lay out exactly as before.
+ */
+const SPLIT_ABOVE = 300
+/** Largest community laid out in one piece; bigger ones are cut by reach. */
+const COMMUNITY_MAX = 200
+
+/**
+ * A big component as dagre-sized pieces: Archipelago's communities, and any
+ * community still above COMMUNITY_MAX cut into connected chunks by reach.
+ */
+function skylinePieces(comp: GraphNode[], edges: GraphEdge[]): GraphNode[][] {
+    const out: GraphNode[][] = []
+    for (const group of communities(comp, edges)) {
+        if (group.length <= COMMUNITY_MAX) {
+            out.push(group)
+            continue
+        }
+        const inside = new Map(group.map((n) => [n.id, n]))
+        const adj = new Map<string, string[]>(group.map((n) => [n.id, []]))
+        for (const e of edges) {
+            if (!inside.has(e.from_id) || !inside.has(e.to_id)) continue
+            adj.get(e.from_id)!.push(e.to_id)
+            adj.get(e.to_id)!.push(e.from_id)
+        }
+        const taken = new Set<string>()
+        for (const start of group) {
+            if (taken.has(start.id)) continue
+            const chunk = [start.id]
+            taken.add(start.id)
+            for (let q = 0; q < chunk.length && chunk.length < COMMUNITY_MAX; q++) {
+                for (const j of adj.get(chunk[q]!)!) {
+                    if (chunk.length >= COMMUNITY_MAX) break
+                    if (!taken.has(j)) {
+                        taken.add(j)
+                        chunk.push(j)
+                    }
+                }
+            }
+            out.push(chunk.map((id) => inside.get(id)!))
+        }
+    }
+    return out
 }
 
 interface Placed {
@@ -173,6 +229,7 @@ function layoutSkyline(
     edges: GraphEdge[],
 ): Map<string, XY> {
     const comps = components(nodes, edges)
+        .flatMap((c) => (c.length > SPLIT_ABOVE ? skylinePieces(c, edges) : [c]))
         .map((c) => layoutComponent(c, edges))
         .sort((a, b) => b.h - a.h || b.w - a.w)
     return packSkyline(comps, fieldWidth(comps, COMP_GAP_X, COMP_GAP_Y))

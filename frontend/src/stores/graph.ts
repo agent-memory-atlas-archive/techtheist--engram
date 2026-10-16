@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue'
+import { computed, ref, toRaw } from 'vue'
 import { defineStore } from 'pinia'
 import { TRUSTED_TRUST } from '@/constants/ontology'
 import { useConfigStore } from '@/stores/config'
@@ -40,6 +40,45 @@ const NO_FILTERS: GraphFilters = {
     showArchived: false,
 }
 
+/** Plain-data equality (wire objects: primitives, arrays, records). */
+function sameValue(a: unknown, b: unknown, skip?: string): boolean {
+    if (a === b) return true
+    if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false
+    if (Array.isArray(a)) {
+        if (!Array.isArray(b) || a.length !== b.length) return false
+        return a.every((x, i) => sameValue(x, b[i]))
+    }
+    if (Array.isArray(b)) return false
+    const ra = a as Record<string, unknown>
+    const rb = b as Record<string, unknown>
+    const ka = Object.keys(ra)
+    if (ka.length !== Object.keys(rb).length) return false
+    return ka.every((k) => k === skip || (k in rb && sameValue(ra[k], rb[k])))
+}
+
+/** Trust drifts a little on every read; under a tenth of a percent it is the same note. */
+function sameNode(a: GraphNode, b: GraphNode): boolean {
+    return Math.abs(a.trust - b.trust) < 0.0005 && sameValue(a, b, 'trust')
+}
+
+/** The next Map, reusing `old`'s objects where equal — or null when nothing changed. */
+function mergeById<T extends { id: string }>(old: Map<string, T>, next: T[], same: (a: T, b: T) => boolean): Map<string, T> | null {
+    // Raw objects: read through the store's reactive proxies, the comparison
+    // itself cost ~70 ms at 5,000 notes.
+    const raw = toRaw(old)
+    let changed = next.length !== raw.size
+    const out = new Map<string, T>()
+    for (const item of next) {
+        const prev = raw.get(item.id) as T | undefined
+        if (prev && same(prev, item)) out.set(item.id, prev)
+        else {
+            out.set(item.id, item)
+            changed = true
+        }
+    }
+    return changed ? out : null
+}
+
 export function trustLevel(n: GraphNode): 'pinned' | 'trusted' | 'provisional' | 'stale' {
     if (n.trust_override != null) return 'pinned'
     if (n.stale) return 'stale'
@@ -79,7 +118,6 @@ export const useGraphStore = defineStore('graph', () => {
 
     /** Teardown for the live stream, or null when detached. */
     let stream: (() => void) | null = null
-    let lastSig = ''
 
     const nodeList = computed(() => [...nodes.value.values()])
     const edgeList = computed(() => [...edges.value.values()])
@@ -146,9 +184,19 @@ export const useGraphStore = defineStore('graph', () => {
         filters.value = structuredClone(NO_FILTERS)
     }
 
+    /**
+     * Apply a fetched graph, keeping every unchanged node and edge as the
+     * same object, and the Maps themselves when nothing changed (0.10.1).
+     * The canvas and the feed cache per object; trust is computed at read
+     * time, so every 3 s poll used to come back "different" and replace all
+     * of them — at 5,000 notes a 270 ms freeze every poll, the canvas
+     * re-laying out every card and the feed re-measuring.
+     */
     function applyGraph(g: Graph): void {
-        nodes.value = new Map(g.nodes.map((n) => [n.id, n]))
-        edges.value = new Map(g.edges.map((e) => [e.id, e]))
+        const n = mergeById(nodes.value, g.nodes, sameNode)
+        if (n) nodes.value = n
+        const e = mergeById(edges.value, g.edges, (a, b) => sameValue(a, b))
+        if (e) edges.value = e
     }
 
     async function load(): Promise<void> {
@@ -157,7 +205,6 @@ export const useGraphStore = defineStore('graph', () => {
         try {
             const g = await api.graph()
             applyGraph(g)
-            lastSig = JSON.stringify(g)
             await loadSuspects()
             await loadDrift()
         } catch (e) {
@@ -209,12 +256,7 @@ export const useGraphStore = defineStore('graph', () => {
      */
     async function refresh(): Promise<void> {
         try {
-            const g = await api.graph()
-            const sig = JSON.stringify(g)
-            if (sig !== lastSig) {
-                applyGraph(g)
-                lastSig = sig
-            }
+            applyGraph(await api.graph())
             // Suspects can change with no graph delta (a scan queued pairs), so
             // reconcile them on every poll — the list is tiny. Drift is NOT
             // polled: each scan stats every code_ref on disk under the engine

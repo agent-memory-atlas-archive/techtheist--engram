@@ -31,8 +31,16 @@ const layout = useLayoutStore()
 const projects = useProjectsStore()
 const { visibleNodeList, visibleEdgeList, selectedId } = storeToRefs(store)
 
-const MIN_ZOOM = 0.05
 const MAX_ZOOM = 1
+/**
+ * How far out the camera goes: exactly far enough to fit the whole graph
+ * (0.10.1) — a fixed 0.05 could not show five thousand notes at once, and
+ * let a small graph shrink to a speck. Small graphs still get room to step
+ * back (never above FIT_CAP), and FLOOR guards a degenerate fit.
+ */
+const FIT_CAP = 0.5
+const FLOOR = 0.002
+const minZoom = ref(0.05)
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform)
 
 const root = ref<HTMLDivElement | null>(null)
@@ -66,7 +74,7 @@ function snapped(): { x: number; y: number; zoom: number } {
 }
 
 function clampZoom(z: number): number {
-    return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z))
+    return Math.min(MAX_ZOOM, Math.max(minZoom.value, z))
 }
 
 function setCam(x: number, y: number, zoom: number): void {
@@ -111,25 +119,29 @@ function zoomAt(sx: number, sy: number, factor: number, ms = 0): void {
     moveCam({ x: sx - (sx - cam.x) * k, y: sy - (sy - cam.y) * k, zoom: z }, ms)
 }
 
+/** The scene's world bounds — kept by `rebuild`, read by fit and the zoom limit. */
+let bounds = { x0: 0, y0: 0, x1: 1, y1: 1 }
+
 /** Fit with a 3% margin on every side but a 64px top (the floating bar). */
-function fitView(ms = 0): void {
-    if (!cards.length) return
-    let x0 = Infinity
-    let y0 = Infinity
-    let x1 = -Infinity
-    let y1 = -Infinity
-    for (const c of cards) {
-        x0 = Math.min(x0, c.x)
-        y0 = Math.min(y0, c.y)
-        x1 = Math.max(x1, c.x + c.w)
-        y1 = Math.max(y1, c.y + c.h)
-    }
+function fitFrame(): { pad: { top: number; left: number }; aw: number; ah: number; zoom: number } {
     const W = viewW.value
     const H = viewH.value
     const pad = { top: 64, left: W * 0.03, right: W * 0.03, bottom: H * 0.03 }
     const aw = Math.max(1, W - pad.left - pad.right)
     const ah = Math.max(1, H - pad.top - pad.bottom)
-    const zoom = clampZoom(Math.min(aw / (x1 - x0), ah / (y1 - y0)))
+    const zoom = Math.min(aw / (bounds.x1 - bounds.x0), ah / (bounds.y1 - bounds.y0))
+    return { pad, aw, ah, zoom }
+}
+
+function updateMinZoom(): void {
+    minZoom.value = cards.length ? Math.max(FLOOR, Math.min(FIT_CAP, fitFrame().zoom)) : 0.05
+}
+
+function fitView(ms = 0): void {
+    if (!cards.length) return
+    const { x0, y0, x1, y1 } = bounds
+    const { pad, aw, ah, zoom: fit } = fitFrame()
+    const zoom = clampZoom(fit)
     moveCam(
         {
             x: pad.left + (aw - (x1 - x0) * zoom) / 2 - x0 * zoom,
@@ -343,8 +355,20 @@ function rebuild(): void {
     }
     stats.cardsMs = performance.now() - tc
     stats.rebuilds++
+    let x0 = Infinity
+    let y0 = Infinity
+    let x1 = -Infinity
+    let y1 = -Infinity
+    for (const c of next) {
+        if (c.x < x0) x0 = c.x
+        if (c.y < y0) y0 = c.y
+        if (c.x + c.w > x1) x1 = c.x + c.w
+        if (c.y + c.h > y1) y1 = c.y + c.h
+    }
+    if (next.length) bounds = { x0, y0, x1, y1 }
     cards = next
     cardById = byId
+    updateMinZoom()
     nodeById.value = nodes
     rebuildEdges()
     sceneTick.value++
@@ -394,7 +418,7 @@ function applyCamera(c: { x: number; y: number; zoom: number }): void {
     if (c.zoom !== lastApplied.zoom && root.value) {
         const w = outlineRem(c.zoom)
         root.value.style.setProperty('--selected-outline-w', `${w.toFixed(3)}rem`)
-        root.value.style.setProperty('--selected-outline-o', `${(w * 1.5).toFixed(3)}rem`)
+        root.value.style.setProperty('--selected-outline-o', `${outlineOffset(w).toFixed(3)}rem`)
     }
     lastApplied = { ...c }
     view.value = { ...c }
@@ -697,7 +721,7 @@ function endPress(e: PointerEvent, cancelled: boolean): void {
             return
         }
         lastTap = { t: now, x: p.x, y: p.y }
-        if (pr.kind === 'node' && !locked.value) {
+        if (pr.kind === 'node') {
             store.select(pr.nodeId!)
             if (pr.touch) setHover(pr.nodeId!)
         } else if (pr.kind === 'pan') {
@@ -805,8 +829,17 @@ const OUTLINE_STOPS: [number, number][] = [
     [0.5, 0.4],
     [0.25, 0.8],
     [0.1, 1.2],
-    [0.01, 3.2],
+    // Below 0.1 the ring holds ~2 screen px (0.10.1: at 0.03 — five
+    // thousand notes fitted — the old stops left it under one pixel).
+    [0.05, 3.4],
+    [0.025, 7.4],
+    [0.01, 18],
 ]
+
+/** The gap outside the card: 0.3rem at 100%, ~1.2× the width when zoomed far out. */
+function outlineOffset(w: number): number {
+    return w * 1.2 + 0.06
+}
 
 function outlineRem(z: number): number {
     let [hiZ, hiW] = OUTLINE_STOPS[0]!
@@ -898,6 +931,7 @@ function resize(): void {
     viewW.value = w
     viewH.value = h
     renderer.setSize(w, h, Math.min(window.devicePixelRatio || 1, 3))
+    updateMinZoom()
     invalidate()
 }
 
@@ -1007,7 +1041,7 @@ watch(
     <GraphControls
         :locked="locked"
         :can-zoom-in="view.zoom < MAX_ZOOM"
-        :can-zoom-out="view.zoom > MIN_ZOOM"
+        :can-zoom-out="view.zoom > minZoom + 1e-6"
         @zoom-in="zoomBy(1.2)"
         @zoom-out="zoomBy(1 / 1.2)"
         @fit="fitView(300)"

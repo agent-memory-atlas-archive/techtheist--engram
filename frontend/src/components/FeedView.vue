@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import InfoBadge from '@/components/common/InfoBadge.vue'
 import UiButton from '@/components/common/UiButton.vue'
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import EmptyGraph from '@/components/common/EmptyGraph.vue'
-import MarkdownView from '@/components/common/MarkdownView.vue'
+import FeedCard from '@/components/feed/FeedCard.vue'
+import { HeightMap, anchorShift, distanceToLine } from '@/components/feed/heightMap'
 import SegmentedControl from '@/components/common/SegmentedControl.vue'
 import { onProjectSwitch } from '@/composables/onProjectSwitch'
-import { trustLevel, useGraphStore } from '@/stores/graph'
+import { useGraphStore } from '@/stores/graph'
 import { useConfigStore } from '@/stores/config'
 import { useLayoutStore } from '@/stores/layout'
 import type { GraphEdge, GraphNode } from '@/types/graph'
@@ -113,6 +113,8 @@ const items = computed<FeedItem[]>(() => {
 
 // ---- edges on a card -------------------------------------------------------
 
+const EMPTY: readonly never[] = Object.freeze([])
+
 const outEdges = computed(() => {
     const m = new Map<string, GraphEdge[]>()
     for (const e of edgeList.value) {
@@ -131,11 +133,440 @@ const inEdges = computed(() => {
     return m
 })
 
+/** Same cap as FeedCard's chip rows — only shown chips shape a card. */
 const EDGE_CAP = 6
 
 function title(id: string): string {
     return nodes.value.get(id)?.title ?? id
 }
+
+// ---- geometry: measured heights, the window, the mount budget ---------------
+//
+// The feed keeps its full length, but only the cards within a screen of the
+// viewport exist (0.10.1): a thousand mounted cards cost ~160 ms on every
+// screen switch and ~120 ms a frame in a fling. Positions come from a
+// height map (feed/heightMap.ts) filled by measuring each card once, off
+// screen, in idle time — real heights, so a jump lands exactly at any
+// distance. A card that has not been measured yet stands in with an
+// estimate; when its measurement lands above the centered card, the scroll
+// moves by the same amount and nothing on screen shifts.
+
+const feedEl = useTemplateRef<HTMLElement>('feedEl')
+const trackEl = useTemplateRef<HTMLElement>('trackEl')
+const currentId = ref<string | null>(null)
+
+const keyOf = (it: FeedItem): string => (it.kind === 'node' ? it.node.id : it.key)
+
+/** What a card's height depends on — a change re-measures it. */
+function sigOf(it: FeedItem): string {
+    if (it.kind === 'version') return `v|${it.label}`
+    const n = it.node
+    const outs = (outEdges.value.get(n.id) ?? EMPTY).slice(0, EDGE_CAP).map((e) => e.type + title(e.to_id))
+    const ins = (inEdges.value.get(n.id) ?? EMPTY).slice(0, EDGE_CAP).map((e) => e.type + title(e.from_id))
+    return [
+        n.type,
+        n.version,
+        n.status,
+        n.valid_until != null,
+        driftByNode.value.has(n.id),
+        n.title,
+        n.body,
+        n.tags.join(' '),
+        n.code_refs.join(' '),
+        Math.round(n.trust * 100),
+        outs.join('\u0001'),
+        ins.join('\u0001'),
+    ].join('\u0002')
+}
+
+interface Measured {
+    sig: string
+    h: number
+    /** The layout generation it was measured under (width, theme, fonts). */
+    gen: number
+}
+
+const geo = new HeightMap()
+const measured = new Map<string, Measured>()
+const sigs = new Map<string, string>()
+let itemByKey = new Map<string, FeedItem>()
+/** Live heights of the mounted cards (ResizeObserver) — they win over the cache. */
+const seen = new Map<string, number>()
+let gen = 0
+let estimate = 220
+let firstNode = -1
+let lastNode = -1
+/** The track's top inside the scroller (the feed's top padding). */
+let trackTop = 0
+/** Bumped whenever the geometry changes; the template reads it. */
+const layoutSeq = ref(0)
+
+const fresh = (k: string): boolean => {
+    const m = measured.get(k)
+    return m !== undefined && m.gen === gen && m.sig === sigs.get(k)
+}
+
+function heightFor(k: string): number {
+    return seen.get(k) ?? measured.get(k)?.h ?? estimate
+}
+
+/** A new list (lens, sort, filters, an edit): new map, the centered card stays put. */
+function rebuild(list: FeedItem[]): void {
+    const root = feedEl.value
+    const anchor = currentId.value
+    const ai = anchor ? geo.indexOf(anchor) : -1
+    const before = root && ai >= 0 ? trackTop + geo.offset(ai) - root.scrollTop : null
+    sigs.clear()
+    itemByKey = new Map()
+    const keys = list.map((it) => {
+        const k = keyOf(it)
+        sigs.set(k, sigOf(it))
+        itemByKey.set(k, it)
+        return k
+    })
+    geo.reset(keys, heightFor)
+    firstNode = list.findIndex((it) => it.kind === 'node')
+    lastNode = -1
+    for (let i = list.length - 1; i >= 0 && lastNode < 0; i--) if (list[i]!.kind === 'node') lastNode = i
+    layoutSeq.value++
+    const ni = anchor ? geo.indexOf(anchor) : -1
+    if (root && before != null && ni >= 0) {
+        const top = trackTop + geo.offset(ni) - before
+        void nextTick(() => (root.scrollTop = top))
+    }
+    queueFrame()
+    scheduleMeasure()
+}
+
+let pendingShift = 0
+let shiftBase: number | null = null
+/** The card a smooth scroll is gliding to — a correction re-aims it. */
+let glideTo: string | null = null
+let glideTimer: number | undefined
+let glideAt = 0
+
+/** Apply height changes; the view stays still for changes above the centered card. */
+function applyChanges(changes: [number, number][]): void {
+    if (!changes.length) return
+    const root = feedEl.value
+    const anchor = currentId.value ? geo.indexOf(currentId.value) : -1
+    const shift = anchorShift(changes, anchor)
+    layoutSeq.value++
+    if (shift && root) {
+        // Absolute, not `+=`: Chrome re-snaps a snapped card after layout
+        // on its own, and a relative shift on top of that moved the view a
+        // second time. After the DOM update, so the track already has its
+        // new length and the browser does not clamp to the old one.
+        if (shiftBase === null) {
+            shiftBase = root.scrollTop
+            void nextTick(() => {
+                root.scrollTop = shiftBase! + pendingShift
+                shiftBase = null
+                pendingShift = 0
+                // An instant scroll cancels a smooth one: aim it again.
+                if (glideTo) glide(glideTo, root)
+            })
+        }
+        pendingShift += shift
+    }
+    queueFrame()
+}
+
+/** The scroll position that centers an item. */
+function centerOf(key: string, root: HTMLElement): number {
+    const i = geo.indexOf(key)
+    return trackTop + geo.offset(i) + geo.height(i) / 2 - root.clientHeight / 2
+}
+
+function glide(key: string, root: HTMLElement): void {
+    glideTo = key
+    glideAt = performance.now()
+    window.clearTimeout(glideTimer)
+    glideTimer = window.setTimeout(endGlide, 1500)
+    root.scrollTo({ top: centerOf(key, root), behavior: 'smooth' })
+}
+
+/** scrollend also fires for the instant hop that starts a glide — not the end. */
+function onScrollEnd(): void {
+    if (performance.now() - glideAt > 150) endGlide()
+}
+
+function endGlide(): void {
+    glideTo = null
+    window.clearTimeout(glideTimer)
+}
+
+// -- the measurer: cards rendered off screen, read, discarded --
+
+const measureKeys = shallowRef<string[]>([])
+const measureEl = useTemplateRef<HTMLElement>('measureEl')
+let measuring: Promise<void> | null = null
+
+async function measure(keys: string[]): Promise<void> {
+    while (measuring) await measuring
+    if (!keys.length) return
+    measuring = (async () => {
+        measureKeys.value = keys
+        await nextTick()
+        const host = measureEl.value
+        const changes: [number, number][] = []
+        if (host) {
+            let sum = 0
+            let count = 0
+            for (const el of host.children as HTMLCollectionOf<HTMLElement>) {
+                const k = el.dataset.key
+                if (!k) continue
+                const h = el.getBoundingClientRect().height
+                measured.set(k, { sig: sigs.get(k) ?? '', h, gen })
+                if (itemByKey.get(k)?.kind === 'node') {
+                    sum += h
+                    count++
+                }
+                if (seen.has(k)) continue
+                const i = geo.indexOf(k)
+                const d = i >= 0 ? geo.set(i, h) : 0
+                if (d) changes.push([i, d])
+            }
+            if (count) estimate = 0.8 * estimate + 0.2 * (sum / count)
+        }
+        measureKeys.value = []
+        applyChanges(changes)
+    })()
+    await measuring
+    measuring = null
+}
+
+/** Stale items, nearest the centered card first. */
+function staleKeys(limit: number): string[] {
+    const out: string[] = []
+    const n = geo.length
+    const c = Math.max(0, currentId.value ? geo.indexOf(currentId.value) : 0)
+    for (let d = 0; d < n && out.length < limit; d++) {
+        for (const i of d === 0 ? [c] : [c + d, c - d]) {
+            const k = geo.keys[i]
+            if (k !== undefined && !seen.has(k) && !fresh(k)) out.push(k)
+        }
+    }
+    return out.slice(0, limit)
+}
+
+let measureQueued = false
+let lastScrollAt = 0
+let perItem = 1
+const idle = (fn: (d?: IdleDeadline) => void): void => {
+    // Safari has no requestIdleCallback.
+    if (typeof requestIdleCallback === 'function') requestIdleCallback(fn, { timeout: 1000 })
+    else setTimeout(() => fn(), 60)
+}
+
+/** Background measuring in idle slices — paused while the feed is hidden or moving. */
+function scheduleMeasure(): void {
+    if (measureQueued) return
+    measureQueued = true
+    idle((deadline) => void measureSlice(deadline))
+}
+
+async function measureSlice(deadline?: IdleDeadline): Promise<void> {
+    measureQueued = false
+    if (layout.view !== 'feed') return // arrive() restarts it
+    if (measuring || glideTo || performance.now() - lastScrollAt < 250) {
+        scheduleMeasure()
+        return
+    }
+    // At most ~12 ms a slice even when the browser offers a long idle
+    // period: a slice is one task, and input waits behind it.
+    const budget = Math.min(12, Math.max(4, deadline?.timeRemaining() ?? 8))
+    const keys = staleKeys(Math.min(40, Math.max(2, Math.floor(budget / perItem))))
+    if (!keys.length) return
+    const t0 = performance.now()
+    await measure(keys)
+    perItem = 0.7 * perItem + 0.3 * ((performance.now() - t0) / keys.length)
+    scheduleMeasure()
+}
+
+// -- the window: what exists in the DOM, and what is a real card yet --
+
+const win = shallowRef({ start: 0, end: -1 })
+/** Keys mounted as real cards; the rest of the window shows skeletons. */
+const live = shallowRef<Set<string>>(new Set())
+/** Cards promoted to real per frame while scrolling — a fling never drops frames. */
+const MOUNT_BUDGET = 6
+let frameRaf = 0
+let urgent = false
+
+function queueFrame(all = false): void {
+    urgent ||= all
+    if (!frameRaf) frameRaf = requestAnimationFrame(onFrame)
+}
+
+/** Run the frame now (a jump), not on the next animation frame. */
+function frameNow(): void {
+    if (frameRaf) cancelAnimationFrame(frameRaf)
+    urgent = true
+    onFrame()
+}
+
+function onFrame(): void {
+    frameRaf = 0
+    const root = feedEl.value
+    if (!root || !geo.length) return
+    const vh = root.clientHeight
+    const top = root.scrollTop - trackTop
+    const [s, e] = geo.range(top - vh, top + 2 * vh)
+    if (s !== win.value.start || e !== win.value.end) win.value = { start: s, end: e }
+
+    // Promote: what is on screen first, then outward through the window.
+    const next = new Set<string>()
+    let changed = false
+    for (const k of live.value) {
+        const i = geo.indexOf(k)
+        if (i >= s && i <= e) next.add(k)
+        else changed = true
+    }
+    const [vs, ve] = geo.range(top, top + vh)
+    let budget = urgent ? Infinity : MOUNT_BUDGET
+    let behind = false
+    const promote = (i: number): void => {
+        const k = geo.keys[i]
+        if (k === undefined || next.has(k) || itemByKey.get(k)?.kind !== 'node') return
+        if (budget <= 0) {
+            behind = true
+            return
+        }
+        next.add(k)
+        budget--
+        changed = true
+    }
+    for (let i = vs; i <= ve; i++) promote(i)
+    for (let d = 1; ve + d <= e || vs - d >= s; d++) {
+        if (ve + d <= e) promote(ve + d)
+        if (vs - d >= s) promote(vs - d)
+    }
+    urgent = false
+    if (changed) live.value = next
+    if (behind) queueFrame()
+    restyle(root)
+}
+
+// ---- depth effect + current card ------------------------------------------
+
+/** The mounted slots (v-track), by key. */
+const slots = new Map<string, HTMLElement>()
+
+/**
+ * Scale/fade cards by distance from the viewport center — the depth cue —
+ * and pick the centered card, all from the height map: no layout reads, and
+ * only the mounted cards are touched. Distance is to the card's nearest
+ * edge (0 while it covers the line), so an expanded card taller than the
+ * screen stays solid while it is read.
+ */
+function restyle(root: HTMLElement): void {
+    if (firstNode < 0) return
+    const vh = root.clientHeight
+    /*
+     * The center line, clamped to the first and last card's own centers.
+     * Without the clamp a short card at either end can never reach the
+     * middle of the screen (the feed's padding is smaller than half a
+     * viewport), so it stays dimmed and unfocusable while its taller
+     * neighbor — which does cover the line — wins every time.
+     */
+    const center = (i: number): number => geo.offset(i) + geo.height(i) / 2
+    const mid = Math.min(Math.max(root.scrollTop + vh / 2 - trackTop, center(firstNode)), center(lastNode))
+    for (const [k, el] of slots) {
+        const i = geo.indexOf(k)
+        if (i < 0 || itemByKey.get(k)?.kind !== 'node') continue
+        const t = Math.max(0, 1 - distanceToLine(geo.offset(i), geo.height(i), mid) / (vh * 0.75))
+        el.style.opacity = String(0.45 + 0.55 * t)
+        el.style.transform = `scale(${0.945 + 0.055 * t})`
+    }
+    const at = geo.indexAt(mid)
+    let best: { k: string; d: number } | null = null
+    for (let i = Math.max(0, at - 2); i <= Math.min(geo.length - 1, at + 2); i++) {
+        const k = geo.keys[i]!
+        if (itemByKey.get(k)?.kind !== 'node') continue
+        const d = distanceToLine(geo.offset(i), geo.height(i), mid)
+        if (!best || d < best.d) best = { k, d }
+    }
+    if (best && best.k !== currentId.value) currentId.value = best.k
+}
+
+/** Slot registry + live heights: one observer for every mounted card. */
+const slotObserver = new ResizeObserver((entries) => {
+    const changes: [number, number][] = []
+    for (const en of entries) {
+        const el = en.target as HTMLElement
+        const k = el.dataset.key
+        if (!k || el.dataset.live !== '1') continue
+        const h = en.borderBoxSize[0]?.blockSize ?? el.offsetHeight
+        seen.set(k, h)
+        const i = geo.indexOf(k)
+        const d = i >= 0 ? geo.set(i, h) : 0
+        if (d) changes.push([i, d])
+    }
+    applyChanges(changes)
+})
+
+const vTrack = {
+    mounted(el: HTMLElement, b: { value: string }): void {
+        slots.set(b.value, el)
+        slotObserver.observe(el)
+    },
+    unmounted(el: HTMLElement, b: { value: string }): void {
+        if (slots.get(b.value) === el) slots.delete(b.value)
+        slotObserver.unobserve(el)
+        seen.delete(b.value)
+    },
+}
+
+/** The window as the template draws it. */
+const windowItems = computed(() => {
+    void layoutSeq.value
+    const { start, end } = win.value
+    return items.value.slice(start, end + 1).map((item, j) => ({
+        item,
+        key: keyOf(item),
+        top: geo.offset(start + j),
+        h: geo.height(start + j),
+    }))
+})
+
+const trackHeight = computed(() => {
+    void layoutSeq.value
+    return geo.total
+})
+
+/** Re-read what CSS decides: the track's top padding and the gap between cards. */
+function refreshMetrics(): void {
+    const track = trackEl.value
+    if (!track) return
+    trackTop = track.offsetTop
+    const gap = parseFloat(getComputedStyle(track).rowGap) || 0
+    if (gap !== geo.gap) {
+        geo.setGap(gap)
+        layoutSeq.value++
+    }
+}
+
+/** Width, theme or fonts changed: every measurement is stale (kept as estimates). */
+function relayout(): void {
+    gen++
+    refreshMetrics()
+    queueFrame()
+    scheduleMeasure()
+}
+
+let lastWidth = 0
+const viewObserver = new ResizeObserver(([en]) => {
+    const w = en?.contentRect.width ?? 0
+    if (w === 0) return // hidden
+    if (w !== lastWidth) {
+        lastWidth = w
+        relayout()
+    } else {
+        queueFrame()
+    }
+})
+const themeObserver = new MutationObserver(relayout)
 
 // ---- traversal + trail -----------------------------------------------------
 
@@ -159,24 +590,42 @@ watch(
     { deep: true },
 )
 
-const currentId = ref<string | null>(null)
-
 /**
- * Center a card in the feed. Scrolls the feed's own scroller, vertically
- * only — scrollIntoView would also scroll every ancestor on both axes, and
- * mid-switch the card sits slid off to the side, so it dragged the whole app
- * sideways.
+ * Center a card in the feed, from the height map — the card may not exist
+ * in the DOM yet. The landing zone is measured first, so the target and its
+ * neighbors sit at their real heights before anything moves. A far smooth
+ * jump lands 1.5 screens short instantly and glides the rest: the same
+ * arrival, without a long ride through a few hundred cards. Scrolls the
+ * feed's own scroller, vertically only (scrollIntoView dragged the whole
+ * app sideways mid-switch).
  */
-function scrollToNode(id: string, smooth = true): void {
-    void nextTick(() => {
-        const root = feedEl.value
-        const el = root?.querySelector<HTMLElement>(`[data-node-id="${id}"]`)
-        if (!root || !el) return
-        root.scrollTo({
-            top: el.offsetTop + el.offsetHeight / 2 - root.clientHeight / 2,
-            behavior: smooth ? 'smooth' : 'instant',
-        })
-    })
+async function scrollToNode(id: string, smooth = true): Promise<void> {
+    await nextTick()
+    const root = feedEl.value
+    if (!root || geo.indexOf(id) < 0) return
+    const vh = root.clientHeight
+    let target = centerOf(id, root)
+    const dir = Math.sign(target - root.scrollTop)
+    const far = smooth && Math.abs(target - root.scrollTop) > 3 * vh
+    const from = far ? target - dir * 1.5 * vh : target
+    const [a, b] = geo.range(Math.min(from, target) - trackTop - vh, Math.max(from, target) - trackTop + 2 * vh)
+    const stale = geo.keys.slice(a, b + 1).filter((k) => !seen.has(k) && !fresh(k))
+    if (stale.length) {
+        await measure(stale)
+        await nextTick()
+        target = centerOf(id, root)
+    }
+    endGlide()
+    if (!smooth) {
+        root.scrollTo({ top: target, behavior: 'instant' })
+        frameNow()
+        return
+    }
+    if (far) {
+        root.scrollTo({ top: target - dir * 1.5 * vh, behavior: 'instant' })
+        frameNow()
+    }
+    glide(id, root)
 }
 
 /** Make sure the node has a card even when the active lens filters it out. */
@@ -195,7 +644,7 @@ function traverse(targetId: string): void {
         trail.value = [...trail.value, currentId.value].slice(-TRAIL_CAP)
     }
     ensureInFeed(targetId)
-    scrollToNode(targetId)
+    void scrollToNode(targetId)
 }
 
 function goBack(): void {
@@ -208,71 +657,17 @@ function goBack(): void {
     const prev = trail.value[idx]!
     trail.value = trail.value.slice(0, idx)
     ensureInFeed(prev)
-    scrollToNode(prev)
+    void scrollToNode(prev)
 }
 
 /**
  * Fast traverse to the ends of the feed. Deliberately instant rather than
- * smooth: across a few hundred cards a smooth scroll is a long ride, and the
- * point of the jump is to be there.
+ * smooth: the point of the jump is to be there.
  */
 function jump(where: 'top' | 'bottom'): void {
     const target = where === 'top' ? feedNodes.value[0] : feedNodes.value.at(-1)
-    if (target) scrollToNode(target.id, false)
+    if (target) void scrollToNode(target.id, false)
 }
-
-// ---- depth effect + current card ------------------------------------------
-
-const feedEl = useTemplateRef<HTMLElement>('feedEl')
-let raf = 0
-
-/**
- * Scale/fade cards by distance from the viewport center — the depth cue.
- * Distance is measured to the card's nearest edge (clamped to 0 while the
- * card covers the center line), so an expanded card taller than the screen
- * stays fully solid while the reader scrolls inside it.
- */
-function restyle(): void {
-    raf = 0
-    const root = feedEl.value
-    if (!root) return
-    const cards = [...root.querySelectorAll<HTMLElement>('[data-node-id]')]
-    if (!cards.length) return
-    /*
-     * The center line, clamped to the first and last card's own centers.
-     * Without the clamp a short card at either end can never reach the
-     * middle of the screen (the feed's padding is smaller than half a
-     * viewport), so it stays dimmed and unfocusable while its taller
-     * neighbor — which does cover the line — wins every time.
-     */
-    const center = (el: HTMLElement) => el.offsetTop + el.offsetHeight / 2
-    const mid = Math.min(
-        Math.max(root.scrollTop + root.clientHeight / 2, center(cards[0]!)),
-        center(cards.at(-1)!),
-    )
-    let best: { id: string; d: number } | null = null
-    for (const el of cards) {
-        const half = el.offsetHeight / 2
-        const d = Math.max(0, Math.abs(el.offsetTop + half - mid) - half)
-        const t = Math.max(0, 1 - d / (root.clientHeight * 0.75))
-        el.style.opacity = String(0.45 + 0.55 * t)
-        el.style.transform = `scale(${0.945 + 0.055 * t})`
-        const id = el.dataset.nodeId ?? ''
-        if (!best || d < best.d) best = { id, d }
-    }
-    if (best) currentId.value = best.id
-}
-
-function queueRestyle(): void {
-    if (!raf) raf = requestAnimationFrame(restyle)
-}
-
-watch(items, () =>
-    void nextTick(() => {
-        queueRestyle()
-        scheduleSettle()
-    }),
-)
 
 /**
  * Expansion model (settled after four iterations): every card ALWAYS renders
@@ -290,8 +685,20 @@ function scheduleSettle(): void {
     settleTimer = window.setTimeout(() => (expandedId.value = currentId.value), 180)
 }
 
+/* A card that left the DOM while expanded still holds its expanded height
+   in the map; once it collapses, give it back its measured preview height. */
+watch(expandedId, (_, prev) => {
+    if (!prev || seen.has(prev)) return
+    const i = geo.indexOf(prev)
+    const m = measured.get(prev)
+    if (i < 0 || !m) return
+    const d = geo.set(i, m.h)
+    if (d) applyChanges([[i, d]])
+})
+
 function onFeedScroll(): void {
-    queueRestyle()
+    lastScrollAt = performance.now()
+    queueFrame()
     scheduleSettle()
 }
 
@@ -304,6 +711,7 @@ onProjectSwitch(() => {
     extraIds.value = new Set()
     currentId.value = null
     expandedId.value = null
+    measured.clear()
     void nextTick(() => jump('top'))
 })
 
@@ -319,12 +727,13 @@ function onKey(e: KeyboardEvent): void {
     // still has content beyond the viewport in that direction, let native
     // scrolling continue instead of jumping to the neighbor.
     const root = feedEl.value
-    const cur = root?.querySelector<HTMLElement>(`[data-node-id="${currentId.value}"]`)
-    if (root && cur && cur.offsetHeight > root.clientHeight) {
+    const ci = currentId.value ? geo.indexOf(currentId.value) : -1
+    if (root && ci >= 0 && geo.height(ci) > root.clientHeight) {
+        const top = trackTop + geo.offset(ci)
         const room =
             dir === 1
-                ? cur.offsetTop + cur.offsetHeight > root.scrollTop + root.clientHeight + 8
-                : cur.offsetTop < root.scrollTop - 8
+                ? top + geo.height(ci) > root.scrollTop + root.clientHeight + 8
+                : top < root.scrollTop - 8
         if (room && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) return
     }
     const list = feedNodes.value
@@ -332,21 +741,23 @@ function onKey(e: KeyboardEvent): void {
     const next = list[idx < 0 ? 0 : Math.min(list.length - 1, Math.max(0, idx + dir))]
     if (next) {
         e.preventDefault()
-        scrollToNode(next.id)
+        void scrollToNode(next.id)
     }
 }
 
 /** Arrive centered on the canvas's selection (graph→feed sync). Runs on
  *  first mount and every time the feed becomes the screen again. */
 function arrive(): void {
+    refreshMetrics()
     const sel = store.selectedId
     if (sel && nodes.value.has(sel)) {
         ensureInFeed(sel)
-        scrollToNode(sel, false)
+        void scrollToNode(sel, false)
     }
     void nextTick(() => {
-        queueRestyle()
+        queueFrame(true)
         scheduleSettle()
+        scheduleMeasure()
     })
 }
 
@@ -371,53 +782,37 @@ watch(
     },
 )
 
+// Declared last: it runs at once, and everything it reaches must exist.
+watch(items, rebuild, { immediate: true })
+
 onMounted(() => {
     window.addEventListener('keydown', onKey)
+    if (feedEl.value) {
+        viewObserver.observe(feedEl.value)
+        // The reader takes over: no correction may re-aim the old glide.
+        for (const ev of ['wheel', 'touchstart', 'pointerdown'] as const) {
+            feedEl.value.addEventListener(ev, endGlide, { passive: true })
+        }
+        feedEl.value.addEventListener('scrollend', onScrollEnd)
+    }
+    // Not `class`: the canvas toggles ui-dragging there on every drag.
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'style'] })
+    document.fonts?.addEventListener('loadingdone', relayout)
     arrive()
 })
 
 onBeforeUnmount(() => {
     window.removeEventListener('keydown', onKey)
-    if (raf) cancelAnimationFrame(raf)
+    viewObserver.disconnect()
+    slotObserver.disconnect()
+    themeObserver.disconnect()
+    document.fonts?.removeEventListener('loadingdone', relayout)
+    if (frameRaf) cancelAnimationFrame(frameRaf)
     window.clearTimeout(settleTimer)
+    endGlide()
 })
 
-// ---- card content helpers --------------------------------------------------
-
-function fmtDate(secs: number): string {
-    return new Date(secs * 1000).toLocaleDateString(undefined, {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-    })
-}
-
-function fmtStamp(secs: number): string {
-    return new Date(secs * 1000).toLocaleString(undefined, {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-    })
-}
-
-/** The short date carries the whole provenance line on hover. */
-function dateTip(n: GraphNode): string {
-    const lines = [`Created ${fmtStamp(n.created_at)} · by ${n.source}`]
-    if (n.last_seen != null) lines.push(`Last retrieved ${fmtStamp(n.last_seen)}`)
-    if (n.valid_until != null) lines.push(`Archived ${fmtStamp(n.valid_until)}`)
-    return lines.join('\n')
-}
-
-/** Code refs of this node that no longer exist on disk (the drift scan). */
-function missingRefs(id: string): string[] {
-    return driftByNode.value.get(id) ?? []
-}
-
-const levelWord: Record<ReturnType<typeof trustLevel>, string> = {
-    pinned: 'pinned',
-    trusted: 'trusted',
-    provisional: 'provisional',
-    stale: 'stale',
-}
+// ---- the action bar --------------------------------------------------------
 
 const busyId = ref<string | null>(null)
 
@@ -459,6 +854,7 @@ const currentNode = computed(() =>
     currentId.value ? (nodes.value.get(currentId.value) ?? null) : null,
 )
 </script>
+
 
 <template>
 <div class="feed-screen">
@@ -509,114 +905,68 @@ const currentNode = computed(() =>
             </template>
         </div>
 
-        <!-- Hidden under another screen, the list does not re-render: a
-             selection on the canvas re-ran this template for every card
-             (dates, badges, edges — ~260 ms at a thousand notes) while
-             nobody could see it. Live renders always pass a fresh token;
-             a hidden one passes the same frozen one, so Vue skips the
-             subtree, and arriving on the feed renders it fresh. -->
-        <div v-memo="[listToken()]" class="feed-list">
-            <template v-for="item in items" :key="item.kind === 'node' ? item.node.id : item.key">
-                <div v-if="item.kind === 'version'" class="version-marker">
-                    <span class="version-line" />
-                    <span class="version-chip">{{ item.label }}</span>
-                    <span class="version-line" />
-                </div>
-
-                <article
-                    v-else
-                    class="card glass-panel"
-                    :data-node-id="item.node.id"
-                    :class="{ archived: item.node.valid_until != null, focus: item.node.id === currentId }"
-                    :style="{ '--card-accent': config.accent(item.node.type) }"
+        <!-- The whole feed's length; only the window near the viewport is in it. -->
+        <div ref="trackEl" class="feed-track" :style="{ height: `${trackHeight}px` }">
+            <!-- Hidden under another screen, the window does not re-render
+                 (a selection on the canvas would re-run it for nobody).
+                 Live renders always pass a fresh token; a hidden one the
+                 same frozen one, and arriving on the feed renders fresh. -->
+            <div v-memo="[listToken()]" class="feed-list">
+                <div
+                    v-for="w in windowItems"
+                    :key="w.key"
+                    v-track="w.key"
+                    class="slot"
+                    :class="w.item.kind === 'node' ? 'node-slot' : 'version-slot'"
+                    :data-key="w.key"
+                    :data-live="w.item.kind === 'version' || live.has(w.key) ? '1' : '0'"
+                    :style="{
+                        top: `${w.top}px`,
+                        height: w.item.kind === 'node' && !live.has(w.key) ? `${w.h}px` : undefined,
+                    }"
                 >
-                    <header class="card-head">
-                        <span class="type-dot" />
-                        <span class="type-name">{{ item.node.type }}</span>
-                        <InfoBadge v-if="item.node.version" pill>{{ item.node.version }}</InfoBadge>
-                        <InfoBadge
-                            v-if="item.node.status"
-                            pill
-                            :tone="item.node.status === 'resolved' ? 'ok' : item.node.status === 'open' ? 'accent' : 'neutral'"
-                        >
-                            {{ item.node.status }}
-                        </InfoBadge>
-                        <InfoBadge v-if="item.node.valid_until != null" pill tone="muted">archived</InfoBadge>
-                        <InfoBadge v-if="driftByNode.has(item.node.id)" pill tone="warn">drifted</InfoBadge>
-                        <span class="spacer" />
-                        <span class="date" :title="dateTip(item.node)">{{ fmtDate(item.node.created_at) }}</span>
-                    </header>
-
-                    <h3 class="card-title">
-                        <button type="button" class="title-btn" title="Center this card" @click="scrollToNode(item.node.id)">
-                            {{ item.node.title }}
-                        </button>
-                    </h3>
-
-                    <!-- Full markdown always rendered, clipped to a preview; the
-                     settled centered card un-clips. Same content in both
-                     states — the reveal never swaps or reflows the text. -->
-                    <div
-                        v-if="item.node.body"
-                        class="card-body"
-                        :class="{ expanded: item.node.id === expandedId }"
-                    >
-                        <MarkdownView :content="item.node.body" />
+                    <div v-if="w.item.kind === 'version'" class="version-marker">
+                        <span class="version-line" />
+                        <span class="version-chip">{{ w.item.label }}</span>
+                        <span class="version-line" />
                     </div>
+                    <FeedCard
+                        v-else
+                        :node="w.item.node"
+                        :skeleton="!live.has(w.key)"
+                        :focus="w.key === currentId"
+                        :expanded="w.key === expandedId"
+                        :drifted="driftByNode.has(w.key)"
+                        :out-edges="outEdges.get(w.key) ?? EMPTY"
+                        :in-edges="inEdges.get(w.key) ?? EMPTY"
+                        :missing-refs="driftByNode.get(w.key) ?? EMPTY"
+                        @traverse="traverse"
+                        @center="scrollToNode"
+                    />
+                </div>
+            </div>
 
-                    <div class="trust-line">
-                        <span class="trust-dot" :class="trustLevel(item.node)" />
-                        <span class="trust-word" :class="trustLevel(item.node)">
-                            {{ levelWord[trustLevel(item.node)] }} · {{ Math.round(item.node.trust * 100) }}%
-                        </span>
-                        <span v-if="item.node.tags.length" class="tags">
-                            <span v-for="t in item.node.tags" :key="t" class="tag">#{{ t }}</span>
-                        </span>
-                    </div>
-
-                    <div v-if="item.node.code_refs.length" class="refs">
-                        <span
-                            v-for="codeRef in item.node.code_refs"
-                            :key="codeRef"
-                            class="ref-chip"
-                            :class="{ missing: missingRefs(item.node.id).includes(codeRef) }"
-                            :title="missingRefs(item.node.id).includes(codeRef)
-                                ? `${codeRef} — this file no longer exists in the project`
-                                : codeRef"
-                        >{{ codeRef }}</span>
-                    </div>
-
-                    <div
-                        v-if="outEdges.get(item.node.id)?.length || inEdges.get(item.node.id)?.length"
-                        class="edges"
-                    >
-                        <button
-                            v-for="e in (outEdges.get(item.node.id) ?? []).slice(0, EDGE_CAP)"
-                            :key="e.id"
-                            class="edge-chip"
-                            type="button"
-                            :style="{ '--edge-accent': config.edgeColor(e.type) }"
-                            :title="`${item.node.title} ${e.type} ${title(e.to_id)}`"
-                            @click="traverse(e.to_id)"
-                        >
-                            <span class="edge-verb">{{ e.type }} →</span>
-                            <span class="edge-target">{{ title(e.to_id) }}</span>
-                        </button>
-                        <button
-                            v-for="e in (inEdges.get(item.node.id) ?? []).slice(0, EDGE_CAP)"
-                            :key="e.id"
-                            class="edge-chip in"
-                            type="button"
-                            :style="{ '--edge-accent': config.edgeColor(e.type) }"
-                            :title="`${title(e.from_id)} ${e.type} ${item.node.title}`"
-                            @click="traverse(e.from_id)"
-                        >
-                            <span class="edge-verb">← {{ e.type }}</span>
-                            <span class="edge-target">{{ title(e.from_id) }}</span>
-                        </button>
-                    </div>
-                </article>
-            </template>
+            <!-- The measurer: cards rendered once, off screen, for their real
+                 height — never seen, never in the scroll length. -->
+            <div ref="measureEl" class="feed-measure" aria-hidden="true">
+                <div v-for="k in measureKeys" :key="k" :data-key="k">
+                    <template v-if="itemByKey.get(k)">
+                        <div v-if="itemByKey.get(k)!.kind === 'version'" class="version-marker">
+                            <span class="version-line" />
+                            <span class="version-chip">{{ (itemByKey.get(k) as { label: string }).label }}</span>
+                            <span class="version-line" />
+                        </div>
+                        <FeedCard
+                            v-else
+                            :node="(itemByKey.get(k) as { node: GraphNode }).node"
+                            :drifted="driftByNode.has(k)"
+                            :out-edges="outEdges.get(k) ?? EMPTY"
+                            :in-edges="inEdges.get(k) ?? EMPTY"
+                            :missing-refs="driftByNode.get(k) ?? EMPTY"
+                        />
+                    </template>
+                </div>
+            </div>
         </div>
     </div>
     <!-- The side pane's controls, feed-style: one bottom bar acting on the
@@ -769,11 +1119,10 @@ const currentNode = computed(() =>
 .feed {
     position: absolute;
     inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1.6rem;
     overflow: hidden auto;
+    /* The feed keeps the centered card still itself (heightMap anchorShift);
+       the browser's own anchoring would correct the same change twice. */
+    overflow-anchor: none;
 
     /* Room so the first/last card can center, with neighbors peeking. */
     padding: 40vh 1.6rem;
@@ -785,6 +1134,7 @@ const currentNode = computed(() =>
 
 .feed-empty {
     display: flex;
+    margin-inline: auto;
     flex-direction: column;
     gap: 0.6rem;
     max-width: 42rem;
@@ -806,7 +1156,7 @@ const currentNode = computed(() =>
     display: flex;
     align-items: center;
     gap: 1rem;
-    width: min(64rem, 100%);
+    width: 100%;
     padding: 0.4rem 0;
 }
 
@@ -826,232 +1176,42 @@ const currentNode = computed(() =>
     color: var(--text-secondary);
 }
 
-.card {
-    display: flex;
-    flex-direction: column;
-    gap: 0.9rem;
+/* The whole feed's length; the gap between cards is read back by the
+   height map (refreshMetrics), so CSS stays the one place it is set. */
+.feed-track {
+    position: relative;
     width: min(64rem, 100%);
-    padding: 1.4rem 1.6rem;
-
-    /* Accent spine as a gradient — follows the rounded corners cleanly.
-       Sized to the strip so the texture never reaches the right edge
-       (full-width gradients bleed a 1px wrap line under transforms). */
-    background-image: linear-gradient(
-        90deg,
-        var(--card-accent, var(--border-strong)) 0,
-        var(--card-accent, var(--border-strong)) 0.3rem,
-        color-mix(in srgb, var(--card-accent, var(--border-strong)) calc(10% * var(--accent-wash, 1)), transparent) 0.3rem,
-        transparent 100%
-    );
-    background-repeat: no-repeat;
-    background-size: 7rem 100%;
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-md);
-    scroll-snap-align: center;
-    transition: box-shadow var(--duration-normal) var(--ease-default);
-    will-change: transform, opacity;
-
-    /* Deliberately NO content-visibility: estimated offscreen heights made
-       positions drift, so far-away jump targets could never be landed on.
-       Every card's geometry stays real and constant (previews are clamped),
-       and only the settled centered card changes height. */
-}
-
-.card.focus {
-    box-shadow: var(--shadow-lg);
-}
-
-.card.archived {
-    background-image: linear-gradient(
-        90deg,
-        color-mix(in srgb, var(--card-accent, var(--border-strong)) 45%, transparent) 0,
-        color-mix(in srgb, var(--card-accent, var(--border-strong)) 45%, transparent) 100%
-    );
-    background-size: 0.3rem 100%;
-}
-
-.card-head {
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
-    min-width: 0;
-}
-
-.type-dot {
-    flex-shrink: 0;
-    width: 0.9rem;
-    height: 0.9rem;
-    border-radius: 50%;
-    background: var(--card-accent);
-}
-
-.type-name {
-    font-size: var(--text-caption);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--card-accent);
-}
-
-.spacer {
-    flex: 1;
-}
-
-.date {
-    font-family: var(--font-mono);
-    font-size: var(--text-caption);
-    color: var(--text-tertiary);
-    white-space: nowrap;
-}
-
-.card-title {
-    margin: 0;
-    font-size: var(--text-h3);
-    font-weight: 600;
-    line-height: var(--leading-tight);
-}
-
-.title-btn {
-    padding: 0;
-    border: none;
-    background: none;
-    color: var(--text-primary);
-    font: inherit;
-    text-align: left;
-    cursor: pointer;
-}
-
-.title-btn:hover {
-    color: var(--interactive-primary-hover);
-}
-
-/* Preview = the full markdown clipped to a fixed height (constant geometry);
-   the settled centered card un-clips. Same rendered content in both states,
-   so the reveal only extends downward — the visible text never moves. */
-.card-body {
-    margin: 0;
-    overflow: hidden;
-    max-height: 12rem;
-    font-size: var(--text-body-sm);
-    line-height: var(--leading-normal);
-    color: var(--text-secondary);
-    overflow-wrap: anywhere;
-    transition: max-height 350ms var(--ease-default);
-}
-
-.card-body.expanded {
-    /* A realistic cap, not `none`: max-height must stay animatable, and the
-       closer the cap is to real content heights, the truer the timing. */
-    max-height: 120rem;
-}
-
-.trust-line {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    flex-wrap: wrap;
-}
-
-.trust-dot {
-    width: 0.8rem;
-    height: 0.8rem;
-    border-radius: 50%;
-}
-
-.trust-dot.trusted,
-.trust-dot.pinned {
-    background: var(--trust-trusted);
-}
-
-.trust-dot.provisional {
-    background: var(--trust-provisional);
-}
-
-.trust-word {
-    font-family: var(--font-mono);
-    font-size: var(--text-caption);
-    color: var(--text-tertiary);
-}
-
-.tags {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-}
-
-.tag {
-    font-size: var(--text-caption);
-    color: var(--text-tertiary);
-}
-
-/* Code refs, same chips as the node detail — a card should say what code it
-   is about, and which of those files have since moved away. */
-.refs {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-}
-
-.ref-chip {
-    overflow: hidden;
-    max-width: 100%;
-    padding: 0.2rem 0.7rem;
-    border-radius: var(--radius-sm);
-    background: var(--surface-sunken);
-    font-family: var(--font-mono);
-    font-size: var(--text-caption);
-    color: var(--text-tertiary);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.ref-chip.missing {
-    color: var(--node-problem);
-    background: color-mix(in srgb, var(--node-problem) 12%, transparent);
-    text-decoration: line-through;
-}
-
-.edges {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-}
-
-.edge-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    max-width: 100%;
-    padding: 0.35rem 0.9rem;
-    border: 1px solid color-mix(in srgb, var(--edge-accent) 45%, transparent);
-    border-radius: var(--radius-full);
-    background: color-mix(in srgb, var(--edge-accent) 10%, transparent);
-    font-size: var(--text-caption);
-    cursor: pointer;
-}
-
-.edge-chip:hover {
-    background: color-mix(in srgb, var(--edge-accent) 20%, transparent);
-}
-
-.edge-verb {
-    flex-shrink: 0;
-    color: var(--edge-accent);
-    font-weight: 600;
-    white-space: nowrap;
-}
-
-.edge-target {
-    overflow: hidden;
-    max-width: 26rem;
-    color: var(--text-secondary);
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    margin: 0 auto;
+    row-gap: 1.6rem;
 }
 
 /* The card list wrapper only exists for v-memo — layout-wise it is not there. */
 .feed-list {
     display: contents;
+}
+
+/* One positioned slot per item in the window; the depth effect scales it. */
+.slot {
+    position: absolute;
+    left: 0;
+    right: 0;
+}
+
+.node-slot {
+    scroll-snap-align: center;
+    will-change: transform, opacity;
+}
+
+.feed-measure {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    pointer-events: none;
+    contain: layout paint style;
 }
 
 /* Bottom action bar — the drawer's controls for the centered card. */
@@ -1091,22 +1251,12 @@ const currentNode = computed(() =>
 
 @media (width <= 700px) {
     .feed {
-        gap: 1.2rem;
         padding: 24vh 0.8rem;
         scroll-padding-block: 20vh;
     }
 
-    .card {
-        gap: 0.7rem;
-        padding: 1.1rem 1.2rem;
-    }
-
-    .card-head {
-        gap: 0.5rem;
-    }
-
-    .card-title {
-        font-size: var(--text-body);
+    .feed-track {
+        row-gap: 1.2rem;
     }
 
     .feed-toolbar {

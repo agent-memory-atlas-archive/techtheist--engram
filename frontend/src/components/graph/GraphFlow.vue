@@ -39,15 +39,18 @@ const edgeTypes = { engram: markRaw(EngramEdge) }
  * Zoom-compensated selection outline: a fixed 0.2rem outline scales down
  * with the canvas transform until the selected node is unfindable. Width
  * follows a continuous piecewise-linear curve through the tuned stops
- * (zoom → rem): 1→0.2, 0.5→0.4, 0.25→0.8, 0.1→1.2, 0.01→3.2 — clamped at
- * both ends. The offset rides along proportionally.
+ * (zoom → rem): 1→0.2, 0.5→0.4, 0.25→0.8, 0.1→1.2, then ~2 screen px
+ * below (0.05→3.4, 0.025→7.4, 0.01→18) — clamped at both ends. The offset
+ * rides along: 0.3rem at 100%, ~1.2× the width far out.
  */
 const OUTLINE_STOPS: [number, number][] = [
     [1, 0.2],
     [0.5, 0.4],
     [0.25, 0.8],
     [0.1, 1.2],
-    [0.01, 3.2],
+    [0.05, 3.4],
+    [0.025, 7.4],
+    [0.01, 18],
 ]
 
 const selectedOutlineRem = computed(() => {
@@ -67,7 +70,7 @@ const selectedOutlineRem = computed(() => {
 
 const outlineVars = computed(() => ({
     '--selected-outline-w': `${selectedOutlineRem.value.toFixed(3)}rem`,
-    '--selected-outline-o': `${(selectedOutlineRem.value * 1.5).toFixed(3)}rem`,
+    '--selected-outline-o': `${(selectedOutlineRem.value * 1.2 + 0.06).toFixed(3)}rem`,
 }))
 
 /**
